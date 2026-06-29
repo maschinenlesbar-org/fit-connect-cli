@@ -1,0 +1,36 @@
+{
+  "name": "fit-connect-skills",
+  "owner": {
+    "name": "Sebastian Schürmann",
+    "email": "sebs@2xs.org"
+  },
+  "metadata": {
+    "description": "Find the responsible German authority (Zustellpunkt) for a public service in any area, powered by the fit-connect-cli (FIT-Connect Routing API)"
+  },
+  "plugins": [
+    {
+      "name": "fit-connect",
+      "source": "./",
+      "description": "Resolve which German authority is responsible for a public service in a given place, look up area codes (ags/ars/areaId), and build citizen-facing service briefings — all over the open, key-free FIT-Connect Routing API via the fit-connect-cli.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Sebastian Schürmann",
+        "email": "sebs@2xs.org"
+      },
+      "license": "AGPL-3.0-or-later",
+      "repository": "https://github.com/maschinenlesbar-org/fit-connect-cli",
+      "homepage": "https://github.com/maschinenlesbar-org/fit-connect-cli#readme",
+      "category": "government",
+      "keywords": [
+        "fit-connect",
+        "fitko",
+        "routing",
+        "zustellpunkt",
+        "verwaltung",
+        "leistungskatalog",
+        "pvog",
+        "germany"
+      ]
+    }
+  ]
+}

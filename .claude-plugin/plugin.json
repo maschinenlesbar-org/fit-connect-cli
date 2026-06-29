@@ -1,0 +1,22 @@
+{
+  "name": "fit-connect",
+  "version": "0.1.0",
+  "description": "Find the responsible German authority (Zustellpunkt) for a public service in any area, powered by the fit-connect-cli (FIT-Connect Routing API).",
+  "author": {
+    "name": "Sebastian Schürmann",
+    "email": "sebs@2xs.org"
+  },
+  "license": "AGPL-3.0-or-later",
+  "repository": "https://github.com/maschinenlesbar-org/fit-connect-cli",
+  "homepage": "https://github.com/maschinenlesbar-org/fit-connect-cli#readme",
+  "keywords": [
+    "fit-connect",
+    "fitko",
+    "routing",
+    "zustellpunkt",
+    "verwaltung",
+    "leistungskatalog",
+    "pvog",
+    "germany"
+  ]
+}

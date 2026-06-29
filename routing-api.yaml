@@ -1,0 +1,762 @@
+openapi: 3.0.0
+info:
+  title: FIT-Connect Routingdienst Api
+  description: Diese Api dient dem Ermitteln der zuständigen Organisationseinheiten und deren Destination-ID
+  version: 2.0.0
+  contact:
+    name: FITKO
+  termsOfService: https://www.fitko.de/
+servers:
+  - url: https://routing-api-testing.fit-connect.fitko.dev/v1/
+    description: Testumgebung
+  - url: https://routing-api-prod.fit-connect.fitko.net/v1/
+    description: Produktivumgebung
+tags:
+  - name: Routing
+    description: Methoden zum ermitteln der Routinginformationen.
+  - name: Area
+    description: Methoden zum ermitteln von Gebieten.
+  - name: Technisch
+    description: Unter dieser Gruppe sind alle Endpunkte organisiert, die technische Informationen über die Instanz des Routingdienstes liefern.
+paths:
+  /routes:
+    get:
+      operationId: route
+      tags:
+        - Routing
+      description: Ermittelt die notwendigen Routinginformationen anhand von Leistungsschlüssel (ehemals. LeiKa-Schlüssel) und einem Schlüssel eines Gebietobjektes (Bundesland, Landkreis, Kreisfreie Stadt, etc.). Es muss genau ein Parameter für das Gebiet gesetzt sein. Die Ermittlung der Routinginfomationen erfolgt nur für eindeutige Leistungsschlüssel sowie einen eindeutigen Gebietschlüssel.
+      parameters:
+        - $ref: '#/components/parameters/leika-key'
+        - $ref: '#/components/parameters/ags'
+        - $ref: '#/components/parameters/ars'
+        - $ref: '#/components/parameters/area-id'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/route-result'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/ratelimit-limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/ratelimit-remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/ratelimit-reset'
+        '400':
+          description: Bad Request. Das Format des Request ist nicht korrekt. Die Vorgaben der Eingangsparameter sind nicht erfüllt. (https://docs.fitko.de/fit-connect/docs/status-and-error-codes)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/error'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/ratelimit-limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/ratelimit-remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/ratelimit-reset'
+        '429':
+          description: Too Many Requests. Der Server ist ausgelastet. Es wurden zu viele Requests im Zeitfenster durchgeführt. Auswertung der RateLimit-Headers erforderlich. (https://docs.fitko.de/fit-connect/docs/status-and-error-codes)
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/ratelimit-limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/ratelimit-remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/ratelimit-reset'
+        '500':
+          description: Internal Server Error. Es ist ein interner Fehler bei der Abarbeitung des Request aufgetreten. (https://docs.fitko.de/fit-connect/docs/status-and-error-codes)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/error'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/ratelimit-limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/ratelimit-remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/ratelimit-reset'
+  /areas:
+    get:
+      operationId: area
+      tags:
+        - Area
+      description: Ermittelt passende Gebiete anhand des übergebenenen Namen oder Postleitzahl. Es muss mindestens ein Suchparameter angegeben werden.
+      parameters:
+        - $ref: '#/components/parameters/area-searchexpression'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/area-result'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/ratelimit-limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/ratelimit-remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/ratelimit-reset'
+        '400':
+          description: Bad Request. Das Format des Request ist nicht korrekt. Die Vorgaben der Eingangsparameter sind nicht erfüllt. (https://docs.fitko.de/fit-connect/docs/status-and-error-codes)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/error'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/ratelimit-limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/ratelimit-remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/ratelimit-reset'
+        '429':
+          description: Too Many Requests. Der Server ist ausgelastet. Es wurden zu viele Requests im Zeitfenster durchgeführt. Auswertung der RateLimit-Headers erforderlich. (https://docs.fitko.de/fit-connect/docs/status-and-error-codes)
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/ratelimit-limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/ratelimit-remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/ratelimit-reset'
+        '500':
+          description: Internal Server Error. Es ist ein interner Fehler bei der Abarbeitung des Request aufgetreten. (https://docs.fitko.de/fit-connect/docs/status-and-error-codes)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/error'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/ratelimit-limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/ratelimit-remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/ratelimit-reset'
+  /info:
+    get:
+      operationId: get-info
+      summary: Rufe die Version der bereitgestellten Routing API ab
+      description: Für Debugging oder Informationszwecke angebotener Endpunkt
+      tags:
+        - Technisch
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/info'
+components:
+  schemas:
+    Error:
+      $ref: '#/components/schemas/error'
+    RouteResult:
+      $ref: '#/components/schemas/route-result'
+    Route:
+      $ref: '#/components/schemas/route'
+    SubmissionSchema:
+      $ref: '#/components/schemas/submission-schema'
+    JWK:
+      $ref: '#/components/schemas/jwk'
+    JWKS:
+      $ref: '#/components/schemas/jwks'
+    AreaResult:
+      $ref: '#/components/schemas/area-result'
+    Area:
+      $ref: '#/components/schemas/area'
+    Info:
+      $ref: '#/components/schemas/info'
+    route:
+      title: Routingergebnis
+      type: object
+      description: Ein Routingergebnis entspricht einem FIT-Connect-Zustellpunkt und liefert technische sowie menschenlesbare Informationen zur fachlich zuständigen Behörde sowie weitere Informationen zu regionalen Spezifika der Verwaltungsleistung
+      properties:
+        destinationId:
+          type: string
+          format: uuid
+          minLength: 32
+          maxLength: 36
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        destinationSignature:
+          description: Die in XZuFI hinterlegte Signatur der FIT-Connect-Adressierungsinformationen (JWS gemäß [RFC 7515](https://datatracker.ietf.org/doc/html/rfc7515))
+          type: string
+          pattern: ^[a-zA-Z0-9\-_]+?\.[a-zA-Z0-9\-_]+?\.[a-zA-Z0-9\-_]+$
+          example: eyJraWQiOiJmT0hzdExPNGJlQnEwcHgtMDFwTEoyUnhQbUJEakNtbEtIQk84ZzVXLVNBIiwidHlwIjoiand0IiwiYWxnIjoiUFM1MTIifQ.eyJzdWJtaXNzaW9uSG9zdCI6InN1Ym1pc3Npb24tYXBpLWRldi5maXQtY29ubmVjdC5maXRrby5kZXYiLCJpc3MiOiJodHRwczpcL1wvcG9ydGFsLmF1dGgtZGV2LmZpdC1jb25uZWN0LmZpdGtvLmRldiIsInNlcnZpY2VzIjpbeyJnZWJpZXRJRHMiOlsidXJuOmRlOmJ1bmQ6ZGVzdGF0aXM6YmV2b2Vsa2VydW5nc3N0YXRpc3RpazpzY2hsdWVzc2VsOnJzOjEyMDY0NTQxMCJdLCJsZWlzdHVuZ0lEcyI6WyJ1cm46ZGU6ZmltOmxlaWthOmxlaXN0dW5nOjk5MTM0MDA1MDE3MDAwIl19XSwiZGVzdGluYXRpb25JZCI6ImFjNzE1ZjM0LTMzM2UtNDFmNC05YmI1LTE4NmIzMDllYTIzMyIsImlhdCI6MTYzNzg2MzQ4MSwianRpIjoiMmQxNDI2ZjItZDY3My00NmRlLTg2OGUtZDk2ODQ0ZDI0ZmUxIn0.gSfjbRck_BmhkVx-P-E9UexlQudEZV8auYTHXrCSM4ja3gDg2VGlpCjH3-WBvgdLp7zv0J0z9en6PecF73QV4ltik0c7j4tbpAPz9tmTu0pedjVrbkbWj4b4H-EyYt1IJeDyrZJglZ1EB4b_4mk5HNZHgZnbMx0QLhRci8-wJf76hJgoWHkebpXNjdHHqndFbpGa7HCiul1XeJVv8Ny6Fgb7Nu-c5-YmVl5kZSCmxURAZlZubk3jBaIfMOEXIth3B4FtOvEiEXkWTtH0r99eZkYdK-ykLuefenS_Ib56ZpZ67Sw3T-LuV5pIzhq--REL6PaCOvRkU88SS1iW8LmiwEIxCIwFNEpnohNYjy4ZG8CnCfD4SztRA9nQYohdh2Cc_3MafUX7wjz1vqlonmZ7m4QYfZCqtl3IkcJLeayBU5OHTlcvHAQRIfgvP9SJApJr_Y2p3p4fHePOVStxLMlCOCYcmf0EBibvUsuwbEbmeppP72OFOkCwA9I82Z0SnxLdaHLXup2f_z0OnJtxrJAZnhREyYSvL2HOJusNKfpNy360C7Kf2g-BzAEvD4K5LzqWhKrWgztn4SDmgWL_Z3Ez1e2ZqTzfmJXxE_WGit2Lr0rBd9vTPGYKidBLZ8B-2JJZCPbrqlTxPdWImPrgcZP0qpNsJdls4OJo7xz5ozwrR4Y
+        destinationName:
+          type: string
+          example: Stadtverwaltung Musterstadt - Dezernat II - Einwohner:innenmeldeamt
+          description: Vollständiger Name der zuständigen Fachbehörde inkl. der vollständigen Hierarchie
+        destinationShortName:
+          type: string
+          example: Einwohner:innenmeldeamt Musterstadt
+          description: Kurzbezeichnung der zuständigen Fachbehörde
+        destinationLogo:
+          type: string
+          format: uri
+          pattern: ^https://.+
+          example: https://efadante.hessen.de/ressources/framework/pics/Bundesland-HE.svg
+          description: URL zum Logo der zuständigen Fachbehörde
+        contactPersons:
+          type: array
+          description: Die für die jeweilige Leistung zuständige Kontaktpersonen der zuständigen Fachbehörde
+          maxItems: 500
+          minItems: 1
+          items:
+            type: object
+            title: Kontaktperson
+            description: Kontaktperson
+            properties:
+              name:
+                type: string
+                example: Dr. Erika Muster
+                description: Vollständiger Name der Kontaktperson
+              tel:
+                type: string
+                description: Telefonnumer der Kontaktperson
+                example: '+496990009123'
+              fax:
+                type: string
+                description: Faxnummer der Kontaktperson
+                example: '+496990009124'
+              email:
+                type: string
+                description: E-Mail-Adresse der Kontaktperson
+                format: email
+                example: mail@example.org
+        address:
+          type: object
+          title: Hausanschrift der zuständigen Fachbehörde
+          description: Hausanschrift gemäß Codeliste Anschrifttyp, siehe https://www.xrepository.de/details/urn:xoev-de:fim:codeliste:xzufi.anschrifttyp
+          properties:
+            street:
+              type: string
+              description: Straßenname ohne Hausnummer
+              example: Am Alten Stadtschloss
+            houseNumber:
+              type: string
+              description: Hausnummer
+              example: 13 A
+            additional:
+              type: string
+              description: Anschriftenzusatz (ggf. erforderliche weitere Präzisierungen der Anschrift)
+              example: Hinterhof, 3. Aufgang, Haus A
+            zip:
+              type: string
+              description: Postleitzahl
+              example: '11011'
+            city:
+              type: string
+              description: Ort als Freitext wie in Anschrift zu verwenden
+              example: Berlin (Mahzahn)
+        postalAddress:
+          type: object
+          title: Postalische Adresse der zuständigen Fachbehörde
+          description: Postanschrift gemäß Codeliste Anschrifttyp, siehe https://www.xrepository.de/details/urn:xoev-de:fim:codeliste:xzufi.anschrifttyp
+          properties:
+            street:
+              type: string
+              description: Straßenname ohne Hausnummer
+              example: Am Alten Stadtschloss
+            houseNumber:
+              type: string
+              description: Hausnummer
+              example: 13 A
+            additional:
+              type: string
+              description: Anschriftenzusatz (ggf. erforderliche weitere Präzisierungen der Anschrift)
+              example: Hinterhof, 3. Aufgang, Haus A
+            zip:
+              type: string
+              description: Postleitzahl
+              example: '11011'
+            city:
+              type: string
+              description: Ort als Freitext wie in Anschrift zu verwenden
+              example: Berlin (Mahzahn)
+        postOfficeBox:
+          type: object
+          title: Postfachadresse der zuständigen Fachbehörde
+          description: Postfach gemäß Codeliste Anschrifttyp, siehe https://www.xrepository.de/details/urn:xoev-de:fim:codeliste:xzufi.anschrifttyp
+          properties:
+            postOfficeBox:
+              type: string
+              title: Bezeichnung / Nummer des Postfachs (inkl. Zusatz "Postfach ")
+              example: Postfach 8 15
+            zip:
+              type: string
+              description: Postleitzahl
+              example: '11011'
+            city:
+              type: string
+              description: Ort als Freitext wie in Anschrift zu verwenden
+              example: Berlin (Mahzahn)
+        privacyPolicyUrl:
+          type: string
+          format: uri
+          pattern: ^https://.+
+          example: https://www.fitko.de/datenschutz
+          description: URL zur regionalen Datenschutzerklärung auf Ebene der zuständigen Fachbehörde
+        imprintUrl:
+          type: string
+          format: uri
+          pattern: ^https://.+
+          example: https://www.fitko.de/impressum
+          description: URL zum regionalen Impressum auf Ebene der zuständigen Fachbehörde
+        accessibilityUrl:
+          type: string
+          format: uri
+          pattern: ^https://.+
+          example: https://www.fitko.de/barrierefreiheitserklaerung
+          description: URL zum regionalen Barrierefreiheitserklärung auf Ebene der zuständigen Fachbehörde
+        contactFormUrl:
+          type: string
+          format: uri
+          pattern: ^https://.+
+          example: https://zustaendige-fachbehoerde.example.org/contactform
+          description: URL zum Kontaktformular der zuständigen Fachbehörde
+        furtherInformation:
+          type: object
+          description: Weiterführende Informationen zur Leistung
+          properties:
+            description:
+              type: object
+              title: Textuelle Beschreibung
+              description: Textuelle Beschreibung der weiterführenden Informationen (enthält ggf. HTML-Elemente)
+              additionalProperties:
+                type: string
+          example:
+            description:
+              de: <p>Dies sind weiterführende Infos zur Leistung.</p>
+              en: <p>This is further information about the public service.</p>
+        requiredDocuments:
+          type: object
+          description: Erforderliche Unterlagen für die Leistung
+          properties:
+            description:
+              type: object
+              title: Textuelle Beschreibung
+              description: Textuelle Beschreibung der erforderlichen Unterlagen für die Leistung (enthält ggf. HTML-Elemente)
+              additionalProperties:
+                type: string
+          example:
+            description:
+              de: <p>Dies ist die Beschreibung aller erforderlicher Unterlagen.</p>
+              en: <p>This is the description of all required documents.</p>
+        legalBasis:
+          type: object
+          description: Rechtsgrundlagen der Leitung
+          properties:
+            description:
+              type: object
+              title: Textuelle Beschreibung
+              description: Textuelle Beschreibung der Rechtsgrundlage für die Leistung (enthält ggf. HTML-Elemente)
+              additionalProperties:
+                type: string
+          example:
+            description:
+              de: <p>Dies ist die Beschreibung der Rechtsgrundlage.</p>
+              en: <p>This is the legal basis description.</p>
+        deadline:
+          type: object
+          description: Hinweis zu Fristen der Leistung
+          properties:
+            description:
+              type: object
+              title: Textuelle Beschreibung
+              description: Textuelle Beschreibung der Fristen für die Leistung (enthält ggf. HTML-Elemente)
+              additionalProperties:
+                type: string
+          example:
+            description:
+              de: <p>Die Anmeldung eines Straßenfestes muss mind. zwei Wochen vor dem Straßenfest erfolgen.</p>
+              en: <p>The registration of a street party must be made at least two weeks before the street party.</p>
+        processingDuration:
+          type: object
+          description: Bearbeitungsdauer der Leistung
+          properties:
+            minDuration:
+              type: integer
+              description: Minimale Dauer in definierter Einheit
+              example: 1
+            maxDuration:
+              type: integer
+              description: Maximale Dauer in definierter Einheit
+              example: 4
+            unit:
+              type: string
+              description: Einheit der Dauer
+              example: week
+              enum:
+                - year
+                - month
+                - week
+                - day
+                - workday
+                - hour
+                - minute
+                - second
+        customParameters:
+          type: object
+          title: Dienstspezifische Parameter
+          description: Liste an nicht-standardisierten, dienstspezifischen Parametern
+          example:
+            hunderasse: 3
+            geschaeftsstelle: 3
+            prozessvariante: lieferant
+            mahnfrist: 14
+            mahngebuehr: 10.99
+        origin:
+          type: string
+          example: PVOG
+          description: Quellsystem der Routeninformation (z.B. PVOG, Infodienste, Zustellddienst)
+      required:
+        - destinationId
+        - destinationSignature
+    route-result:
+      title: Routingergebnisse
+      type: object
+      properties:
+        count:
+          type: integer
+          format: int32
+          description: Anzahl zurückgegebener Ergebnisse
+          maximum: 500
+          minimum: 0
+        offset:
+          type: integer
+          format: int32
+          description: Startpunkt in der Gesamtanzahl der Ergebnisse
+          minimum: 0
+        totalCount:
+          type: integer
+          format: int32
+          description: Gesamtanzahl der Ergebnisse
+          minimum: 0
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/route'
+          description: Liste der ermittelten Routingergebnisse
+          maxItems: 500
+          minItems: 0
+      required:
+        - count
+        - offset
+        - totalCount
+        - routes
+    error:
+      title: Fehler
+      type: object
+      description: Der Inhalt von HTTP Responses bei Fehlern nach RFC7807.
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          description: Eine URI-Referenz, die den Problemtyp identifiziert.
+        title:
+          type: string
+          description: Eine kurze, von Menschen lesbare Zusammenfassung des Problems.
+        status:
+          type: integer
+          description: Der HTTP-Statuscode der vom Ursprungsserver für dieses Auftreten des Problems generiert wurde.
+          minimum: 100
+          maximum: 599
+        detail:
+          type: string
+          description: Eine von Menschen lesbare Erklärung speziell für dieses Auftreten des Problems.
+        instance:
+          type: string
+          format: uri
+          description: |
+            Eine URI-Referenz, die das spezifische Auftreten des Problems identifiziert. Sie kann, muss aber nicht, weitere Informationen liefern, wenn sie dereferenziert wird.
+    area:
+      title: Gebiet
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: ^\d{1,}
+          description: Id des Gebietes
+          example: '1024'
+        name:
+          type: string
+          description: Name des Gebietes
+          example: Halle (Saale)
+        type:
+          type: string
+          description: Typ des Gebietes
+          example: Kreisfreie Stadt
+      required:
+        - id
+        - name
+        - type
+    area-result:
+      title: Ergebnis einer Gebietessuche.
+      type: object
+      properties:
+        count:
+          type: integer
+          format: int32
+          description: Anzahl zurückgegebener Treffer
+          maximum: 500
+          minimum: 0
+        offset:
+          type: integer
+          format: int32
+          description: Startpunkt in der Gesamtanzahl der Suchtreffer
+          minimum: 0
+        totalCount:
+          type: integer
+          format: int32
+          description: Gesamtanzahl der Suchtreffer
+          minimum: 0
+        areas:
+          type: array
+          items:
+            $ref: '#/components/schemas/area'
+          minItems: 0
+          maxItems: 500
+          description: Aktuelle Suchtreffer
+      required:
+        - count
+        - offset
+        - totalCount
+        - areas
+    version:
+      title: Version der Routing API
+      type: object
+      required:
+        - major
+        - minor
+        - patch
+      properties:
+        major:
+          type: integer
+        minor:
+          type: integer
+        patch:
+          type: integer
+    info:
+      title: Technisches Serviceinformationen
+      type: object
+      required:
+        - version
+      properties:
+        version:
+          $ref: '#/components/schemas/version'
+    submission-schema:
+      title: Fachdatenschema
+      description: Referenz auf ein Schema, das die Struktur der Fachdaten einer Einreichung beschreibt.
+      type: object
+      required:
+        - schemaUri
+      properties:
+        schemaUri:
+          type: string
+          format: uri
+          description: URI des Fachschemas. Wird hier eine URL verwendet, sollte das Schema unter der angegebenen URL abrufbar sein. Eine Verfügbarkeit des Schemas unter der angegebenen URL darf jedoch nicht vorausgesetzt werden.
+          maxLength: 200
+          example: urn:xoev-de:bmk:standard:xbau_2.2#baugenehmigung.antrag.0200
+        mimeType:
+          type: string
+          description: Mimetype (z.B. application/json oder application/xml) des referenzierten Schemas (z.B. XSD- oder JSON-Schema).
+          maxLength: 50
+          pattern: ^[-\w.]+/[-\w.]+$
+          example: application/xml
+    jwk:
+      title: JSON Web Key (JWK)
+      type: object
+      description: JSON Web Key - RFC 7517
+      required:
+        - kty
+        - key_ops
+        - alg
+        - x5c
+        - kid
+        - 'n'
+        - e
+      properties:
+        kty:
+          type: string
+          description: |
+            Der Parameter "kty" (Schlüsseltyp) identifiziert die kryptografische Algorithmus Familie, die mit dem Schlüssel verwendet wird, z. B. "RSA" oder "EC". In FIT-Connect sind aktuell nur RSA-Schlüssel erlaubt.
+          enum:
+            - RSA
+          example: RSA
+        key_ops:
+          type: array
+          description: |
+            Der Parameter "key_ops" (Schlüsseloperationen) identifiziert die Operation(en) für die der Schlüssel verwendet werden soll. Die Bedeutung der Erlaubten Operationen sind:
+              - `verify`: Digitale Signatur oder MAC überprüfen
+              - `wrapKey`: Verschlüsselungsschlüssel
+          items:
+            type: string
+            enum:
+              - verify
+              - wrapKey
+          example:
+            - wrapKey
+        alg:
+          type: string
+          description: |
+            Der Parameter "alg" (Algorithmus) identifiziert den Algorithmus, der für Verwendung mit dem Schlüssel vorgesehen ist. In FIT-Connect wird `PS512` für Signaturschlüssel und `RSA-OAEP-256` für Verschlüsselungsschlüssel genutzt.
+          enum:
+            - PS512
+            - RSA-OAEP-256
+          example: RSA-OAEP-256
+        x5c:
+          type: array
+          description: |
+            Der Parameter "x5c" (X.509 certificate chain) enthält eine Kette von einem oder mehreren PKIX-Zertifikaten [RFC5280]. Die Zertifikatskette wird als JSON-Array von Zertifikatswert-Strings dargestellt.
+          minItems: 1
+          items:
+            type: string
+          example:
+            - ...(base64 encoded cert)...
+            - ...(base64 encoded intermediate cert)...
+            - ...(base64 encoded root cert)...
+        kid:
+          type: string
+          description: |
+            Der Parameter "kid" (Schlüssel-Id) wird verwendet, um einen bestimmten Schlüssel zu finden. Dieser wird z. B. verwendet, um zwischen einer Reihe von Schlüsseln innerhalb eines JWK-Sets zu wählen während des Schlüssel-Rollover.
+          minLength: 8
+          maxLength: 64
+          example: NFNb7k84r61G9ayAAJItJCNGl7wKWif9HyBAgicJq_8
+        'n':
+          type: string
+          description: Modulus des Schlüssels. Die minimale Länge von 683 Zeichen repräsentiert eine Schlüssellange von mindestens 4096 Bit.
+          minLength: 683
+          example: 1f1070XZ4NpHN2WqdH5c8dBUBPH99TJEvVXSP_jjZdOEzRJztUwSpIabtAvgDnNGmPTLs-jLlVR3NQCyKwOwpHVi3FmudKmIPplBFpsEpZ9JYBGpg8_ZbDN9fwJhob0KjAlsSY9mBOTfqLCqqVIJrk4fxBjwNaroCLkSbS2RrfMtUEW5T5Vo1uw2lnYTKq1uyhr1PG02mvDCBb0LMAqcMXRR6bdme8GN55S3UNWhsaonpq04aa8_baVdjoJYTk03VLORMojnnrJjxyPPiHRs2Re9JQoaVPy6TUrbFV63zvt30XM8ZJnla09yhMmuBJXpdtyWXKnKyqj8m9D5Vg68xksQVeJozpCAoBlsJeAheE31XPQwCBvamy46K669ZCkfkdhQgoIJMt1AVSef0qcLDg__nQ-rfIuYxHrtn7jgI0NeCGFbscxmzl08_LSj3nlj2-ag2uVq4bbdH3tziNxy_rr84N-6AA5iQe5v1L_zYXYWxGzaAOUWzJt0QRiEC9pF6Zqfrn4mPHn5lm2jtdM9AlmgkZtmK92rByfcMzo5-yEK37K96NtqpDCsoABUkvC1TLiqaCkGkQd1DmGnfNyGJV_eNMwmZyotom8WLS-icbQD913F9YlSTRsQYhFzw78pDJHHo4AtldMiQcpUY4qoVVpfpPZlMWTq7idnq6iO4MM
+        e:
+          type: string
+          description: Öffentliche Exponent des Schlüssels
+          enum:
+            - AQAB
+          example: AQAB
+    jwks:
+      title: JSON Web Key Set (JWKS)
+      description: JWKS nach https://datatracker.ietf.org/doc/html/rfc7517#section-5
+      type: object
+      required:
+        - keys
+      properties:
+        keys:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/jwk'
+  parameters:
+    ars:
+      name: ars
+      in: query
+      description: Amtlicher Regionalschlüssel des Gebietes (https://www.destatis.de/DE/Themen/Laender-Regionen/Regionales/_FAQ/regionalschluessel.html)
+      required: false
+      schema:
+        type: string
+        pattern: ^(\d{2}|\d{3}|\d{5}|\d{9}|\d{12})$
+      example: '064350014014'
+    ags:
+      name: ags
+      in: query
+      description: Amtlicher Gemeindeschlüssel des Ortes (https://www.destatis.de/DE/Themen/Laender-Regionen/Regionales/Gemeindeverzeichnis/Glossar/amtlicher-gemeindeschluessel.html)
+      required: false
+      schema:
+        type: string
+        pattern: ^(\d{2}|\d{3}|\d{5}|\d{8})$
+    leikaKey:
+      $ref: '#/components/parameters/leika-key'
+    areaId:
+      $ref: '#/components/parameters/area-id'
+    areaSearchexpression:
+      $ref: '#/components/parameters/area-searchexpression'
+    offset:
+      name: offset
+      in: query
+      description: Startposition der Teilmenge der Ergebnismenge. Standard ist 0.
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+    limit:
+      name: limit
+      in: query
+      description: Anzahl der Teilmenge der Ergebnismenge. Maximum ist 500. Standard ist 100.
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 500
+    leika-key:
+      name: leikaKey
+      in: query
+      description: Leistungsschlüssel (ehemals. LeiKa-Schlüssel) der Leistung
+      required: true
+      schema:
+        type: string
+        pattern: ^99\d{12}$
+      example: '99123456760610'
+    area-id:
+      name: areaId
+      in: query
+      description: Id des Gebietes. Diese Id kann über die Resource /area ermittelt werden.
+      required: false
+      schema:
+        type: string
+        pattern: ^\d{1,}
+    area-searchexpression:
+      name: areaSearchexpression
+      in: query
+      description: 'Suchbegriffe für das zu suchenden Gebiet. Es können auch Postleitzahlen als Suchbegriffe verwendet werden. Es kann das Wildcard "\*" für die Suche verwendet werden. Zum Beispiel: "Mag\*" findet alle Gebiete die ein Wort beginend mit "Mag" im Namen (z.B. Magdeburg) enthalten.'
+      required: true
+      schema:
+        type: array
+        minItems: 1
+        maxItems: 10
+        items:
+          type: string
+          pattern: ^(\*?([^\*]{2,})\*?)*$
+      style: form
+      example:
+        - Hanau
+      explode: true
+  headers:
+    RateLimit-Limit:
+      $ref: '#/components/headers/ratelimit-limit'
+    RateLimit-Remaining:
+      $ref: '#/components/headers/ratelimit-remaining'
+    RateLimit-Reset:
+      $ref: '#/components/headers/ratelimit-reset'
+    ratelimit-limit:
+      schema:
+        type: integer
+      description: Maximale Anzahl an Anfragen im aktuellen Zeitfenster. Siehe https://docs.fitko.de/fit-connect/docs/getting-started/rate-limiting
+    ratelimit-remaining:
+      schema:
+        type: integer
+      description: Verbleibende Anfragen im aktuellen Zeitfenster. Siehe https://docs.fitko.de/fit-connect/docs/getting-started/rate-limiting
+    ratelimit-reset:
+      schema:
+        type: integer
+      description: Der Zeitpunkt, in Sekunden, zu dem das aktuelle Zeitfenster abläuft und ein neues Zeitfenster beginnt. Siehe https://docs.fitko.de/fit-connect/docs/getting-started/rate-limiting
