@@ -24,6 +24,20 @@ export function parseIntArg(value: string): number {
   return n;
 }
 
+/**
+ * commander value-parser for `--limit`: a page size in 1..500, the bound the
+ * Routing API documents. Out-of-range values were previously forwarded and the
+ * API rejected them with an opaque "HTTP 400 Constraint Violation" that never
+ * named the bound; reject them here, before any network call, with a clear message.
+ */
+export function parseLimit(value: string): number {
+  const n = parseIntArg(value);
+  if (n < 1 || n > 500) {
+    throw new InvalidArgumentError("Expected a page size between 1 and 500.");
+  }
+  return n;
+}
+
 /** commander value-parser for the Routing API version: "v1" or "v2". */
 export function parseApiVersion(value: string): ApiVersion {
   if (value === "v1" || value === "v2") return value;

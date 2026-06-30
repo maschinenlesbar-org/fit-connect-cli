@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { InvalidArgumentError } from "commander";
-import { parseApiVersion, parseIntArg, toClientOptions } from "../src/cli/shared.js";
+import { parseApiVersion, parseIntArg, parseLimit, toClientOptions } from "../src/cli/shared.js";
 
 test("parseIntArg accepts plain non-negative decimal integers", () => {
   assert.equal(parseIntArg("0"), 0);
@@ -37,6 +37,18 @@ test("parseIntArg rejects negatives and non-numbers", () => {
 
 test("parseIntArg rejects integers beyond the safe range", () => {
   assert.throws(() => parseIntArg("99999999999999999999"), InvalidArgumentError);
+});
+
+test("parseLimit accepts the 1..500 bounds inclusive", () => {
+  assert.equal(parseLimit("1"), 1);
+  assert.equal(parseLimit("100"), 100);
+  assert.equal(parseLimit("500"), 500);
+});
+
+test("parseLimit rejects out-of-range values (0, 501)", () => {
+  assert.throws(() => parseLimit("0"), InvalidArgumentError);
+  assert.throws(() => parseLimit("501"), InvalidArgumentError);
+  assert.throws(() => parseLimit("99999"), InvalidArgumentError);
 });
 
 test("parseApiVersion accepts v1 and v2", () => {

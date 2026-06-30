@@ -142,6 +142,16 @@ test("--version exits 0", async () => {
   assert.equal(cli.mt.calls.length, 0);
 });
 
+test("an out-of-range --limit is rejected client-side (non-zero, no request)", async () => {
+  for (const bad of ["0", "501"]) {
+    const cli = makeCli(() => jsonResponse(AREA_BODY));
+    const code = await run(["areas", "Halle", "--limit", bad], cli.deps);
+    assert.notEqual(code, 0);
+    assert.equal(cli.mt.calls.length, 0, `--limit ${bad} should not hit the network`);
+    assert.match(cli.err.join("\n"), /between 1 and 500/);
+  }
+});
+
 test("an invalid --timeout is a usage error (non-zero, no request)", async () => {
   const cli = makeCli(() => jsonResponse({}));
   const code = await run(["--timeout", "1e3", "info"], cli.deps);

@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import type { CliDeps } from "../io.js";
-import { action, parseIntArg, renderJson } from "../shared.js";
+import { action, parseIntArg, parseLimit, renderJson } from "../shared.js";
 
 export function registerRoutesCommand(program: Command, deps: CliDeps): void {
   program
@@ -13,7 +13,7 @@ export function registerRoutesCommand(program: Command, deps: CliDeps): void {
     .option("--ars <ars>", "Amtlicher Regionalschlüssel of the area")
     .option("--area-id <id>", "Area id (from `fit-connect areas`)")
     .option("--offset <n>", "start offset into the result set (default 0)", parseIntArg)
-    .option("--limit <n>", "page size, 1..500 (default 100)", parseIntArg)
+    .option("--limit <n>", "page size, 1..500 (default 100)", parseLimit)
     .action(
       action(deps, async ({ client, global, opts }, [leikaKey]) => {
         const result = await client.routes({
