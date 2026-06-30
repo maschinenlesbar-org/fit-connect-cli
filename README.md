@@ -92,8 +92,10 @@ A lookup that matches no registered destination is **not** an error — it retur
 ### `areas <query...>`
 
 Search areas by name and/or postal code. Supports the `*` wildcard (`"Mag*"`).
-Pass several terms to search several places at once. Each result has an `id`
-(use as `--area-id`), `name`, and `type`. Supports `--offset` / `--limit`.
+Multiple terms are combined with **AND** — every term must match the *same* area,
+so extra terms narrow the search (e.g. `areas Frankfurt am Main`) rather than
+searching several places at once. Each result has an `id` (use as `--area-id`),
+`name`, and `type`. Supports `--offset` / `--limit`.
 
 ### `info`
 

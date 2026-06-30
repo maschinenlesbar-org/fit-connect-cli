@@ -146,7 +146,9 @@ errors. Sits between the client's methods and the transport.
 
 **Query-string builder.** [`query.ts`](src/client/query.ts) — a dependency-free
 serialiser: omits `undefined`/`null`, **repeats keys for arrays** (used for the
-multi-valued `areaSearchexpression`), and encodes spaces as `%20`.
+multi-valued `areaSearchexpression`), and encodes spaces as `%20`. Note the API
+**ANDs** repeated `areaSearchexpression` values (every term must match the same
+area); the client splits each search term on whitespace into separate values.
 
 **CliDeps / CliIO.** The dependency-injection seam for the CLI
 ([`io.ts`](src/cli/io.ts)): a client factory plus an I/O object (`out`/`err`).

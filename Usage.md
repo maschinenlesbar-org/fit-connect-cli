@@ -59,8 +59,8 @@ fit-connect --compact areas 60311
 # Wildcard prefix match
 fit-connect --compact areas "Mag*"
 
-# Several places at once
-fit-connect --compact areas Köln Bonn Aachen
+# Multiple terms are ANDed — every term must match the same area (narrows it)
+fit-connect --compact areas Frankfurt am Main
 
 # Just the top-level (non-Gemeindeteil) candidates
 fit-connect --compact areas "Hanau" \
