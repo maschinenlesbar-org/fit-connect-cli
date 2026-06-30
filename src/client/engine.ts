@@ -82,7 +82,10 @@ export class RequestEngine {
     // (the latter would trip the Routing API's bot detection and 403).
     this.baseUrl = (options.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.transport = options.transport ?? nodeHttpTransport;
-    this.userAgent = options.userAgent || DEFAULT_USER_AGENT;
+    // Fall back to the default for an empty OR whitespace-only UA: a blank
+    // User-Agent is semantically equivalent to none, so " " should not be sent
+    // verbatim as if it were a real header value.
+    this.userAgent = options.userAgent && options.userAgent.trim() !== "" ? options.userAgent : DEFAULT_USER_AGENT;
     this.timeoutMs = options.timeoutMs ?? 30_000;
     this.maxRetries = options.maxRetries ?? 2;
     this.retryDelayMs = options.retryDelayMs ?? 200;

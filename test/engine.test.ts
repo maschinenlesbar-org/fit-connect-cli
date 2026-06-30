@@ -14,6 +14,20 @@ test("buildUrl normalises the path and appends the query", () => {
   );
 });
 
+test("a whitespace-only User-Agent falls back to the default", async () => {
+  const mt = makeMockTransport(() => jsonResponse({ ok: true }));
+  const e = new RequestEngine({ transport: mt.transport, userAgent: "   " });
+  await e.getJson("/v2/info");
+  assert.equal(mt.last().headers?.["User-Agent"], "fit-connect-cli");
+});
+
+test("a real User-Agent is sent verbatim", async () => {
+  const mt = makeMockTransport(() => jsonResponse({ ok: true }));
+  const e = new RequestEngine({ transport: mt.transport, userAgent: "my-tool/2.0" });
+  await e.getJson("/v2/info");
+  assert.equal(mt.last().headers?.["User-Agent"], "my-tool/2.0");
+});
+
 test("getJson parses a JSON body", async () => {
   const mt = makeMockTransport(() => jsonResponse({ ok: true }));
   const e = new RequestEngine({ transport: mt.transport });

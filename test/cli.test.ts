@@ -178,6 +178,15 @@ test("a malformed leikaKey is rejected before any request", async () => {
   assert.match(cli.err.join("\n"), /Invalid leikaKey/);
 });
 
+test("a --user-agent with CR/LF is rejected, not an unexpected crash", async () => {
+  const cli = makeCli(() => jsonResponse({}));
+  const code = await run(["--user-agent", "bad\r\nInjected: x", "info"], cli.deps);
+  assert.notEqual(code, 0);
+  assert.equal(cli.mt.calls.length, 0);
+  assert.match(cli.err.join("\n"), /Control characters/);
+  assert.doesNotMatch(cli.err.join("\n"), /Unexpected error/);
+});
+
 test("an invalid --timeout is a usage error (non-zero, no request)", async () => {
   const cli = makeCli(() => jsonResponse({}));
   const code = await run(["--timeout", "1e3", "info"], cli.deps);

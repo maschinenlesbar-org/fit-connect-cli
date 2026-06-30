@@ -9,7 +9,7 @@ import type { CliDeps } from "./io.js";
 import { defaultIO } from "./io.js";
 import { FitConnectClient } from "../client/client.js";
 import { DEFAULT_BASE_URL } from "../client/engine.js";
-import { parseApiVersion, parseIntArg } from "./shared.js";
+import { parseApiVersion, parseIntArg, parseUserAgentArg } from "./shared.js";
 import { registerRoutesCommand } from "./commands/routes.js";
 import { registerAreasCommand } from "./commands/areas.js";
 import { registerInfoCommand } from "./commands/info.js";
@@ -51,7 +51,11 @@ export function buildProgram(deps: CliDeps = defaultDeps): Command {
     .option("--base-url <url>", "API base URL", DEFAULT_BASE_URL)
     .option("--api-version <version>", "Routing API version: v1 or v2", parseApiVersion, "v2")
     .option("--timeout <ms>", "per-request timeout in milliseconds (0 disables)", parseIntArg)
-    .option("--user-agent <ua>", "User-Agent header value (the API requires a non-empty one)")
+    .option(
+      "--user-agent <ua>",
+      "User-Agent header value (the API requires a non-empty one)",
+      parseUserAgentArg,
+    )
     .option("--max-retries <n>", "retries for transient 429/503 responses", parseIntArg)
     .option(
       "--max-response-bytes <n>",
