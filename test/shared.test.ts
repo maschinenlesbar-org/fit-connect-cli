@@ -1,7 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { InvalidArgumentError } from "commander";
-import { parseApiVersion, parseIntArg, parseLimit, toClientOptions } from "../src/cli/shared.js";
+import {
+  parseAgs,
+  parseApiVersion,
+  parseArs,
+  parseIntArg,
+  parseLimit,
+  toClientOptions,
+} from "../src/cli/shared.js";
 
 test("parseIntArg accepts plain non-negative decimal integers", () => {
   assert.equal(parseIntArg("0"), 0);
@@ -49,6 +56,25 @@ test("parseLimit rejects out-of-range values (0, 501)", () => {
   assert.throws(() => parseLimit("0"), InvalidArgumentError);
   assert.throws(() => parseLimit("501"), InvalidArgumentError);
   assert.throws(() => parseLimit("99999"), InvalidArgumentError);
+});
+
+test("parseAgs accepts 8 digits and trims surrounding whitespace", () => {
+  assert.equal(parseAgs("11000000"), "11000000");
+  assert.equal(parseAgs("  16051000  "), "16051000");
+});
+
+test("parseAgs rejects wrong length, non-digits and whitespace-only", () => {
+  assert.throws(() => parseAgs("1234567"), InvalidArgumentError); // 7 digits
+  assert.throws(() => parseAgs("123456789"), InvalidArgumentError); // 9 digits
+  assert.throws(() => parseAgs("1100000a"), InvalidArgumentError);
+  assert.throws(() => parseAgs("   "), InvalidArgumentError);
+});
+
+test("parseArs accepts 12 digits and trims; rejects wrong length", () => {
+  assert.equal(parseArs("064350014014"), "064350014014");
+  assert.equal(parseArs(" 160510000000 "), "160510000000");
+  assert.throws(() => parseArs("16051000"), InvalidArgumentError); // 8 digits
+  assert.throws(() => parseArs("abcdefghijkl"), InvalidArgumentError);
 });
 
 test("parseApiVersion accepts v1 and v2", () => {

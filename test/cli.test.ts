@@ -152,6 +152,24 @@ test("an out-of-range --limit is rejected client-side (non-zero, no request)", a
   }
 });
 
+test("a malformed --ags is rejected client-side (non-zero, no request)", async () => {
+  const cli = makeCli(() => jsonResponse(ROUTE_BODY));
+  const code = await run(["routes", "99123456760610", "--ags", "123"], cli.deps);
+  assert.notEqual(code, 0);
+  assert.equal(cli.mt.calls.length, 0);
+  assert.match(cli.err.join("\n"), /8-digit/);
+});
+
+test("a whitespace-only --ags reports a malformed value, not 'no selector'", async () => {
+  const cli = makeCli(() => jsonResponse(ROUTE_BODY));
+  const code = await run(["routes", "99123456760610", "--ags", "   "], cli.deps);
+  assert.notEqual(code, 0);
+  assert.equal(cli.mt.calls.length, 0);
+  assert.match(cli.err.join("\n"), /8-digit/);
+  // The runtime "got none" selector error (which this used to produce) must not fire.
+  assert.doesNotMatch(cli.err.join("\n"), /got none/);
+});
+
 test("an invalid --timeout is a usage error (non-zero, no request)", async () => {
   const cli = makeCli(() => jsonResponse({}));
   const code = await run(["--timeout", "1e3", "info"], cli.deps);

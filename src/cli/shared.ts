@@ -38,6 +38,33 @@ export function parseLimit(value: string): number {
   return n;
 }
 
+/**
+ * commander value-parser for `--ags` (Amtlicher Gemeindeschlüssel): exactly 8
+ * digits. Trims first — the value was previously forwarded untrimmed (unlike
+ * leikaKey) — then validates, so surrounding whitespace, a wrong length, or a
+ * whitespace-only value is a clear usage error rather than an opaque API 400 or a
+ * misleading "got no selector" error.
+ */
+export function parseAgs(value: string): string {
+  const trimmed = value.trim();
+  if (!/^\d{8}$/.test(trimmed)) {
+    throw new InvalidArgumentError("Expected an 8-digit Amtlicher Gemeindeschlüssel (AGS).");
+  }
+  return trimmed;
+}
+
+/**
+ * commander value-parser for `--ars` (Amtlicher Regionalschlüssel): exactly 12
+ * digits. Trims, then validates — see {@link parseAgs}.
+ */
+export function parseArs(value: string): string {
+  const trimmed = value.trim();
+  if (!/^\d{12}$/.test(trimmed)) {
+    throw new InvalidArgumentError("Expected a 12-digit Amtlicher Regionalschlüssel (ARS).");
+  }
+  return trimmed;
+}
+
 /** commander value-parser for the Routing API version: "v1" or "v2". */
 export function parseApiVersion(value: string): ApiVersion {
   if (value === "v1" || value === "v2") return value;

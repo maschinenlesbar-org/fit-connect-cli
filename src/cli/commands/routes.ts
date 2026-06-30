@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import type { CliDeps } from "../io.js";
-import { action, parseIntArg, parseLimit, renderJson } from "../shared.js";
+import { action, parseAgs, parseArs, parseIntArg, parseLimit, renderJson } from "../shared.js";
 
 export function registerRoutesCommand(program: Command, deps: CliDeps): void {
   program
@@ -9,8 +9,8 @@ export function registerRoutesCommand(program: Command, deps: CliDeps): void {
       "Find the responsible authority (Zustellpunkt) for a public service in an area. " +
         "Provide exactly one area selector: --ags, --ars or --area-id.",
     )
-    .option("--ags <ags>", "Amtlicher Gemeindeschlüssel of the place")
-    .option("--ars <ars>", "Amtlicher Regionalschlüssel of the area")
+    .option("--ags <ags>", "Amtlicher Gemeindeschlüssel of the place (8 digits)", parseAgs)
+    .option("--ars <ars>", "Amtlicher Regionalschlüssel of the area (12 digits)", parseArs)
     .option("--area-id <id>", "Area id (from `fit-connect areas`)")
     .option("--offset <n>", "start offset into the result set (default 0)", parseIntArg)
     .option("--limit <n>", "page size, 1..500 (default 100)", parseLimit)

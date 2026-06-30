@@ -44,11 +44,11 @@ services and responsibilities that backs much of the routing data (`origin: "PVO
 **XZuFi.** The XÖV data standard for administrative-service catalogues; the source
 format behind the authority/service descriptions.
 
-**ags — Amtlicher Gemeindeschlüssel.** Official municipality code. An area
-selector for `routes` (`--ags`).
+**ags — Amtlicher Gemeindeschlüssel.** Official municipality code, **8 digits**.
+An area selector for `routes` (`--ags`).
 
 **ars — Amtlicher Regionalschlüssel.** Official regional code (a superset of the
-ags with hierarchy). An area selector for `routes` (`--ars`).
+ags with hierarchy), **12 digits**. An area selector for `routes` (`--ars`).
 
 **area id.** The `id` returned by `fit-connect areas`. The third area selector for
 `routes` (`--area-id`).
@@ -57,8 +57,8 @@ ags with hierarchy). An area selector for `routes` (`--ars`).
 
 | Option | Meaning |
 | --- | --- |
-| `--ags <ags>` | Amtlicher Gemeindeschlüssel — area selector (use exactly one) |
-| `--ars <ars>` | Amtlicher Regionalschlüssel — area selector (use exactly one) |
+| `--ags <ags>` | Amtlicher Gemeindeschlüssel, 8 digits — area selector (use exactly one) |
+| `--ars <ars>` | Amtlicher Regionalschlüssel, 12 digits — area selector (use exactly one) |
 | `--area-id <id>` | Area id from `fit-connect areas` — area selector (use exactly one) |
 | `--offset <n>` | Start offset into the result set (default `0`) |
 | `--limit <n>` | Page size, `1`..`500` (default `100`) |
