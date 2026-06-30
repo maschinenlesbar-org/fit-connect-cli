@@ -170,6 +170,14 @@ test("a whitespace-only --ags reports a malformed value, not 'no selector'", asy
   assert.doesNotMatch(cli.err.join("\n"), /got none/);
 });
 
+test("a malformed leikaKey is rejected before any request", async () => {
+  const cli = makeCli(() => jsonResponse(ROUTE_BODY));
+  const code = await run(["routes", "12345", "--ars", "064350014014"], cli.deps);
+  assert.equal(code, 1);
+  assert.equal(cli.mt.calls.length, 0);
+  assert.match(cli.err.join("\n"), /Invalid leikaKey/);
+});
+
 test("an invalid --timeout is a usage error (non-zero, no request)", async () => {
   const cli = makeCli(() => jsonResponse({}));
   const code = await run(["--timeout", "1e3", "info"], cli.deps);

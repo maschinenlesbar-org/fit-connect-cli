@@ -76,6 +76,14 @@ export class FitConnectClient {
    */
   async routes(params: RouteQuery): Promise<RouteResult> {
     const leikaKey = requireNonEmpty("leikaKey", params.leikaKey);
+    // The Leistungsschlüssel is "99" followed by 12 digits (GLOSSARY: ^99\d{12}$).
+    // Validate here so a malformed key is a clear error rather than an opaque
+    // upstream HTTP 400.
+    if (!/^99\d{12}$/.test(leikaKey)) {
+      throw new FitConnectError(
+        `Invalid leikaKey "${leikaKey}": expected "99" followed by 12 digits (e.g. 99123456760610).`,
+      );
+    }
 
     const selectors = (["ags", "ars", "areaId"] as const).filter(
       (k) => params[k] !== undefined && String(params[k]).trim() !== "",
