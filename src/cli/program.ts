@@ -53,7 +53,7 @@ export function buildProgram(deps: CliDeps = defaultDeps): Command {
     .option("--timeout <ms>", "per-request timeout in milliseconds (0 disables)", parseIntArg)
     .option(
       "--user-agent <ua>",
-      "User-Agent header value (the API requires a non-empty one)",
+      "User-Agent header value (blank falls back to default; some values are blocked by the API)",
       parseUserAgentArg,
     )
     .option("--max-retries <n>", "retries for transient 429/503 responses", parseIntArg)

@@ -20,8 +20,9 @@ export interface EngineOptions {
   baseUrl?: string;
   /** Swappable transport. Defaults to the built-in node http/https transport. */
   transport?: Transport;
-  /** Value of the User-Agent header. Must be non-empty: the Routing API rejects
-   *  requests without a User-Agent (bot detection) with a 403. */
+  /** Value of the User-Agent header. The Routing API applies bot detection to the
+   *  User-Agent: the default is accepted, but some UA strings are blocked with a
+   *  403. An empty or whitespace-only value falls back to the default. */
   userAgent?: string;
   /** Per-request timeout in milliseconds (0 disables). */
   timeoutMs?: number;

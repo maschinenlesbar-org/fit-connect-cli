@@ -81,7 +81,7 @@ ags with hierarchy), **12 digits**. An area selector for `routes` (`--ars`).
 | `--base-url <url>` | API base URL (default `https://routing-api-prod.fit-connect.fitko.net`) |
 | `--api-version <v1\|v2>` | Routing API version (default `v2`; `v1` is legacy) |
 | `--timeout <ms>` | Per-request timeout (default `30000`; `0` disables) |
-| `--user-agent <ua>` | `User-Agent` header (must be non-empty; blank falls back to default) |
+| `--user-agent <ua>` | `User-Agent` header (blank falls back to default; some values are blocked by the API's bot detection) |
 | `--max-retries <n>` | Retries for transient `429`/`503` (default `2`) |
 | `--max-response-bytes <n>` | Response body size cap in bytes (`0` = unlimited; default 100 MiB) |
 

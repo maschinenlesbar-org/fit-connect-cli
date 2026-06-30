@@ -68,7 +68,7 @@ new FitConnectClient({
   timeoutMs: 30_000,
   maxRetries: 2,              // 429 / 503 are retried (honours Retry-After, else linear backoff)
   maxResponseBytes: 100 << 20,// abort responses larger than 100 MiB (0 = unlimited)
-  userAgent: "my-app/1.0",    // must be non-empty; the API 403s requests without a UA
+  userAgent: "my-app/1.0",    // default is accepted; some UA strings are blocked by bot detection
   transport: customTransport, // inject your own HTTP transport
 });
 ```
@@ -90,9 +90,11 @@ the open, read-only routing service. The client attaches no credential headers.
 
 Two non-obvious upstream behaviours the client handles:
 
-- **Bot detection.** Requests without a `User-Agent` are rejected with `403`. The
-  client always sends one (`fit-connect-cli` by default); an empty `--user-agent ""`
-  falls back to the default rather than sending a blank header.
+- **Bot detection.** The Routing API filters on the `User-Agent`: the default
+  (`fit-connect-cli`) is accepted, but some UA strings are blocked with `403`, so
+  overriding `--user-agent` may cause failures. A missing or blank UA is *not*
+  itself rejected; the client falls back to the default for an empty or
+  whitespace-only `--user-agent` regardless.
 - **`--base-url` is trusted input**: the CLI fetches whatever host you point it
   at; only `http:`/`https:` URLs are accepted, and redirects are **not** followed
   — a `3xx` surfaces as an error rather than being chased to another host.

@@ -145,9 +145,10 @@ JSON. `--compact` is a **global** option and works **before or after** the comma
 - **Empty `routes: []`** — no FIT-Connect Zustellpunkt is registered for that
   service in that area. This is normal and exits `0`; try a broader area (the
   Kreis or Bundesland) or re-check the Leistungsschlüssel.
-- **`403` / bot-detection** — the API rejects requests without a `User-Agent`.
-  The CLI always sends one; only a deliberately blanked `--user-agent ""` would
-  trigger this (it falls back to the default instead).
+- **`403` / bot-detection** — the Routing API filters on the `User-Agent`. The
+  CLI's default UA is accepted, but some UA strings are blocked, so a custom
+  `--user-agent` can trigger a `403`. A missing or blank UA is *not* itself
+  rejected — and the CLI falls back to its default for an empty value anyway.
 - **`429` / rate limited** — the CLI retries automatically and honours
   `Retry-After`. Raise `--max-retries` or slow down if it persists.
 
@@ -163,7 +164,7 @@ These apply to every command and may go before or after it:
 | `--base-url <url>` | API base URL (default `https://routing-api-prod.fit-connect.fitko.net`) |
 | `--api-version <v1\|v2>` | Routing API version (default `v2`; `v1` is legacy) |
 | `--timeout <ms>` | Per-request timeout in ms (default `30000`; `0` disables) |
-| `--user-agent <ua>` | `User-Agent` header value (must be non-empty; blank falls back to default) |
+| `--user-agent <ua>` | `User-Agent` header value (blank falls back to default; some values are blocked by the API's bot detection) |
 | `--max-retries <n>` | Retries for transient `429`/`503` responses (default `2`) |
 | `--max-response-bytes <n>` | Cap response body size in bytes (`0` = unlimited; default 100 MiB) |
 
