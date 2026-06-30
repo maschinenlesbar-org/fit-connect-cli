@@ -53,6 +53,20 @@ test("routes without an area selector is an error (exit 1, no request)", async (
   assert.equal(code, 1);
   assert.equal(cli.mt.calls.length, 0);
   assert.match(cli.err.join("\n"), /exactly one area selector/);
+  // The message names CLI flags, not the internal method/param names.
+  assert.match(cli.err.join("\n"), /--ags, --ars or --area-id/);
+  assert.doesNotMatch(cli.err.join("\n"), /routes\(\)/);
+});
+
+test("routes with two area selectors is an error naming both flags (no request)", async () => {
+  const cli = makeCli(() => jsonResponse(ROUTE_BODY));
+  const code = await run(
+    ["routes", "99123456760610", "--ags", "16051000", "--ars", "064350014014"],
+    cli.deps,
+  );
+  assert.equal(code, 1);
+  assert.equal(cli.mt.calls.length, 0);
+  assert.match(cli.err.join("\n"), /--ags, --ars/);
 });
 
 test("areas passes every search term as a repeated query param", async () => {
