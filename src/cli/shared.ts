@@ -7,19 +7,20 @@ import type { CliDeps } from "./io.js";
 import type { ApiVersion, FitConnectClientOptions } from "../client/client.js";
 
 /**
- * commander value-parser: a plain non-negative decimal integer.
+ * commander value-parser: a plain non-negative decimal integer in canonical form.
  *
- * Only `^\d+$` is accepted — this deliberately rejects the empty string,
- * surrounding whitespace, hex (`0x10`), binary (`0b1`), and exponent forms
- * (`1e3`), all of which `Number()` would otherwise coerce silently.
+ * Only `0` or a digit string with no leading zero is accepted — this deliberately
+ * rejects the empty string, surrounding whitespace, hex (`0x10`), binary (`0b1`),
+ * exponent forms (`1e3`), and leading-zero forms (`007`, `00`), all of which
+ * `Number()` would otherwise coerce or reinterpret silently.
  */
 export function parseIntArg(value: string): number {
-  if (!/^\d+$/.test(value)) {
-    throw new InvalidArgumentError("Expected a non-negative integer.");
+  if (!/^(0|[1-9]\d*)$/.test(value)) {
+    throw new InvalidArgumentError("Expected a non-negative integer (no leading zeros).");
   }
   const n = Number(value);
   if (!Number.isSafeInteger(n)) {
-    throw new InvalidArgumentError("Expected a non-negative integer.");
+    throw new InvalidArgumentError("Expected a non-negative integer (no leading zeros).");
   }
   return n;
 }

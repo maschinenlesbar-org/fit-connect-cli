@@ -46,6 +46,13 @@ test("parseIntArg rejects integers beyond the safe range", () => {
   assert.throws(() => parseIntArg("99999999999999999999"), InvalidArgumentError);
 });
 
+test("parseIntArg rejects leading-zero forms but accepts a bare 0", () => {
+  assert.equal(parseIntArg("0"), 0);
+  assert.throws(() => parseIntArg("00"), InvalidArgumentError);
+  assert.throws(() => parseIntArg("007"), InvalidArgumentError);
+  assert.throws(() => parseIntArg("0123"), InvalidArgumentError);
+});
+
 test("parseLimit accepts the 1..500 bounds inclusive", () => {
   assert.equal(parseLimit("1"), 1);
   assert.equal(parseLimit("100"), 100);
