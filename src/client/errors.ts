@@ -10,6 +10,24 @@ export class FitConnectError extends Error {
 }
 
 /**
+ * Strip userinfo (`user:password@`) from a URL before it is embedded in a
+ * human-readable error message, so credentials supplied via `--base-url` are
+ * never echoed in cleartext. Returns the input unchanged if it does not parse as
+ * a URL or carries no userinfo.
+ */
+export function redactUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (!u.username && !u.password) return url;
+    u.username = "";
+    u.password = "";
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
  * The API responded with a non-2xx status code. `detail` holds a human-readable
  * message extracted from the response body when one is present (the Routing API
  * returns RFC 7807 `application/problem+json` error bodies with a `detail` field).
@@ -29,7 +47,7 @@ export class FitConnectApiError extends FitConnectError {
     detail?: string;
   }) {
     const detailPart = args.detail ? `: ${args.detail}` : "";
-    super(`HTTP ${args.status} for ${args.method} ${args.url}${detailPart}`);
+    super(`HTTP ${args.status} for ${args.method} ${redactUrl(args.url)}${detailPart}`);
     this.status = args.status;
     this.url = args.url;
     this.method = args.method;

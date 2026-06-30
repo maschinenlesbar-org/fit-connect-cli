@@ -14,6 +14,20 @@ test("buildUrl normalises the path and appends the query", () => {
   );
 });
 
+test("API error messages redact userinfo credentials from the URL", async () => {
+  const mt = makeMockTransport(() => jsonResponse({ title: "Bad Request" }, 400));
+  const e = new RequestEngine({ transport: mt.transport, baseUrl: "https://user:secret@example.test" });
+  await assert.rejects(
+    () => e.getJson("/v2/info"),
+    (err: unknown) => {
+      assert.ok(err instanceof FitConnectApiError);
+      assert.doesNotMatch(err.message, /secret/);
+      assert.doesNotMatch(err.message, /user:/);
+      return true;
+    },
+  );
+});
+
 test("a whitespace-only User-Agent falls back to the default", async () => {
   const mt = makeMockTransport(() => jsonResponse({ ok: true }));
   const e = new RequestEngine({ transport: mt.transport, userAgent: "   " });
