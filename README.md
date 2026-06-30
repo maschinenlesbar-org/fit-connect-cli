@@ -59,10 +59,12 @@ No setup needed — the API requires no key.
 fit-connect areas Hanau
 
 # 2. Route a service key into that area to find the responsible authority
+#    (99123456760610 is an illustrative key with no registered destinations,
+#     so these examples return an empty `routes: []` — that is normal, see below)
 fit-connect routes 99123456760610 --area-id 940
 
-# Already have the official codes? Skip step 1:
-fit-connect routes 99123456760610 --ars 064350014014
+# Already have the official codes? Skip step 1 (here: Erfurt, by Regionalschlüssel):
+fit-connect routes 99123456760610 --ars 160510000000
 ```
 
 ## Commands
@@ -111,14 +113,14 @@ fit-connect areas "Halle"
 fit-connect areas 60311
 
 # The responsible authority's name and email (jq)
-fit-connect --compact routes 99123456760610 --ars 064350014014 \
+fit-connect --compact routes 99123456760610 --ars 160510000000 \
   | jq -r '.routes[] | "\(.destinationName)\t\(.contactPersons[0].email // "-")"'
 
 # Use the v1 (legacy) routing service instead of v2
 fit-connect --api-version v1 routes 99123456760610 --area-id 940
 
 # How many destinations are registered for a service in an area?
-fit-connect --compact routes 99123456760610 --ars 064350014014 | jq '.totalCount'
+fit-connect --compact routes 99123456760610 --ars 160510000000 | jq '.totalCount'
 ```
 
 See **[Usage.md](Usage.md)** for the full, use-case-driven cookbook.

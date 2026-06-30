@@ -43,7 +43,7 @@ const client = new FitConnectClient(); // defaults to the prod routing service, 
 // "who is responsible for service X in area Y?"
 const result = await client.routes({
   leikaKey: "99123456760610",
-  ars: "064350014014", // exactly one of ags / ars / areaId
+  ars: "160510000000", // exactly one of ags / ars / areaId
 });
 for (const route of result.routes) {
   console.log(route.destinationName, route.destinationId);

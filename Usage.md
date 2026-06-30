@@ -27,14 +27,14 @@ fit-connect --compact routes 99123456760610 --area-id 940
 If you already hold the official codes, do it in one call:
 
 ```bash
-fit-connect --compact routes 99123456760610 --ars 064350014014
+fit-connect --compact routes 99123456760610 --ars 160510000000
 fit-connect --compact routes 99123456760610 --ags 16051000
 ```
 
 ## Pull just the authority name and contact
 
 ```bash
-fit-connect --compact routes 99123456760610 --ars 064350014014 \
+fit-connect --compact routes 99123456760610 --ars 160510000000 \
   | jq -r '.routes[]
       | "\(.destinationName)\n  ☎ \(.contactPersons[0].tel // "-")  ✉ \(.contactPersons[0].email // "-")"'
 ```
@@ -77,7 +77,7 @@ fit-connect --compact areas "Berlin" --limit 25 --offset 25
 ## Count registered destinations for a service in an area
 
 ```bash
-fit-connect --compact routes 99123456760610 --ars 064350014014 | jq '.totalCount'
+fit-connect --compact routes 99123456760610 --ars 160510000000 | jq '.totalCount'
 ```
 
 A `totalCount` / `count` of `0` is a valid answer — no destination is registered
@@ -108,10 +108,10 @@ AREA_ID=$(fit-connect --compact areas "Hanau" \
   | jq -r '.areas[] | select(.type=="kreisfreie Stadt") | .id' | head -n1)
 fit-connect --compact routes 99123456760610 --area-id "$AREA_ID"
 
-# Loop a service over several Regionalschlüssel
-for ARS in 064350014014 064310000000 064320000000; do
-  echo "== $ARS =="
-  fit-connect --compact routes 99123456760610 --ars "$ARS" | jq -r '.routes[].destinationName'
+# Loop a service over several areas (ids from `fit-connect areas`)
+for AREA in 940 1099 1024; do
+  echo "== area $AREA =="
+  fit-connect --compact routes 99123456760610 --area-id "$AREA" | jq -r '.routes[].destinationName'
 done
 
 # Raise the timeout on a slow connection
@@ -121,7 +121,7 @@ fit-connect --timeout 60000 --compact routes 99123456760610 --area-id 940
 ## Exit codes in scripts
 
 ```bash
-if fit-connect --compact routes 99123456760610 --ars 064350014014 >/tmp/r.json; then
+if fit-connect --compact routes 99123456760610 --ars 160510000000 >/tmp/r.json; then
   test "$(jq '.count' /tmp/r.json)" -gt 0 && echo "responsible authority found"
 else
   echo "lookup failed (exit $?)" >&2   # 1 = error, 4 = 404
