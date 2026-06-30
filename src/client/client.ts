@@ -109,8 +109,12 @@ export class FitConnectClient {
 
   /** Search for areas by name and/or postal code. */
   async areas(params: AreaQuery): Promise<AreaResult> {
+    // Split each term on internal whitespace into separate areaSearchexpression
+    // values. The API ANDs the expressions and 500s on a space inside a single
+    // expression, so a quoted multi-word place like "Frankfurt am Main" must be
+    // sent as three expressions — identical to passing the words as separate args.
     const terms = (Array.isArray(params.search) ? params.search : [params.search])
-      .map((t) => (typeof t === "string" ? t.trim() : ""))
+      .flatMap((t) => (typeof t === "string" ? t.trim().split(/\s+/) : []))
       .filter((t) => t !== "");
     if (terms.length === 0) {
       throw new FitConnectError("areas() needs at least one non-empty search term");

@@ -79,6 +79,15 @@ test("areas() accepts a single string and trims/drops blanks", async () => {
   assert.deepEqual(new URL(mt.last().url).searchParams.getAll("areaSearchexpression"), ["Hanau"]);
 });
 
+test("areas() splits a quoted multi-word term into separate expressions", async () => {
+  const mt = constantJson({ count: 0, offset: 0, totalCount: 0, areas: [] });
+  await clientWith(mt).areas({ search: "Frankfurt am Main" });
+  assert.deepEqual(
+    new URL(mt.last().url).searchParams.getAll("areaSearchexpression"),
+    ["Frankfurt", "am", "Main"],
+  );
+});
+
 test("areas() rejects an all-blank search before any request", async () => {
   const mt = constantJson({});
   await assert.rejects(() => clientWith(mt).areas({ search: ["", "  "] }), FitConnectError);
