@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { RequestEngine, parseRetryAfter } from "../src/client/engine.js";
-import { FitConnectApiError, FitConnectParseError } from "../src/client/errors.js";
+import { FitConnectApiError, FitConnectError, FitConnectParseError } from "../src/client/errors.js";
 import type { HttpResponse } from "../src/client/http.js";
 import { makeMockTransport, jsonResponse, rawResponse } from "./helpers.js";
 
@@ -11,6 +11,18 @@ test("buildUrl normalises the path and appends the query", () => {
   assert.equal(
     e.buildUrl("/v2/routes", { leikaKey: "99123456760610", ars: "064350014014" }),
     "https://example.test/v2/routes?leikaKey=99123456760610&ars=064350014014",
+  );
+});
+
+test("rejects a non-http base URL naming the base URL", () => {
+  assert.throws(
+    () => new RequestEngine({ baseUrl: "ftp://example.test" }),
+    (err: unknown) => {
+      assert.ok(err instanceof FitConnectError);
+      assert.match(err.message, /ftp:/);
+      assert.match(err.message, /example\.test/);
+      return true;
+    },
   );
 });
 

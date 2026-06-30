@@ -4,7 +4,7 @@
 
 import { nodeHttpTransport, type Transport } from "./http.js";
 import { buildQueryString, type QueryParams } from "./query.js";
-import { FitConnectApiError, FitConnectParseError } from "./errors.js";
+import { FitConnectApiError, FitConnectError, FitConnectParseError, redactUrl } from "./errors.js";
 
 export const DEFAULT_BASE_URL = "https://routing-api-prod.fit-connect.fitko.net";
 const DEFAULT_USER_AGENT = "fit-connect-cli";
@@ -47,6 +47,26 @@ const realSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Validate the configured base URL up front. Without this the only scheme check
+ * lived in the transport, which rejects the *fully built* request URL — so a bad
+ * `--base-url ftp://x` produced a message echoing `ftp://x/v2/...` rather than the
+ * value the user passed. Throwing here keeps the message about the base URL itself.
+ */
+function assertValidBaseUrl(baseUrl: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    throw new FitConnectError(`Invalid base URL "${redactUrl(baseUrl)}".`);
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new FitConnectError(
+      `Unsupported base URL scheme "${parsed.protocol}" in "${redactUrl(baseUrl)}"; only http and https are supported.`,
+    );
+  }
+}
+
+/**
  * Parse a `Retry-After` header into a delay in milliseconds, supporting both
  * the delta-seconds form (`Retry-After: 120`) and the HTTP-date form
  * (`Retry-After: Wed, 21 Oct 2025 07:28:00 GMT`). Returns `undefined` when the
@@ -81,6 +101,7 @@ export class RequestEngine {
     // to the default rather than producing an invalid URL or a blank UA header
     // (the latter would trip the Routing API's bot detection and 403).
     this.baseUrl = (options.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
+    assertValidBaseUrl(this.baseUrl);
     this.transport = options.transport ?? nodeHttpTransport;
     // Fall back to the default for an empty OR whitespace-only UA: a blank
     // User-Agent is semantically equivalent to none, so " " should not be sent
