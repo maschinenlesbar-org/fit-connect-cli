@@ -109,6 +109,13 @@ Envelope: `{ count, offset, totalCount, routes: Route[] }`.
 Only `destinationId` and `destinationSignature` are guaranteed present; everything
 else varies per service and region.
 
+> **Signature verification is the consumer's responsibility.** This tool passes
+> `destinationSignature` through as an **opaque, unverified string** — it does no
+> JWS/JWK/crypto validation of any kind. Before trusting `destinationId` to submit
+> an application, verify the JWS against FITKO's published FIT-Connect keys per the
+> FIT-Connect specification. A spoofed or MITM'd routing response could otherwise
+> misdirect a submission to an attacker-controlled destination.
+
 ## Response fields — `areas`
 
 Envelope: `{ count, offset, totalCount, areas: Area[] }`.

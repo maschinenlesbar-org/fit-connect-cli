@@ -98,6 +98,14 @@ Two non-obvious upstream behaviours the client handles:
 - **`--base-url` is trusted input**: the CLI fetches whatever host you point it
   at; only `http:`/`https:` URLs are accepted, and redirects are **not** followed
   — a `3xx` surfaces as an error rather than being chased to another host.
+- **`destinationSignature` is passed through unverified.** Each route carries a
+  JWS (RFC 7515) over its addressing information. This client treats it as an
+  **opaque string** — it does no JWS/JWK/crypto validation of any kind (there is
+  no `node:crypto`/JWT/jose code in the repo, by design). **Verifying the JWS is
+  the consumer's responsibility:** validate it against FITKO's published
+  FIT-Connect keys per the FIT-Connect spec before trusting `destinationId` to
+  submit an application, so a spoofed/MITM'd routing response cannot misdirect a
+  submission. Do **not** add home-rolled JWT validation here.
 
 ## Architecture
 

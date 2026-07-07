@@ -91,6 +91,14 @@ Find the responsible destination(s) for a public service in an area. Requires a
 A lookup that matches no registered destination is **not** an error — it returns
 `{"count":0,…,"routes":[]}` and exits `0`.
 
+> **This tool does not verify `destinationSignature`.** Each route carries a JWS
+> (`destinationSignature`, RFC 7515) over its addressing information; the CLI
+> returns it as an opaque, **unverified** string and performs no signature/crypto
+> validation. Verify the JWS against FITKO's public FIT-Connect keys, per the
+> [FIT-Connect spec](https://docs.fitko.de/fit-connect/docs/), before trusting
+> `destinationId` to submit an application — otherwise a spoofed or MITM'd routing
+> response could misdirect your submission.
+
 ### `areas <query...>`
 
 Search areas by name and/or postal code. Supports the `*` wildcard (`"Mag*"`).
