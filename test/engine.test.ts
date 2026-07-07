@@ -184,6 +184,39 @@ test("an API error falls back to the problem+json title when detail is absent", 
   );
 });
 
+test("an API error strips terminal control characters from the detail (no escape injection)", async () => {
+  // Control bytes are constructed via char codes so no raw control byte ever
+  // appears in this source file; interleaved with printable text.
+  const ESC = String.fromCharCode(0x1b);
+  const BEL = String.fromCharCode(0x07);
+  const C1 = String.fromCharCode(0x9b); // a C1 control (CSI)
+  const evil = `boom${ESC}[31mred${BEL}${C1}2J`;
+
+  const hasControlChars = (s: string): boolean =>
+    [...s].some((c) => {
+      const n = c.charCodeAt(0);
+      return n <= 8 || (n >= 0x0b && n <= 0x1f) || (n >= 0x7f && n <= 0x9f);
+    });
+
+  const mt = makeMockTransport(() =>
+    rawResponse(JSON.stringify({ detail: evil }), "application/problem+json", 400),
+  );
+  const e = new RequestEngine({ transport: mt.transport });
+  await assert.rejects(
+    () => e.getJson("/v2/routes"),
+    (err: unknown) => {
+      assert.ok(err instanceof FitConnectApiError);
+      // The control bytes are gone from both the structured detail and the
+      // human-readable message that run.ts prints raw to stderr...
+      assert.ok(!hasControlChars(err.detail ?? ""));
+      assert.ok(!hasControlChars(err.message));
+      // ...while the printable characters are preserved.
+      assert.equal(err.detail, "boom[31mred2J");
+      return true;
+    },
+  );
+});
+
 test("an API error tolerates a non-JSON body (no detail)", async () => {
   const mt = makeMockTransport(() => rawResponse("<html>oops</html>", "text/html", 500));
   const e = new RequestEngine({ transport: mt.transport });
