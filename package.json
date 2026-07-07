@@ -1,6 +1,6 @@
 {
   "name": "@maschinenlesbar.org/fit-connect-cli",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "TypeScript API client and CLI for the open FIT-Connect Routing API (Zustellpunkt-Ermittlung, FITKO)",
   "type": "module",
   "bin": {
