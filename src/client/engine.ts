@@ -45,6 +45,15 @@ export interface EngineOptions {
 const DEFAULT_MAX_RESPONSE_BYTES = 100 * 1024 * 1024;
 
 /**
+ * Upper bound on the server-supplied `Retry-After` delay. Without a ceiling a
+ * hostile or misconfigured endpoint could answer `429`/`503` with
+ * `Retry-After: 9999999999` (or a far-future HTTP date) and stall the process
+ * for years — the sleep is not bounded by `timeoutMs`. We honour the header up
+ * to this cap and clamp anything larger.
+ */
+export const MAX_RETRY_AFTER_MS = 30_000;
+
+/**
  * Strip control characters out of a string that originates in an
  * attacker-controllable response — the RFC 7807 error `detail`/`title`/`message`.
  * `JSON.parse` decodes an escaped ESC in an error body into a real ESC byte, so
@@ -92,18 +101,23 @@ function assertValidBaseUrl(baseUrl: string): void {
  * the delta-seconds form (`Retry-After: 120`) and the HTTP-date form
  * (`Retry-After: Wed, 21 Oct 2025 07:28:00 GMT`). Returns `undefined` when the
  * header is absent or unparseable so the caller can fall back to its own backoff.
+ *
+ * The result is clamped to `MAX_RETRY_AFTER_MS`: the value is server-controlled
+ * and the sleep is not bounded by `timeoutMs`, so an unclamped `Retry-After`
+ * (huge delta-seconds or a far-future date) would let a hostile/misconfigured
+ * endpoint stall the process indefinitely.
  */
 export function parseRetryAfter(value: string | string[] | undefined): number | undefined {
   const raw = (Array.isArray(value) ? value[0] : value)?.trim();
   if (!raw) return undefined;
 
   if (/^\d+$/.test(raw)) {
-    return Number(raw) * 1000;
+    return Math.min(Number(raw) * 1000, MAX_RETRY_AFTER_MS);
   }
 
   const when = Date.parse(raw);
   if (Number.isNaN(when)) return undefined;
-  return Math.max(0, when - Date.now());
+  return Math.min(Math.max(0, when - Date.now()), MAX_RETRY_AFTER_MS);
 }
 
 export class RequestEngine {

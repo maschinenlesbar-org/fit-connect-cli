@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RequestEngine, parseRetryAfter } from "../src/client/engine.js";
+import { RequestEngine, parseRetryAfter, MAX_RETRY_AFTER_MS } from "../src/client/engine.js";
 import { FitConnectApiError, FitConnectError, FitConnectParseError } from "../src/client/errors.js";
 import type { HttpResponse } from "../src/client/http.js";
 import { makeMockTransport, jsonResponse, rawResponse } from "./helpers.js";
@@ -147,7 +147,7 @@ test("falls back to linear backoff when Retry-After is absent", async () => {
 });
 
 test("parseRetryAfter handles seconds, HTTP-date, arrays and junk", () => {
-  assert.equal(parseRetryAfter("120"), 120_000);
+  assert.equal(parseRetryAfter("20"), 20_000);
   assert.equal(parseRetryAfter("0"), 0);
   assert.equal(parseRetryAfter(["5"]), 5_000);
   assert.equal(parseRetryAfter(undefined), undefined);
@@ -155,6 +155,40 @@ test("parseRetryAfter handles seconds, HTTP-date, arrays and junk", () => {
   assert.equal(parseRetryAfter("not-a-date"), undefined);
   // An HTTP-date in the past clamps to 0.
   assert.equal(parseRetryAfter("Wed, 21 Oct 2015 07:28:00 GMT"), 0);
+});
+
+test("parseRetryAfter clamps an unbounded server-supplied delay to the ceiling", () => {
+  // Delta-seconds far past the ceiling: without a clamp this would sleep ~317 years.
+  assert.equal(parseRetryAfter("9999999999"), MAX_RETRY_AFTER_MS);
+  // A far-future HTTP date is clamped the same way.
+  assert.equal(parseRetryAfter("Fri, 31 Dec 9999 23:59:59 GMT"), MAX_RETRY_AFTER_MS);
+  // A value just above the ceiling is clamped; one just below is honoured.
+  assert.equal(parseRetryAfter(String(MAX_RETRY_AFTER_MS / 1000 + 1)), MAX_RETRY_AFTER_MS);
+  assert.equal(parseRetryAfter(String(MAX_RETRY_AFTER_MS / 1000 - 1)), MAX_RETRY_AFTER_MS - 1000);
+});
+
+test("a 429 with an unbounded Retry-After sleeps only up to the ceiling", async () => {
+  let calls = 0;
+  const mt = makeMockTransport((): HttpResponse => {
+    calls += 1;
+    if (calls === 1) {
+      return {
+        status: 429,
+        headers: { "content-type": "application/json", "retry-after": "9999999999" },
+        body: Buffer.from("{}"),
+      };
+    }
+    return jsonResponse({ ok: 1 });
+  });
+  const slept: number[] = [];
+  const e = new RequestEngine({
+    transport: mt.transport,
+    sleep: async (ms) => {
+      slept.push(ms);
+    },
+  });
+  assert.deepEqual(await e.getJson("/v2/info"), { ok: 1 });
+  assert.deepEqual(slept, [MAX_RETRY_AFTER_MS]); // clamped, not ~317 years
 });
 
 test("an API error surfaces the problem+json detail field in the message", async () => {
