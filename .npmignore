@@ -26,3 +26,6 @@ dist-artifacts/
 
 # The full OpenAPI spec is large and only needed for development.
 routing-api.yaml
+
+# Website (Jekyll source; built into GitHub Pages by docs.yml)
+site/

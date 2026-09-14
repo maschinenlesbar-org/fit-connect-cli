@@ -1,0 +1,15 @@
+# The only repo-specific texts of the website. Everything else comes from the
+# repository: the English intro from README.md, the commands from the built CLI.
+
+# How the API is accessed: open | key (env: VAR) | account (token, user, password: VARs)
+access:
+  type: open
+
+de:
+  # German version of the README's intro paragraph. Keep it in step with README.md.
+  intro: >-
+    Herausfinden, **welche Behörde zuständig ist** – für eine Verwaltungsleistung an einem
+    bestimmten Ort, direkt im Terminal. `fit-connect` ist ein Kommandozeilen-Tool für die
+    offene [FIT-Connect-Routing-API](https://docs.fitko.de/fit-connect/docs/apis/routing-api/)
+    (`routing-api-prod.fit-connect.fitko.net`) der [FITKO](https://www.fitko.de/) (Föderale
+    IT-Kooperation).

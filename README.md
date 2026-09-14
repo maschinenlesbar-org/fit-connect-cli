@@ -4,6 +4,8 @@
 [![Release](https://github.com/maschinenlesbar-org/fit-connect-cli/actions/workflows/release.yml/badge.svg)](https://github.com/maschinenlesbar-org/fit-connect-cli/actions/workflows/release.yml)
 [![npm](https://img.shields.io/npm/v/@maschinenlesbar.org/fit-connect-cli)](https://www.npmjs.com/package/@maschinenlesbar.org/fit-connect-cli)
 
+**Website:** [English](https://maschinenlesbar-org.github.io/fit-connect-cli/) · [Deutsch](https://maschinenlesbar-org.github.io/fit-connect-cli/de/) — command reference, guides and API docs
+
 Find out **which German authority is responsible** for a public administrative
 service in a given place — straight from your terminal. `fit-connect` is a
 command-line tool over the open
