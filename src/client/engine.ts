@@ -59,9 +59,10 @@ export const MAX_RETRY_AFTER_MS = 30_000;
  * `JSON.parse` decodes an escaped ESC in an error body into a real ESC byte, so
  * without this a hostile or MITM'd endpoint could drive ANSI/OSC escape sequences
  * into the user's terminal (display spoofing, title changes) when the resulting
- * `Error.message` is printed raw to stderr by `run.ts`. The success path is already
- * safe (`JSON.stringify` re-escapes control chars), so this only needs to cover
- * text that flows into an error message. Removes all C0/C1 controls plus DEL.
+ * `Error.message` is printed raw to stderr by `run.ts`. The CLI's JSON output is
+ * escaped separately (`escapeControlChars` in `cli/shared.ts`: `JSON.stringify`
+ * alone leaves DEL and the C1 range raw), so this only needs to cover text that
+ * flows into an error message. Removes all C0/C1 controls plus DEL.
  */
 function sanitizeServerText(text: string): string {
   let out = "";
