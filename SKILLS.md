@@ -18,7 +18,7 @@ place→area→route flow) so Claude doesn't rediscover them each time.
 | Skill | What it does | Ask it… |
 |---|---|---|
 | **fit-connect-find-authority** | Resolves a place to an area, routes a service key to it, and reports the responsible authority's name, contacts and address. | "who is responsible for <service> in Hanau?", "where do I apply for this Leistung in Köln?" |
-| **fit-connect-area-lookup** | Searches areas by name or postal code and disambiguates the city from its Ortsteile, returning the id/codes for routing. | "what's the area id for Halle?", "look up 60311", "which areas match Mag\*?" |
+| **fit-connect-area-lookup** | Searches areas by name or postal code and disambiguates the city from its Ortsteile, returning the area id for routing (no AGS/ARS codes). | "what's the area id for Halle?", "look up 60311", "which areas match Mag\*?" |
 | **fit-connect-service-briefing** | Turns a route result's localized info blocks into a citizen-facing "how to apply" briefing (documents, legal basis, deadlines, processing time, contacts). | "what do I need to apply for <service> in <place>?", "how long does it take?" |
 
 ## Requirements
@@ -94,11 +94,14 @@ skills encode the non-obvious parts of this API, for example:
   or two selectors is rejected before any request;
 - the service key is **not** discoverable through this CLI, so the skills ask for it
   rather than guessing (a wrong key returns a misleading empty result);
-- a place name resolves to **many** area rows (the city plus its Ortsteile) — pick
-  the top-level entry, not a `Gemeindeteil` (see **fit-connect-area-lookup**);
-- an empty `routes: []` (`count: 0`) is a **valid answer**, not an error — it means
-  no destination is registered there; the skills report that and suggest a broader
-  area;
+- a place name resolves to **many** area rows (the city plus its districts) — pick
+  a whole-place entry, not a `Gemeindeteil`/`Ortsteil`; the `type` values differ by
+  Land (`Stadt`, `Landkreis`, `Amt`, …), and several search words are ANDed, so one
+  call per place (see **fit-connect-area-lookup**);
+- an empty `routes: []` (`count: 0`) is a **valid answer**, not an error, and the
+  usual one: routing data is sparse, so most real service keys have no destination
+  registered in a given area; the skills say so plainly instead of promising
+  contacts;
 - the route result's info blocks are localized `{ description: { de, en } }` objects
   whose values may contain HTML — strip tags for a readable briefing (see
   **fit-connect-service-briefing**).
