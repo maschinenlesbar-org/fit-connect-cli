@@ -42,6 +42,17 @@ Pick the relevant `route` from `routes[]` (usually the single result). If
 `count` is `0`, there is no registered destination for that service in that area
 — report that plainly and stop; there is nothing to brief.
 
+> **Trap: expect `count: 0`.** Routing data is sparse. On 2026-09-15, 62 lookups
+> for 13 common services (Wohngeld, Gewerbeanmeldung, Hundesteuer, Elterngeld, …)
+> across 15 cities and Länder all returned `{"count":0,…,"routes":[]}` (exit `0`),
+> and the example key `99123456760610` has no destinations either. So don't promise
+> a briefing before you have a route. An empty result means FIT-Connect has no
+> Zustellpunkt for the service there, not that the service doesn't exist. If the
+> `fim-portal` CLI is available, its service texts (`fim-portal --compact
+> service-texts search --leistungsschluessel <key>`, fields `kurztext`, `volltext`,
+> `rechtsgrundlagen`) describe the service without a route; say that the text comes
+> from the FIM Portal, not from FIT-Connect.
+
 ## Fields to turn into the briefing
 
 The localized text blocks are objects shaped `{ description: { de: "...", en: "..." } }`

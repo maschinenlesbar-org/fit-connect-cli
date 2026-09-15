@@ -8,7 +8,8 @@ description: >
   Leistungsschlüssel", or wants the contact details / address of the competent
   authority for an Online-Antrag. Resolves the place to an area, then routes the
   service key to the responsible destination and reports its name, contacts and
-  addresses.
+  addresses, or says plainly that FIT-Connect has no destination registered there,
+  which is the usual result.
 version: 1.0.0
 userInvocable: true
 ---
@@ -56,21 +57,35 @@ fit-connect --compact areas "Hanau"
 ```
 
 This returns `{ count, offset, totalCount, areas: [{ id, name, type }] }`. Pick
-the entry whose `type` matches what the user means — `"kreisfreie Stadt"`,
-`"Kreis"`, `"Gemeinde"`, a `Bundesland`, etc. — and use its `id` as `--area-id`.
-If several plausibly match (a city and its Ortsteile, or a name shared by several
-places), show the candidates and ask which one, or pick the obvious whole-city
-entry and say so. Use the dedicated **fit-connect-area-lookup** skill if the
-disambiguation is the hard part.
+the entry whose `type` matches what the user means — a whole place such as
+`"kreisfreie Stadt"`, `"Stadt"`, `"Gemeinde"` or `"Mitgliedsgemeinde"`, a
+`"Landkreis"`, a `"Bundesland"`, etc. (the values differ by Land) — and use its `id`
+as `--area-id`. Skip `"Gemeindeteil"` / `"Ortsteil"` rows unless the user means a
+district. If several plausibly match (a city and its districts, or a name shared by
+several places), show the candidates and ask which one, or pick the obvious
+whole-city entry and say so. Use the dedicated **fit-connect-area-lookup** skill if
+the disambiguation is the hard part.
 
 ## Step 2 — Route the service to the responsible authority
 
 ```bash
 fit-connect --compact routes 99123456760610 --area-id 940
-# or, if you already have the codes:
-fit-connect --compact routes 99123456760610 --ars 064350014014
+# or, if you already have the codes (here: Erfurt):
+fit-connect --compact routes 99123456760610 --ars 160510000000
 fit-connect --compact routes 99123456760610 --ags 16051000
 ```
+
+An `--ars`/`--ags` the routing service doesn't know exits `1` with `HTTP 400 … No
+Area was found with given AreaKey.` Resolve the place by name instead.
+
+> **Trap: routing data is sparse.** Most lookups come back empty
+> (`{"count":0,…,"routes":[]}`, exit `0`). On 2026-09-15, 62 lookups for 13 common
+> services (Wahlschein, Gewerbeanmeldung, Wohngeld, Hundesteuer, Elterngeld,
+> Führungszeugnis, …) across 15 cities and Länder (Berlin, Hamburg, München, Köln,
+> Halle (Saale), …) all returned no route. The example key `99123456760610` has no
+> destinations either. An empty result means no FIT-Connect Zustellpunkt is
+> registered, **not** that no authority is responsible. Expect it, and don't promise
+> contact details before you have a route.
 
 The response is `{ count, offset, totalCount, routes: [...] }`. Each `route` is
 one Zustellpunkt. The fields worth surfacing:
@@ -100,11 +115,14 @@ Responsible authority for <service> in <place>:
 ```
 
 Rules:
-- **`count: 0` is a valid answer, not an error.** It means no destination is
-  registered for that service in that area in the routing service. Say so plainly
-  — e.g. "No FIT-Connect Zustellpunkt is registered for this service in <place>"
-  — and suggest checking a broader area (the Kreis or Bundesland instead of the
-  Gemeinde), or confirming the Leistungsschlüssel.
+- **`count: 0` is a valid answer, not an error, and the common one.** It means no
+  destination is registered for that service in that area in the routing service.
+  Say so plainly — e.g. "No FIT-Connect Zustellpunkt is registered for this service
+  in <place>" — and that the authority still exists but can't be found through
+  FIT-Connect. A broader area (the Landkreis or Bundesland) or re-checking the
+  Leistungsschlüssel is cheap to try but rarely changes the result. Point the user to
+  the place's own administration website or the federal/state service portal for
+  the contact instead.
 - **Multiple routes** — list each authority briefly; don't merge them.
 - Only surface contact fields that are actually present; omit empties rather than
   printing blanks.
