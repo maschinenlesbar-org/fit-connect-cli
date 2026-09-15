@@ -9,7 +9,8 @@ import type { CliDeps } from "./io.js";
 import { defaultIO } from "./io.js";
 import { FitConnectClient } from "../client/client.js";
 import { DEFAULT_BASE_URL } from "../client/engine.js";
-import { parseApiVersion, parseIntArg, parseUserAgentArg } from "./shared.js";
+import { MAX_TIMEOUT_MS } from "../client/http.js";
+import { parseApiVersion, parseBoundedInt, parseIntArg, parseUserAgentArg } from "./shared.js";
 import { registerRoutesCommand } from "./commands/routes.js";
 import { registerAreasCommand } from "./commands/areas.js";
 import { registerInfoCommand } from "./commands/info.js";
@@ -50,7 +51,11 @@ export function buildProgram(deps: CliDeps = defaultDeps): Command {
     .version(VERSION, "-v, --version", "output the version number")
     .option("--base-url <url>", "API base URL", DEFAULT_BASE_URL)
     .option("--api-version <version>", "Routing API version: v1 or v2", parseApiVersion, "v2")
-    .option("--timeout <ms>", "time limit per request in milliseconds, whole response included (0 disables)", parseIntArg)
+    .option(
+      "--timeout <ms>",
+      "time limit per request in milliseconds, whole response included (0 disables)",
+      parseBoundedInt(0, MAX_TIMEOUT_MS),
+    )
     .option(
       "--user-agent <ua>",
       "User-Agent header value (blank falls back to default; some values are blocked by the API)",

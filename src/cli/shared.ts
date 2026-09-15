@@ -26,6 +26,20 @@ export function parseIntArg(value: string): number {
 }
 
 /**
+ * Build a commander value-parser for an integer constrained to [min, max]
+ * (a canonical non-negative integer, see {@link parseIntArg}).
+ */
+export function parseBoundedInt(min: number, max: number): (value: string) => number {
+  return (value: string) => {
+    const n = parseIntArg(value);
+    if (n < min || n > max) {
+      throw new InvalidArgumentError(`Expected an integer between ${min} and ${max}.`);
+    }
+    return n;
+  };
+}
+
+/**
  * commander value-parser for `--limit`: a page size in 1..500, the bound the
  * Routing API documents. Out-of-range values were previously forwarded and the
  * API rejected them with an opaque "HTTP 400 Constraint Violation" that never

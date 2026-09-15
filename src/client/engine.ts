@@ -25,7 +25,7 @@ export interface EngineOptions {
    *  403. An empty or whitespace-only value falls back to the default. */
   userAgent?: string;
   /** Time limit per request in milliseconds, covering the whole response body, not
-   *  only idle gaps (0 disables). */
+   *  only idle gaps (0 disables; capped at `MAX_TIMEOUT_MS`, 2^31 - 1 ms). */
   timeoutMs?: number;
   /** Number of automatic retries for transient (429/503) responses. */
   maxRetries?: number;

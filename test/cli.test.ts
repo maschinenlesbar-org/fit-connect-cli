@@ -227,6 +227,17 @@ test("an invalid --timeout is a usage error (non-zero, no request)", async () =>
   assert.equal(cli.mt.calls.length, 0);
 });
 
+test("--timeout accepts up to the largest timer Node supports", async () => {
+  const cli = makeCli(() => jsonResponse({ version: { major: 2, minor: 0, patch: 0 } }));
+  assert.equal(await run(["--timeout", "2147483647", "info"], cli.deps), 0);
+  assert.equal(cli.mt.last().timeoutMs, 2_147_483_647);
+
+  const over = makeCli(() => jsonResponse({}));
+  assert.equal(await run(["--timeout", "2147483648", "info"], over.deps), 1);
+  assert.equal(over.mt.calls.length, 0);
+  assert.match(over.err.join("\n"), /between 0 and 2147483647/);
+});
+
 test("an invalid --api-version is a usage error (non-zero, no request)", async () => {
   const cli = makeCli(() => jsonResponse({}));
   const code = await run(["--api-version", "v9", "info"], cli.deps);
