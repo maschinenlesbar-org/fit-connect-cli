@@ -50,7 +50,7 @@ export function buildProgram(deps: CliDeps = defaultDeps): Command {
     .version(VERSION, "-v, --version", "output the version number")
     .option("--base-url <url>", "API base URL", DEFAULT_BASE_URL)
     .option("--api-version <version>", "Routing API version: v1 or v2", parseApiVersion, "v2")
-    .option("--timeout <ms>", "per-request timeout in milliseconds (0 disables)", parseIntArg)
+    .option("--timeout <ms>", "time limit per request in milliseconds, whole response included (0 disables)", parseIntArg)
     .option(
       "--user-agent <ua>",
       "User-Agent header value (blank falls back to default; some values are blocked by the API)",

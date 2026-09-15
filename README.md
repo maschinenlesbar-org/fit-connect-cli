@@ -177,7 +177,7 @@ These apply to every command and may go before or after it:
 | `--compact` | Print JSON on a single line instead of pretty-printed |
 | `--base-url <url>` | API base URL (default `https://routing-api-prod.fit-connect.fitko.net`) |
 | `--api-version <v1\|v2>` | Routing API version (default `v2`; `v1` is legacy) |
-| `--timeout <ms>` | Per-request timeout in ms (default `30000`; `0` disables) |
+| `--timeout <ms>` | Time limit per request in ms, reading the whole response included (default `30000`; `0` disables) |
 | `--user-agent <ua>` | `User-Agent` header value (blank falls back to default; some values are blocked by the API's bot detection) |
 | `--max-retries <n>` | Retries for transient `429`/`503` responses (default `2`) |
 | `--max-response-bytes <n>` | Cap response body size in bytes (`0` = unlimited; default 100 MiB) |
