@@ -44,7 +44,9 @@ export interface RouteQuery {
 export interface AreaQuery {
   /**
    * One or more search terms (names and/or postal codes). The wildcard `*` is
-   * supported, e.g. `"Mag*"`. At least one non-empty term is required.
+   * supported, e.g. `"Mag*"`. Terms are split into words on whitespace and
+   * punctuation (`"Halle (Westf.)"` → `Halle`, `Westf`), and every word must
+   * match the same area. At least one non-empty word is required.
    */
   search: string | string[];
   /** Start offset into the result set (default 0). */
@@ -109,12 +111,14 @@ export class FitConnectClient {
 
   /** Search for areas by name and/or postal code. */
   async areas(params: AreaQuery): Promise<AreaResult> {
-    // Split each term on internal whitespace into separate areaSearchexpression
-    // values. The API ANDs the expressions and 500s on a space inside a single
-    // expression, so a quoted multi-word place like "Frankfurt am Main" must be
-    // sent as three expressions — identical to passing the words as separate args.
+    // Split each term into separate areaSearchexpression values on whitespace AND
+    // punctuation, keeping letters, digits and the `*` wildcard. The API ANDs the
+    // expressions and 500s on a space or on punctuation such as `(`, `)`, `.` or
+    // `-` inside an expression, so a quoted place like "Frankfurt am Main" must be
+    // sent as three expressions and an official name like "Halle (Westf.)" as
+    // "Halle" + "Westf" — identical to passing the bare words as separate args.
     const terms = (Array.isArray(params.search) ? params.search : [params.search])
-      .flatMap((t) => (typeof t === "string" ? t.trim().split(/\s+/) : []))
+      .flatMap((t) => (typeof t === "string" ? t.split(/[^\p{L}\p{M}\p{N}*]+/u) : []))
       .filter((t) => t !== "");
     if (terms.length === 0) {
       throw new FitConnectError("areas() needs at least one non-empty search term");

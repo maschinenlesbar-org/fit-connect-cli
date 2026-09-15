@@ -88,6 +88,23 @@ test("areas() splits a quoted multi-word term into separate expressions", async 
   );
 });
 
+test("areas() splits on punctuation the API can't parse, keeping letters, digits and *", async () => {
+  const mt = constantJson({ count: 0, offset: 0, totalCount: 0, areas: [] });
+  const sent = async (search: string | string[]) => {
+    await clientWith(mt).areas({ search });
+    return new URL(mt.last().url).searchParams.getAll("areaSearchexpression");
+  };
+  assert.deepEqual(await sent("Halle (Westf.)"), ["Halle", "Westf"]);
+  assert.deepEqual(await sent("Baden-Baden"), ["Baden", "Baden"]);
+  assert.deepEqual(await sent(["Mülheim an der Ruhr", "Mag*", "33790"]), ["Mülheim", "an", "der", "Ruhr", "Mag*", "33790"]);
+});
+
+test("areas() rejects a punctuation-only search before any request", async () => {
+  const mt = constantJson({});
+  await assert.rejects(() => clientWith(mt).areas({ search: ["(.)", " - "] }), FitConnectError);
+  assert.equal(mt.calls.length, 0);
+});
+
 test("areas() rejects an all-blank search before any request", async () => {
   const mt = constantJson({});
   await assert.rejects(() => clientWith(mt).areas({ search: ["", "  "] }), FitConnectError);

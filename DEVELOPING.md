@@ -79,7 +79,9 @@ new FitConnectClient({
   Requires `leikaKey` and **exactly one** of `ags` / `ars` / `areaId`; both rules
   are enforced client-side (a `FitConnectError` rejection) before any request.
 - `areas({ search, offset?, limit? })` → `AreaResult`. `search` is a string or
-  string array; blank terms are trimmed/dropped, and an all-blank search rejects.
+  string array; each term is split into words on whitespace and punctuation
+  (`"Halle (Westf.)"` → `Halle`, `Westf`; `*` is kept), and a search with no words
+  left rejects.
 - `info()` → `Info` (the deployed API's semantic version).
 - `client.apiVersion` reflects the configured version.
 
@@ -156,7 +158,9 @@ errors. Sits between the client's methods and the transport.
 serialiser: omits `undefined`/`null`, **repeats keys for arrays** (used for the
 multi-valued `areaSearchexpression`), and encodes spaces as `%20`. Note the API
 **ANDs** repeated `areaSearchexpression` values (every term must match the same
-area); the client splits each search term on whitespace into separate values.
+area) and answers `500` when a value contains a space or punctuation such as `(`,
+`.` or `-`; the client therefore splits each search term on whitespace and
+punctuation into separate values, keeping letters, digits and `*`.
 
 **CliDeps / CliIO.** The dependency-injection seam for the CLI
 ([`io.ts`](src/cli/io.ts)): a client factory plus an I/O object (`out`/`err`).

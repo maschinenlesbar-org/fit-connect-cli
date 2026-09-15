@@ -7,7 +7,9 @@ export function registerAreasCommand(program: Command, deps: CliDeps): void {
     .command("areas <query...>")
     .description(
       "Search areas by name and/or postal code. Supports the `*` wildcard, e.g. " +
-        '`areas "Mag*"`. Use a result\'s id as --area-id for `fit-connect routes`.',
+        '`areas "Mag*"`. Terms are split into words on spaces and punctuation, and ' +
+        "every word must match the same area. Use a result's id as --area-id for " +
+        "`fit-connect routes`.",
     )
     .option("--offset <n>", "start offset into the result set (default 0)", parseIntArg)
     .option("--limit <n>", "page size, 1..500 (default 100)", parseLimit)

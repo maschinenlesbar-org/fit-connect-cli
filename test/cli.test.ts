@@ -78,6 +78,13 @@ test("areas passes every search term as a repeated query param", async () => {
   assert.deepEqual(url.searchParams.getAll("areaSearchexpression"), ["Halle", "Magdeburg"]);
 });
 
+test("areas sends a quoted official name with parentheses as its bare words", async () => {
+  const cli = makeCli(() => jsonResponse(AREA_BODY));
+  const code = await run(["areas", "Halle (Westf.)"], cli.deps);
+  assert.equal(code, 0);
+  assert.deepEqual(new URL(cli.mt.last().url).searchParams.getAll("areaSearchexpression"), ["Halle", "Westf"]);
+});
+
 test("--api-version v1 switches the path prefix", async () => {
   const cli = makeCli(() => jsonResponse(ROUTE_BODY));
   await run(["--api-version", "v1", "routes", "99123456760610", "--ags", "16051000"], cli.deps);
