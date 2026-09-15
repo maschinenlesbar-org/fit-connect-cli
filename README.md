@@ -106,8 +106,10 @@ A lookup that matches no registered destination is **not** an error — it retur
 Search areas by name and/or postal code. Supports the `*` wildcard (`"Mag*"`).
 Multiple terms are combined with **AND** — every term must match the *same* area,
 so extra terms narrow the search (e.g. `areas Frankfurt am Main`) rather than
-searching several places at once. Each result has an `id` (use as `--area-id`),
-`name`, and `type`. Supports `--offset` / `--limit`.
+searching several places at once. Terms are split into words on spaces and
+punctuation, so an official name like `"Halle (Westf.)"` works quoted. Each result
+has an `id` (use as `--area-id`), `name`, and `type`. Supports `--offset` /
+`--limit`.
 
 ### `info`
 
@@ -157,8 +159,10 @@ JSON. `--compact` is a **global** option and works **before or after** the comma
 - **`exactly one area selector` error** — `routes` needs precisely one of
   `--ags` / `--ars` / `--area-id`. Zero or two is rejected before any request.
 - **Empty `routes: []`** — no FIT-Connect Zustellpunkt is registered for that
-  service in that area. This is normal and exits `0`; try a broader area (the
-  Kreis or Bundesland) or re-check the Leistungsschlüssel.
+  service in that area. This is normal and exits `0`, and it is the usual result:
+  routing data is sparse, and many real service keys return no route in large
+  cities too. Try a broader area (the Landkreis or Bundesland) or re-check the
+  Leistungsschlüssel.
 - **`403` / bot-detection** — the Routing API filters on the `User-Agent`. The
   CLI's default UA is accepted, but some UA strings are blocked, so a custom
   `--user-agent` can trigger a `403`. A missing or blank UA is *not* itself
@@ -176,7 +180,7 @@ These apply to every command and may go before or after it:
 | `-h, --help` | Show help for the program or a command |
 | `--compact` | Print JSON on a single line instead of pretty-printed |
 | `--base-url <url>` | API base URL (default `https://routing-api-prod.fit-connect.fitko.net`) |
-| `--api-version <v1\|v2>` | Routing API version (default `v2`; `v1` is legacy) |
+| `--api-version <version>` | Routing API version, `v1` or `v2` (default `v2`; `v1` is legacy) |
 | `--timeout <ms>` | Time limit per request in ms, reading the whole response included (default `30000`; `0` disables; at most `2147483647`) |
 | `--user-agent <ua>` | `User-Agent` header value (blank falls back to default; some values are blocked by the API's bot detection) |
 | `--max-retries <n>` | Retries for transient `429`/`503` responses (default `2`) |

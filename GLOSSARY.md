@@ -67,7 +67,7 @@ ags with hierarchy), **12 digits**. An area selector for `routes` (`--ars`).
 
 | Option | Meaning |
 | --- | --- |
-| `<query...>` | One or more search terms (names / postal codes); `*` wildcard supported |
+| `<query...>` | One or more search terms (names / postal codes); `*` wildcard supported. Terms are split into words on spaces and punctuation, and every word must match the same area (AND) |
 | `--offset <n>` | Start offset into the result set (default `0`) |
 | `--limit <n>` | Page size, `1`..`500` (default `100`) |
 
@@ -79,7 +79,7 @@ ags with hierarchy), **12 digits**. An area selector for `routes` (`--ars`).
 | `-h, --help` | Show help |
 | `--compact` | Single-line JSON instead of pretty-printed |
 | `--base-url <url>` | API base URL (default `https://routing-api-prod.fit-connect.fitko.net`) |
-| `--api-version <v1\|v2>` | Routing API version (default `v2`; `v1` is legacy) |
+| `--api-version <version>` | Routing API version, `v1` or `v2` (default `v2`; `v1` is legacy) |
 | `--timeout <ms>` | Time limit per request, reading the whole response included (default `30000`; `0` disables; at most `2147483647`) |
 | `--user-agent <ua>` | `User-Agent` header (blank falls back to default; some values are blocked by the API's bot detection) |
 | `--max-retries <n>` | Retries for transient `429`/`503` (default `2`) |
@@ -124,7 +124,7 @@ Envelope: `{ count, offset, totalCount, areas: Area[] }`.
 | --- | --- |
 | `id` | Numeric area id — pass as `--area-id` to `routes` |
 | `name` | Area name, e.g. `"Halle (Saale)"` |
-| `type` | Area type, e.g. `"kreisfreie Stadt"`, `"Kreis"`, `"Gemeinde"`, `"Gemeindeteil"` |
+| `type` | Area type; the values differ by Land, e.g. `"Bundesland"`, `"Landkreis"`, `"kreisfreie Stadt"`, `"Stadt"`, `"Gemeinde"`, `"Amt"`, `"Gemeindeteil"`, `"Ortsteil"` |
 
 ## Response fields — `info`
 

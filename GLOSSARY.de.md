@@ -65,7 +65,7 @@ ags mit Hierarchie), **12 Ziffern**. Ein Gebietsselektor für `routes` (`--ars`)
 
 | Option | Bedeutung |
 | --- | --- |
-| `<query...>` | Ein oder mehrere Suchbegriffe (Namen / Postleitzahlen); Platzhalter `*` wird unterstützt |
+| `<query...>` | Ein oder mehrere Suchbegriffe (Namen / Postleitzahlen); Platzhalter `*` wird unterstützt. Die Begriffe werden an Leerzeichen und Satzzeichen in Wörter zerlegt, und jedes Wort muss auf dasselbe Gebiet passen (UND) |
 | `--offset <n>` | Start-Offset in der Ergebnismenge (Standard `0`) |
 | `--limit <n>` | Seitengröße, `1`..`500` (Standard `100`) |
 
@@ -77,7 +77,7 @@ ags mit Hierarchie), **12 Ziffern**. Ein Gebietsselektor für `routes` (`--ars`)
 | `-h, --help` | Zeigt die Hilfe an |
 | `--compact` | JSON in einer Zeile statt formatiert |
 | `--base-url <url>` | Basis-URL der API (Standard `https://routing-api-prod.fit-connect.fitko.net`) |
-| `--api-version <v1\|v2>` | Version der Routing-API (Standard `v2`; `v1` ist veraltet) |
+| `--api-version <version>` | Version der Routing-API, `v1` oder `v2` (Standard `v2`; `v1` ist veraltet) |
 | `--timeout <ms>` | Zeitlimit pro Anfrage, einschließlich des Lesens der gesamten Antwort (Standard `30000`; `0` deaktiviert es; höchstens `2147483647`) |
 | `--user-agent <ua>` | `User-Agent`-Header (ein leerer Wert fällt auf den Standard zurück; manche Werte blockiert die Bot-Erkennung der API) |
 | `--max-retries <n>` | Retries bei vorübergehenden `429`/`503`-Antworten (Standard `2`) |
@@ -123,7 +123,7 @@ Antwortstruktur: `{ count, offset, totalCount, areas: Area[] }`.
 | --- | --- |
 | `id` | Numerische Gebiets-ID – als `--area-id` an `routes` übergeben |
 | `name` | Name des Gebiets, z. B. `"Halle (Saale)"` |
-| `type` | Gebietstyp, z. B. `"kreisfreie Stadt"`, `"Kreis"`, `"Gemeinde"`, `"Gemeindeteil"` |
+| `type` | Gebietstyp; die Werte unterscheiden sich je nach Land, z. B. `"Bundesland"`, `"Landkreis"`, `"kreisfreie Stadt"`, `"Stadt"`, `"Gemeinde"`, `"Amt"`, `"Gemeindeteil"`, `"Ortsteil"` |
 
 ## Antwortfelder – `info`
 
