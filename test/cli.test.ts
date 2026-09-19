@@ -292,3 +292,42 @@ test("global options flow through to the client", async () => {
   assert.equal(new URL(mt.last().url).origin, "https://example.test");
   assert.equal(new URL(mt.last().url).pathname, "/v1/info");
 });
+
+test("a blank id or query value is rejected before any request (non-zero exit)", async () => {
+  // A blank value (often an unset shell variable) must never be sent as an empty
+  // parameter (`areaId=`) alongside a valid selector, nor run unfiltered.
+  const cases: { name: string; argv: string[] }[] = [];
+  for (const blank of ["", "   "]) {
+    const label = JSON.stringify(blank);
+    cases.push(
+      { name: `--area-id ${label} with --ars`, argv: ["routes", "99123456760610", "--ars", "064350014014", "--area-id", blank] },
+      { name: `--area-id ${label} with --ags`, argv: ["routes", "99123456760610", "--ags", "16051000", "--area-id", blank] },
+      { name: `--area-id ${label} alone`, argv: ["routes", "99123456760610", "--area-id", blank] },
+      { name: `--ars ${label}`, argv: ["routes", "99123456760610", "--ars", blank] },
+      { name: `leikaKey ${label}`, argv: ["routes", blank, "--ars", "064350014014"] },
+      { name: `areas query ${label}`, argv: ["areas", blank] },
+    );
+  }
+  for (const { name, argv } of cases) {
+    const cli = makeCli(() => jsonResponse(ROUTE_BODY));
+    const code = await run(argv, cli.deps);
+    assert.notEqual(code, 0, `${name} should exit non-zero`);
+    assert.equal(cli.mt.calls.length, 0, `${name} should not send a request`);
+  }
+});
+
+test("a blank --area-id is a usage error naming the flag", async () => {
+  const cli = makeCli(() => jsonResponse(ROUTE_BODY));
+  const code = await run(["routes", "99123456760610", "--ars", "064350014014", "--area-id", ""], cli.deps);
+  assert.notEqual(code, 0);
+  assert.equal(cli.mt.calls.length, 0);
+  assert.match(cli.err.join("\n"), /--area-id/);
+  assert.match(cli.err.join("\n"), /must not be blank/);
+});
+
+test("--area-id is trimmed before it is sent", async () => {
+  const cli = makeCli(() => jsonResponse(ROUTE_BODY));
+  const code = await run(["routes", "99123456760610", "--area-id", " 1024 "], cli.deps);
+  assert.equal(code, 0);
+  assert.equal(new URL(cli.mt.last().url).searchParams.get("areaId"), "1024");
+});

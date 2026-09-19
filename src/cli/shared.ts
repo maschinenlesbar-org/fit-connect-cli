@@ -80,6 +80,21 @@ export function parseArs(value: string): string {
   return trimmed;
 }
 
+/**
+ * commander value-parser for a free-form id (`--area-id`): trimmed, and a blank
+ * value ("" or whitespace, often an unset shell variable) is a usage error. It was
+ * previously forwarded as an empty `areaId=` parameter next to another selector,
+ * so the command ran and exited 0. The CLI counterpart of the client's
+ * `requireNonEmpty`.
+ */
+export function parseNonEmpty(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    throw new InvalidArgumentError("Value must not be blank.");
+  }
+  return trimmed;
+}
+
 /** commander value-parser for the Routing API version: "v1" or "v2". */
 export function parseApiVersion(value: string): ApiVersion {
   if (value === "v1" || value === "v2") return value;
