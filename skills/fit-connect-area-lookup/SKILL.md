@@ -8,8 +8,11 @@ description: >
   before a routing lookup. Searches by name (with `*` wildcard) or postal code and
   returns typed candidates (id, name, type); it does not return
   Gemeindeschlüssel or Regionalschlüssel codes.
-version: 1.0.0
-userInvocable: true
+compatibility: >
+  Requires the `fit-connect` CLI (npm package
+  @maschinenlesbar.org/fit-connect-cli) on PATH, installed by the user; the
+  skill never installs it. Network access to
+  routing-api-prod.fit-connect.fitko.net.
 ---
 
 # FIT-Connect — Area Lookup

@@ -10,8 +10,11 @@ description: >
   service key to the responsible destination and reports its name, contacts and
   addresses, or says plainly that FIT-Connect has no destination registered there,
   which is the usual result.
-version: 1.0.0
-userInvocable: true
+compatibility: >
+  Requires the `fit-connect` CLI (npm package
+  @maschinenlesbar.org/fit-connect-cli) on PATH, installed by the user; the
+  skill never installs it. Uses jq for JSON filtering. Network access to
+  routing-api-prod.fit-connect.fitko.net.
 ---
 
 # FIT-Connect — Find the Responsible Authority
@@ -23,6 +26,8 @@ persons, address and the service-specific notes the API carries.
 ## Tooling
 
 This skill drives the `fit-connect` command. **Before anything else, validate it is available** — run `command -v fit-connect` (or `fit-connect --version`). If it is not on your PATH, STOP and inform the user that the `fit-connect` CLI (`@maschinenlesbar.org/fit-connect-cli`) is not installed — installing it is their responsibility; never install it yourself, and do not fall back to `npx` or a local `node dist/...` build.
+
+This skill also filters JSON with `jq`. **Validate it too** — run `command -v jq`. If it is missing, inform the user that `jq` is not installed — installing it is their responsibility; never install it yourself — and carry on without it: filter the CLI output with `node -e` instead (Node is already on your PATH, since the CLI runs on it).
 
 All data comes from the open **FIT-Connect Routing API** via this CLI. It is
 read-only, needs no API key, and queries the production routing service by

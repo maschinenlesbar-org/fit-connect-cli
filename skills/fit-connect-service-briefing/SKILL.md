@@ -9,8 +9,11 @@ description: >
   or wants a "how to apply" summary for a Verwaltungsleistung in a specific
   region. Routes the service to its destination and turns the response's
   localized info blocks into a readable briefing.
-version: 1.0.0
-userInvocable: true
+compatibility: >
+  Requires the `fit-connect` CLI (npm package
+  @maschinenlesbar.org/fit-connect-cli) on PATH, installed by the user; the
+  skill never installs it. Network access to
+  routing-api-prod.fit-connect.fitko.net.
 ---
 
 # FIT-Connect — Service Briefing
