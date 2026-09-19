@@ -121,6 +121,26 @@ export function parseUserAgentArg(value: string): string {
   return value;
 }
 
+/**
+ * commander value-parser for `--base-url`: an absolute http(s) URL. The client
+ * already rejects any other scheme, but only at runtime; checking here makes a
+ * `file:`, `ftp:` or malformed value a usage error before any client is built.
+ */
+export function parseBaseUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new InvalidArgumentError("Expected an absolute http(s) URL.");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new InvalidArgumentError(
+      `Unsupported scheme "${url.protocol}". Expected an http(s) URL.`,
+    );
+  }
+  return value;
+}
+
 export interface GlobalOptions {
   baseUrl?: string;
   timeout?: number;

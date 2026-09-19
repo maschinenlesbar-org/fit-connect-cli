@@ -10,7 +10,13 @@ import { defaultIO } from "./io.js";
 import { FitConnectClient } from "../client/client.js";
 import { DEFAULT_BASE_URL } from "../client/engine.js";
 import { MAX_TIMEOUT_MS } from "../client/http.js";
-import { parseApiVersion, parseBoundedInt, parseIntArg, parseUserAgentArg } from "./shared.js";
+import {
+  parseApiVersion,
+  parseBaseUrl,
+  parseBoundedInt,
+  parseIntArg,
+  parseUserAgentArg,
+} from "./shared.js";
 import { registerRoutesCommand } from "./commands/routes.js";
 import { registerAreasCommand } from "./commands/areas.js";
 import { registerInfoCommand } from "./commands/info.js";
@@ -49,7 +55,7 @@ export function buildProgram(deps: CliDeps = defaultDeps): Command {
         "(Zustellpunkt) for a public service in an area, and search areas.",
     )
     .version(VERSION, "-v, --version", "output the version number")
-    .option("--base-url <url>", "API base URL", DEFAULT_BASE_URL)
+    .option("--base-url <url>", "API base URL", parseBaseUrl, DEFAULT_BASE_URL)
     .option("--api-version <version>", "Routing API version: v1 or v2", parseApiVersion, "v2")
     .option(
       "--timeout <ms>",

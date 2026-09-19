@@ -245,6 +245,16 @@ test("--timeout accepts up to the largest timer Node supports", async () => {
   assert.match(over.err.join("\n"), /between 0 and 2147483647/);
 });
 
+test("a non-http(s) or malformed --base-url is a usage error (non-zero, no request)", async () => {
+  for (const bad of ["file:///etc/passwd", "ftp://example.org", "notaurl"]) {
+    const cli = makeCli(() => jsonResponse({}));
+    const code = await run(["--base-url", bad, "info"], cli.deps);
+    assert.notEqual(code, 0, bad);
+    assert.equal(cli.mt.calls.length, 0, bad);
+    assert.match(cli.err.join("\n"), /--base-url/, bad);
+  }
+});
+
 test("an invalid --api-version is a usage error (non-zero, no request)", async () => {
   const cli = makeCli(() => jsonResponse({}));
   const code = await run(["--api-version", "v9", "info"], cli.deps);
