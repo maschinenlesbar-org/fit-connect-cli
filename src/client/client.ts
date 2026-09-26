@@ -145,6 +145,9 @@ export class FitConnectClient {
   }
 }
 
+/** The largest `offset` the Routing API accepts (`int32`, `routing-api.yaml`). */
+export const MAX_OFFSET = 2_147_483_647;
+
 /** The most `areaSearchexpression` values the Routing API accepts (`maxItems: 10`). */
 export const MAX_AREA_SEARCH_WORDS = 10;
 

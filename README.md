@@ -87,7 +87,7 @@ Find the responsible destination(s) for a public service in an area. Requires a
 | `--ags <ags>` | Amtlicher Gemeindeschlüssel: 8 digits (Gemeinde), or 2 / 3 / 5 digits (Land / Regierungsbezirk / Kreis) |
 | `--ars <ars>` | Amtlicher Regionalschlüssel: 12 digits (Gemeinde), 9 (Gemeindeverband), or 2 / 3 / 5 digits (Land / Regierungsbezirk / Kreis) |
 | `--area-id <id>` | Area id from `fit-connect areas` |
-| `--offset <n>` | Start offset into the result set (default `0`) |
+| `--offset <n>` | Start offset into the result set, `0`..`2147483647` (default `0`) |
 | `--limit <n>` | Page size, `1`..`500` (default `100`) |
 
 A lookup that matches no registered destination is **not** an error — it returns

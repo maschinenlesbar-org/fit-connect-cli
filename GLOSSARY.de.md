@@ -62,7 +62,7 @@ ags mit Hierarchie): **12 Ziffern** für eine Gemeinde, **9** für einen Gemeind
 | `--ags <ags>` | Amtlicher Gemeindeschlüssel, 2/3/5/8 Ziffern (Land/Regierungsbezirk/Kreis/Gemeinde) – Gebietsselektor (genau einen angeben) |
 | `--ars <ars>` | Amtlicher Regionalschlüssel, 2/3/5/9/12 Ziffern (Land/Regierungsbezirk/Kreis/Gemeindeverband/Gemeinde) – Gebietsselektor (genau einen angeben) |
 | `--area-id <id>` | Gebiets-ID aus `fit-connect areas` – Gebietsselektor (genau einen angeben) |
-| `--offset <n>` | Start-Offset in der Ergebnismenge (Standard `0`) |
+| `--offset <n>` | Start-Offset in der Ergebnismenge, `0`..`2147483647` (Standard `0`) |
 | `--limit <n>` | Seitengröße, `1`..`500` (Standard `100`) |
 
 ## Optionen von `areas`
@@ -70,7 +70,7 @@ ags mit Hierarchie): **12 Ziffern** für eine Gemeinde, **9** für einen Gemeind
 | Option | Bedeutung |
 | --- | --- |
 | `<query...>` | Ein oder mehrere Suchbegriffe (Namen / Postleitzahlen); Platzhalter `*` wird unterstützt. Die Begriffe werden an Leerzeichen und Satzzeichen in Wörter zerlegt, und jedes Wort muss auf dasselbe Gebiet passen (UND). Jedes Wort braucht mindestens 2 Buchstaben oder Ziffern (kürzere werden mit einem Hinweis weggelassen); höchstens 10 Wörter |
-| `--offset <n>` | Start-Offset in der Ergebnismenge (Standard `0`) |
+| `--offset <n>` | Start-Offset in der Ergebnismenge, `0`..`2147483647` (Standard `0`) |
 | `--limit <n>` | Seitengröße, `1`..`500` (Standard `100`) |
 
 ## Globale Optionen

@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import type { CliDeps } from "../io.js";
 import { areaSearchWords } from "../../client/client.js";
-import { action, parseIntArg, parseLimit, renderJson } from "../shared.js";
+import { action, parseLimit, parseOffset, renderJson } from "../shared.js";
 
 export function registerAreasCommand(program: Command, deps: CliDeps): void {
   program
@@ -13,7 +13,7 @@ export function registerAreasCommand(program: Command, deps: CliDeps): void {
         "digits (shorter ones are left out), and at most 10 words are allowed. Use a " +
         "result's id as --area-id for `fit-connect routes`.",
     )
-    .option("--offset <n>", "start offset into the result set (default 0)", parseIntArg)
+    .option("--offset <n>", "start offset into the result set, 0..2147483647 (default 0)", parseOffset)
     .option("--limit <n>", "page size, 1..500 (default 100)", parseLimit)
     .action(
       action(deps, async ({ client, global, opts }, positionals) => {

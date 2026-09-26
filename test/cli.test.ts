@@ -301,6 +301,21 @@ test("a non-http(s) or malformed --base-url is a usage error (non-zero, no reque
   }
 });
 
+test("--offset is bounded to the API's int32 range", async () => {
+  for (const argv of [
+    ["areas", "Hanau", "--offset", "2147483648"],
+    ["routes", "99123456760610", "--ags", "16", "--offset", "9007199254740991"],
+  ]) {
+    const cli = makeCli(() => jsonResponse(ROUTE_BODY));
+    assert.equal(await run(argv, cli.deps), 1, argv.join(" "));
+    assert.equal(cli.mt.calls.length, 0);
+    assert.match(cli.err.join("\n"), /between 0 and 2147483647/);
+  }
+  const cli = makeCli(() => jsonResponse({ count: 0, offset: 2147483647, totalCount: 0, areas: [] }));
+  assert.equal(await run(["areas", "Hanau", "--offset", "2147483647"], cli.deps), 0);
+  assert.equal(new URL(cli.mt.last().url).searchParams.get("offset"), "2147483647");
+});
+
 test("--max-retries is bounded to 0..10", async () => {
   for (const [value, ok] of [["0", true], ["10", true], ["11", false], ["9007199254740991", false]] as const) {
     const cli = makeCli(() => jsonResponse({ version: { major: 2, minor: 0, patch: 0 } }));

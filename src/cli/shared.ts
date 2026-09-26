@@ -4,7 +4,7 @@
 import type { Command } from "commander";
 import { InvalidArgumentError } from "commander";
 import type { CliDeps } from "./io.js";
-import { AGS_PATTERN, ARS_PATTERN } from "../client/client.js";
+import { AGS_PATTERN, ARS_PATTERN, MAX_OFFSET } from "../client/client.js";
 import type { ApiVersion, FitConnectClientOptions } from "../client/client.js";
 
 /**
@@ -39,6 +39,12 @@ export function parseBoundedInt(min: number, max: number): (value: string) => nu
     return n;
   };
 }
+
+/**
+ * commander value-parser for `--offset`: 0..2147483647. The API declares `offset`
+ * as `int32` and answers a larger value with an HTML 400 that carries no detail.
+ */
+export const parseOffset = parseBoundedInt(0, MAX_OFFSET);
 
 /**
  * commander value-parser for `--limit`: a page size in 1..500, the bound the

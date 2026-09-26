@@ -6,6 +6,7 @@ export {
   AGS_PATTERN,
   ARS_PATTERN,
   MAX_AREA_SEARCH_WORDS,
+  MAX_OFFSET,
   areaSearchWords,
 } from "./client.js";
 export type {
