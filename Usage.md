@@ -43,9 +43,12 @@ fit-connect --compact routes 99123456760610 --ars 160510000000 \
 
 ```bash
 fit-connect --compact routes 99123456760610 --area-id 940 \
-  | jq -r '.routes[0].postalAddress
+  | jq -r '.routes[0].postalAddress // empty
       | "\(.street) \(.houseNumber), \(.zip) \(.city)"'
 ```
+
+Prints nothing when there is no route (the usual case) or the route has no postal
+address; `// empty` keeps jq from printing `null null, null null`.
 
 ## Search areas
 
