@@ -78,6 +78,12 @@ test("areas passes every search term as a repeated query param", async () => {
   assert.deepEqual(url.searchParams.getAll("areaSearchexpression"), ["Halle", "Magdeburg"]);
 });
 
+test("areas sends a decomposed umlaut composed (the API 500s on the NFD form)", async () => {
+  const cli = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
+  assert.equal(await run(["--compact", "areas", "Ko\u0308ln"], cli.deps), 0);
+  assert.match(cli.mt.last().url, /areaSearchexpression=K%C3%B6ln$/);
+});
+
 test("areas notes on stderr which too-short words it left out", async () => {
   const cli = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
   const code = await run(["--compact", "areas", "Frankfurt a. M."], cli.deps);

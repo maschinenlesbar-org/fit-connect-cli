@@ -79,7 +79,8 @@ new FitConnectClient({
   Requires `leikaKey` and **exactly one** of `ags` / `ars` / `areaId`; both rules
   are enforced client-side (a `FitConnectError` rejection) before any request.
 - `areas({ search, offset?, limit? })` → `AreaResult`. `search` is a string or
-  string array; each term is split into words on whitespace and punctuation
+  string array; each term is normalised to NFKC (the API 500s on a decomposed
+  umlaut or fullwidth digits) and split into words on whitespace and punctuation
   (`"Halle (Westf.)"` → `Halle`, `Westf`; `*` is kept). Words with fewer than 2
   non-wildcard characters are left out and a repeated word is sent once; a search
   with no word left, more than 10 words, or a `*` inside a word part shorter than 2

@@ -112,6 +112,12 @@ test("areaSearchWords() drops one-letter words and duplicates, as the API reject
   assert.deepEqual(areaSearchWords(["Mag*", "*burg", "*ab*", "ab*cd"]).words, ["Mag*", "*burg", "*ab*", "ab*cd"]);
 });
 
+test("areaSearchWords() normalises to NFKC (decomposed umlauts, fullwidth digits)", () => {
+  assert.deepEqual(areaSearchWords("Ko\u0308ln").words, ["K\u00f6ln"]);
+  assert.deepEqual(areaSearchWords("\uff16\uff10\uff13\uff11\uff11").words, ["60311"]);
+  assert.deepEqual(areaSearchWords(["Mu\u0308nchen", "M\u00fcnchen"]).words, ["M\u00fcnchen"]);
+});
+
 test("areaSearchWords() rejects what the API would reject: no usable word, > 10 words, a split wildcard", () => {
   assert.throws(() => areaSearchWords("*"), /No usable search word in "\*": every word needs at least 2/);
   assert.throws(() => areaSearchWords(["a", "M"]), /No usable search word/);

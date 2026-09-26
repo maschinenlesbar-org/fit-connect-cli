@@ -166,7 +166,8 @@ export interface AreaSearchWords {
 /**
  * Turn an area search into the words the Routing API accepts.
  *
- * Each term is split on whitespace AND punctuation, keeping letters, digits and
+ * Each term is normalised to NFKC (composed umlauts, ASCII digits for fullwidth
+ * ones), then split on whitespace AND punctuation, keeping letters, digits and
  * the `*` wildcard: the API ANDs the expressions and 500s on a space or on
  * punctuation such as `(`, `)`, `.` or `-` inside one, so "Frankfurt am Main" is
  * sent as three expressions and "Halle (Westf.)" as "Halle" + "Westf".
@@ -186,7 +187,10 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
   const words: string[] = [];
   const dropped: string[] = [];
   const seen = new Set<string>();
-  for (const word of terms.flatMap((t) => t.split(/[^\p{L}\p{M}\p{N}*]+/u))) {
+  // NFKC first: the API answers HTTP 500 for a decomposed umlaut ("Ko" + U+0308,
+  // as pasted from macOS file names) and for fullwidth digits (IME input), both of
+  // which look identical to the composed / ASCII text it does find.
+  for (const word of terms.flatMap((t) => t.normalize("NFKC").split(/[^\p{L}\p{M}\p{N}*]+/u))) {
     if (word === "") continue;
     if ([...word.replace(/\*/g, "")].length < 2) {
       dropped.push(word);
