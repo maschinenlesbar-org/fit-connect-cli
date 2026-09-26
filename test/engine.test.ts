@@ -26,6 +26,21 @@ test("rejects a non-http base URL naming the base URL", () => {
   );
 });
 
+test("a base URL with a query or fragment is rejected (it would swallow every path)", () => {
+  for (const baseUrl of ["http://u:secret@h/echo?token=abc", "http://h/echo#x", "http://h/?"]) {
+    assert.throws(
+      () => new RequestEngine({ baseUrl }),
+      (err: unknown) =>
+        err instanceof FitConnectError &&
+        /^Base URL must not contain a query or fragment: /.test(err.message) &&
+        !err.message.includes("secret"),
+      baseUrl,
+    );
+  }
+  // A path prefix (a mirror) still works.
+  assert.equal(new RequestEngine({ baseUrl: "http://h/mirror/" }).buildUrl("/v2/info"), "http://h/mirror/v2/info");
+});
+
 test("API error messages redact userinfo credentials from the URL", async () => {
   const mt = makeMockTransport(() => jsonResponse({ title: "Bad Request" }, 400));
   const e = new RequestEngine({ transport: mt.transport, baseUrl: "https://user:secret@example.test" });

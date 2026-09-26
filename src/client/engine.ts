@@ -117,6 +117,12 @@ function assertValidBaseUrl(baseUrl: string): void {
       `Unsupported base URL scheme "${parsed.protocol}" in "${redactUrl(baseUrl)}"; only http and https are supported.`,
     );
   }
+  // Request paths are appended to the base URL as a string, so a `?` or `#` in it
+  // would swallow every path: `http://h/?x=1` requests `/?x=1/v2/...` and
+  // `http://h/#f` requests `/` (the fragment, path and query are never sent).
+  if (/[?#]/.test(baseUrl)) {
+    throw new FitConnectError(`Base URL must not contain a query or fragment: ${redactUrl(baseUrl)}`);
+  }
 }
 
 /**

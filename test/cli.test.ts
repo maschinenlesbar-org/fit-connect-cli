@@ -278,7 +278,7 @@ test("--timeout accepts up to the largest timer Node supports", async () => {
 });
 
 test("a non-http(s) or malformed --base-url is a usage error (non-zero, no request)", async () => {
-  for (const bad of ["file:///etc/passwd", "ftp://example.org", "notaurl"]) {
+  for (const bad of ["file:///etc/passwd", "ftp://example.org", "notaurl", "http://h/echo?token=abc", "http://h/echo#x", "http://h/?"]) {
     const cli = makeCli(() => jsonResponse({}));
     const code = await run(["--base-url", bad, "info"], cli.deps);
     assert.notEqual(code, 0, bad);

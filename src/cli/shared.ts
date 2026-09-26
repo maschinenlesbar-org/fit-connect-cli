@@ -146,6 +146,11 @@ export function parseBaseUrl(value: string): string {
       `Unsupported scheme "${url.protocol}". Expected an http(s) URL.`,
     );
   }
+  // Paths are appended to the base URL as a string, so a query or fragment would
+  // swallow every request path ("http://h/#f" requests "/" for every command).
+  if (/[?#]/.test(value)) {
+    throw new InvalidArgumentError("A base URL cannot have a query (?) or fragment (#).");
+  }
   return value;
 }
 
