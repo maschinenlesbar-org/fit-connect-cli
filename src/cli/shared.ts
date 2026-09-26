@@ -6,6 +6,7 @@ import { InvalidArgumentError } from "commander";
 import type { CliDeps } from "./io.js";
 import { AGS_PATTERN, ARS_PATTERN, MAX_OFFSET } from "../client/client.js";
 import { isBidiControl } from "../client/engine.js";
+import { FitConnectError } from "../client/errors.js";
 import type { ApiVersion, FitConnectClientOptions } from "../client/client.js";
 
 /**
@@ -214,9 +215,32 @@ export function escapeControlChars(json: string): string {
   return from === 0 ? json : result + json.slice(from);
 }
 
+/**
+ * JSON.stringify, pretty or compact. A deeply nested value (a hostile or broken
+ * response) overflows the stack — the pretty form far sooner than the compact one,
+ * which is why the message suggests --compact. The RangeError becomes a
+ * FitConnectError so the CLI prints a clear message instead of "Unexpected error:
+ * Maximum call stack size exceeded".
+ */
+function stringifyJson(value: unknown, compact: boolean): string {
+  try {
+    return compact ? JSON.stringify(value) : JSON.stringify(value, null, 2);
+  } catch (err) {
+    if (err instanceof RangeError) {
+      throw new FitConnectError(
+        compact
+          ? "The response is nested too deeply to print."
+          : "The response is nested too deeply to pretty-print; try --compact.",
+        { cause: err },
+      );
+    }
+    throw err;
+  }
+}
+
 /** Render a JSON value to stdout, pretty by default, compact with --compact. */
 export function renderJson(deps: CliDeps, global: GlobalOptions, value: unknown): void {
-  const text = escapeControlChars(global.compact ? JSON.stringify(value) : JSON.stringify(value, null, 2));
+  const text = escapeControlChars(stringifyJson(value, global.compact === true));
   deps.io.out(text);
 }
 

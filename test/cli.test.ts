@@ -120,6 +120,22 @@ test("--compact prints single-line JSON", async () => {
   assert.equal(cli.out.join("\n"), JSON.stringify(AREA_BODY));
 });
 
+test("a deeply nested response fails pretty-printing cleanly and still prints with --compact", async () => {
+  const depth = 200_000;
+  const deep = () => rawResponse("[".repeat(depth) + "]".repeat(depth), "application/json");
+  const pretty = makeCli(deep);
+  assert.equal(await run(["info"], pretty.deps), 1);
+  assert.deepEqual(pretty.out, []);
+  assert.equal(pretty.err.join("\n"), "Error: The response is nested too deeply to pretty-print; try --compact.");
+
+  // Compact serialisation goes much deeper (it prints this one on current Node);
+  // should a runtime's stack still be too small, it must fail just as cleanly.
+  const compact = makeCli(deep);
+  const code = await run(["--compact", "info"], compact.deps);
+  if (code === 0) assert.equal(compact.out.join("").length, 2 * depth);
+  else assert.equal(compact.err.join("\n"), "Error: The response is nested too deeply to print.");
+});
+
 test("bidi formatting characters in server data are escaped in the JSON output", async () => {
   const bidi = String.fromCharCode(0x202e, 0x2066, 0x200f, 0x061c);
   const served = { count: 1, offset: 0, totalCount: 1, areas: [{ id: "1", name: `Halle${bidi}ellah`, type: "Stadt" }] };
