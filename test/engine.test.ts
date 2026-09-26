@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RequestEngine, parseRetryAfter, MAX_RETRY_AFTER_MS } from "../src/client/engine.js";
+import { RequestEngine, parseRateLimitReset, parseRetryAfter, MAX_RETRY_AFTER_MS } from "../src/client/engine.js";
 import { FitConnectApiError, FitConnectError, FitConnectParseError } from "../src/client/errors.js";
 import type { HttpResponse } from "../src/client/http.js";
 import { makeMockTransport, jsonResponse, rawResponse } from "./helpers.js";
@@ -161,13 +161,14 @@ test("falls back to linear backoff when Retry-After is absent", async () => {
   assert.deepEqual(slept, [200]);
 });
 
-function retryingEngine(retryAfter: string | undefined, maxRetries = 2) {
+function retryingEngine(retryAfter: string | undefined, maxRetries = 2, extra: Record<string, string> = {}) {
   const delays: number[] = [];
   const mt = makeMockTransport(() => ({
     status: 429,
     headers: {
       "content-type": "application/json",
       ...(retryAfter === undefined ? {} : { "retry-after": retryAfter }),
+      ...extra,
     },
     body: Buffer.from(JSON.stringify({ detail: "slow down" })),
   }));
@@ -202,6 +203,41 @@ test("a Retry-After above MAX_RETRY_AFTER_MS is not retried: the error surfaces 
     await assert.rejects(() => engine.getJson("/x"), (e: unknown) => e instanceof FitConnectApiError && e.status === 429);
     assert.equal(mt.calls.length, 1, header);
     assert.deepEqual(delays, [], header);
+  }
+});
+
+test("without Retry-After, a 429 waits the RateLimit-Reset the Routing API documents", async () => {
+  // Live 429 shape per routing-api.yaml: RateLimit-* headers, no Retry-After.
+  const rl = { "ratelimit-limit": "10", "ratelimit-remaining": "0", "ratelimit-reset": "5" };
+  const { engine, mt, delays } = retryingEngine(undefined, 2, rl);
+  await assert.rejects(() => engine.getJson("/x"), (e: unknown) => e instanceof FitConnectApiError && e.status === 429);
+  assert.equal(mt.calls.length, 3);
+  assert.deepEqual(delays, [5000, 5000]);
+
+  // Retry-After wins when both are present.
+  const both = retryingEngine("1", 1, rl);
+  await assert.rejects(() => both.engine.getJson("/x"));
+  assert.deepEqual(both.delays, [1000]);
+
+  // A reset beyond MAX_RETRY_AFTER_MS is not retried; a malformed one backs off linearly.
+  const far = retryingEngine(undefined, 2, { "ratelimit-reset": "3600" });
+  await assert.rejects(() => far.engine.getJson("/x"));
+  assert.equal(far.mt.calls.length, 1);
+  assert.deepEqual(far.delays, []);
+  const bad = retryingEngine(undefined, 2, { "ratelimit-reset": "1.5" });
+  await assert.rejects(() => bad.engine.getJson("/x"));
+  assert.deepEqual(bad.delays, [200, 400]);
+});
+
+test("parseRateLimitReset reads delta-seconds and Unix timestamps", () => {
+  const now = Date.parse("Sat, 26 Sep 2026 10:00:00 GMT");
+  assert.equal(parseRateLimitReset("0", now), 0);
+  assert.equal(parseRateLimitReset(" 5 ", now), 5000);
+  assert.equal(parseRateLimitReset(["7", "1"], now), 7000);
+  assert.equal(parseRateLimitReset(String(now / 1000 + 12), now), 12_000); // timestamp
+  assert.equal(parseRateLimitReset(String(now / 1000 - 60), now), 0); // past timestamp
+  for (const bad of [undefined, "", "-1", "1.5", "1e3", "soon", "Sat, 26 Sep 2026 10:00:05 GMT"]) {
+    assert.equal(parseRateLimitReset(bad, now), undefined, String(bad));
   }
 });
 

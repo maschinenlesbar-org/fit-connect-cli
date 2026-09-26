@@ -170,8 +170,10 @@ JSON. `--compact` is a **global** option and works **before or after** the comma
   CLI's default UA is accepted, but some UA strings are blocked, so a custom
   `--user-agent` can trigger a `403`. A missing or blank UA is *not* itself
   rejected — and the CLI falls back to its default for an empty value anyway.
-- **`429` / rate limited** — the CLI retries automatically and honours
-  `Retry-After`. Raise `--max-retries` or slow down if it persists.
+- **`429` / rate limited** — the CLI retries automatically and waits the
+  `Retry-After`, or the `RateLimit-Reset` the Routing API sends with a 429
+  (either up to 30 s; a longer wait is not retried). Raise `--max-retries` or slow
+  down if it persists.
 
 ## Global options
 
@@ -186,7 +188,7 @@ These apply to every command and may go before or after it:
 | `--api-version <version>` | Routing API version, `v1` or `v2` (default `v2`; `v1` is legacy) |
 | `--timeout <ms>` | Time limit per request in ms, reading the whole response included (default `30000`; `0` disables; at most `2147483647`) |
 | `--user-agent <ua>` | `User-Agent` header value (blank falls back to default; some values are blocked by the API's bot detection) |
-| `--max-retries <n>` | Retries for transient `429`/`503` responses (`0`–`10`, default `2`). Each retry waits the server's `Retry-After` (up to 30 s; a longer one is not retried) or else backs off linearly |
+| `--max-retries <n>` | Retries for transient `429`/`503` responses (`0`–`10`, default `2`). Each retry waits the server's `Retry-After`, else its `RateLimit-Reset` (up to 30 s; a longer wait is not retried), or else backs off linearly |
 | `--max-response-bytes <n>` | Cap response body size in bytes (`0` = unlimited; default 100 MiB) |
 
 ## Learn more

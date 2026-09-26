@@ -20,6 +20,7 @@ export {
   DEFAULT_BASE_URL,
   MAX_RETRIES,
   MAX_RETRY_AFTER_MS,
+  parseRateLimitReset,
   parseRetryAfter,
 } from "./engine.js";
 export type { EngineOptions, RawResponse } from "./engine.js";

@@ -29,8 +29,9 @@ export interface EngineOptions {
   timeoutMs?: number;
   /**
    * Number of automatic retries for transient (429/503) responses. Each waits the
-   * response's `Retry-After` (up to `MAX_RETRY_AFTER_MS`; a longer one is not
-   * retried), or else `retryDelayMs * attempt`.
+   * response's `Retry-After`, or without one its `RateLimit-Reset` (up to
+   * `MAX_RETRY_AFTER_MS`; a longer wait is not retried), or else
+   * `retryDelayMs * attempt`.
    */
   maxRetries?: number;
   /**
@@ -159,6 +160,35 @@ export function parseRetryAfter(
   return Number.isNaN(when) ? undefined : Math.max(0, when - now);
 }
 
+/**
+ * A `RateLimit-Reset` value at or above this is read as a Unix timestamp in
+ * seconds (2001-09-09 onwards), anything below as delta-seconds: no rate-limit
+ * window lasts 31 years, and no timestamp is that small.
+ */
+const UNIX_TIMESTAMP_FLOOR = 1_000_000_000;
+
+/**
+ * Parse a `RateLimit-Reset` header into a delay in milliseconds. The Routing API
+ * documents it (`routing-api.yaml`) as the backoff signal of a 429 — "Auswertung
+ * der RateLimit-Headers erforderlich" — and sends no `Retry-After`. Its spec calls
+ * the value "the point in time, in seconds, at which the current window ends",
+ * which reads as either delta-seconds (the IETF RateLimit draft) or a Unix
+ * timestamp, so both are accepted: digits only; a value of at least 10^9 is a
+ * timestamp (time left from `now`, 0 if past), a smaller one delta-seconds.
+ * Anything else (`"-1"`, `"1.5"`, a date) → `undefined`, as in `parseRetryAfter`.
+ * The engine uses it only when there is no usable `Retry-After`, with the same
+ * `MAX_RETRY_AFTER_MS` rule.
+ */
+export function parseRateLimitReset(
+  header: string | string[] | undefined,
+  now: number = Date.now(),
+): number | undefined {
+  const value = (Array.isArray(header) ? header[0] : header)?.trim();
+  if (value === undefined || !/^\d+$/.test(value)) return undefined;
+  const seconds = Number(value);
+  return seconds >= UNIX_TIMESTAMP_FLOOR ? Math.max(0, seconds * 1000 - now) : seconds * 1000;
+}
+
 export class RequestEngine {
   private readonly baseUrl: string;
   private readonly transport: Transport;
@@ -221,9 +251,12 @@ export class RequestEngine {
       const status = response.status;
       const retryable = status === 429 || status === 503;
       if (retryable && attempt < this.maxRetries) {
-        // Honour Retry-After; without a usable one, back off linearly. A Retry-After
-        // beyond MAX_RETRY_AFTER_MS is not retried: the error below surfaces at once.
-        const retryAfter = parseRetryAfter(response.headers["retry-after"]);
+        // Honour Retry-After, else the RateLimit-Reset the Routing API documents for
+        // a 429; without either, back off linearly. A wait beyond MAX_RETRY_AFTER_MS
+        // is not retried: the error below surfaces at once.
+        const retryAfter =
+          parseRetryAfter(response.headers["retry-after"]) ??
+          parseRateLimitReset(response.headers["ratelimit-reset"]);
         if (retryAfter === undefined || retryAfter <= MAX_RETRY_AFTER_MS) {
           attempt += 1;
           await this.sleep(retryAfter ?? this.retryDelayMs * attempt);

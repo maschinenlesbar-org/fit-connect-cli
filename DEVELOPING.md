@@ -184,8 +184,11 @@ rejected parameter and rule only there), `FitConnectNetworkError`
 backoff, up to `maxRetries` (default `2`; the CLI allows `0`..`MAX_RETRIES` = 10),
 honouring a `Retry-After` header when present (delta-seconds or an IMF-fixdate
 HTTP-date, parsed strictly by `parseRetryAfter`; a malformed, negative or fractional
-value falls back to linear backoff). A `Retry-After` above `MAX_RETRY_AFTER_MS`
-(30 s) is not retried at all: the error surfaces at once.
+value falls back to linear backoff). Without a usable `Retry-After`, the
+`RateLimit-Reset` header is used — the Routing API documents it as the 429 backoff
+signal and sends no `Retry-After`; `parseRateLimitReset` reads delta-seconds, or a
+Unix timestamp for values ≥ 10^9, because the spec's wording allows both. A wait
+above `MAX_RETRY_AFTER_MS` (30 s) is not retried at all: the error surfaces at once.
 `FitConnectApiError.isRetryable` reflects this.
 
 **problem+json content type.** The Routing API serves the `/areas` *success* body
