@@ -157,7 +157,7 @@ JSON. `--compact` is a **global** option and works **before or after** the comma
 ## Troubleshooting
 
 - **`command not found: fit-connect`** — the global npm bin directory isn't on
-  your `PATH`. Run `npm bin -g` to find it and add it, or run via
+  your `PATH`. Add `$(npm prefix -g)/bin` to it (`npm bin` was removed in npm 9), or run via
   `npx @maschinenlesbar.org/fit-connect-cli …`.
 - **`exactly one area selector` error** — `routes` needs precisely one of
   `--ags` / `--ars` / `--area-id`. Zero or two is rejected before any request.
