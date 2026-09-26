@@ -250,12 +250,26 @@ test("a malformed leikaKey is rejected before any request", async () => {
   assert.match(cli.err.join("\n"), /Invalid leikaKey/);
 });
 
+test("a non-Latin-1 --user-agent is a usage error, not an unexpected crash; tab and ü pass", async () => {
+  for (const ua of ["Mozilla \u20ac", "\u65e5\u672c"]) {
+    const cli = makeCli(() => jsonResponse({}));
+    const code = await run(["--user-agent", ua, "info"], cli.deps);
+    assert.equal(code, 1, ua);
+    assert.equal(cli.mt.calls.length, 0, ua);
+    assert.match(cli.err.join("\n"), /Value contains characters outside Latin-1 \(above U\+00FF\)\./);
+    assert.doesNotMatch(cli.err.join("\n"), /Unexpected error/);
+  }
+  const cli = makeCli(() => jsonResponse({ version: { major: 2, minor: 0, patch: 0 } }));
+  assert.equal(await run(["--user-agent", "a\tb-\u00fc", "info"], cli.deps), 0);
+  assert.equal(cli.mt.last().headers?.["User-Agent"], "a\tb-\u00fc");
+});
+
 test("a --user-agent with CR/LF is rejected, not an unexpected crash", async () => {
   const cli = makeCli(() => jsonResponse({}));
   const code = await run(["--user-agent", "bad\r\nInjected: x", "info"], cli.deps);
   assert.notEqual(code, 0);
   assert.equal(cli.mt.calls.length, 0);
-  assert.match(cli.err.join("\n"), /Control characters/);
+  assert.match(cli.err.join("\n"), /Value contains control characters\./);
   assert.doesNotMatch(cli.err.join("\n"), /Unexpected error/);
 });
 

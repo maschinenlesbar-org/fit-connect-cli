@@ -62,6 +62,19 @@ test("a whitespace-only User-Agent falls back to the default", async () => {
   assert.equal(mt.last().headers?.["User-Agent"], "fit-connect-cli");
 });
 
+test("a User-Agent Node cannot send is a FitConnectError, not a raw TypeError", () => {
+  for (const userAgent of ["x\r\ny: z", "Mozilla \u20ac", "\u65e5\u672c", "a\u007fb"]) {
+    assert.throws(
+      () => new RequestEngine({ userAgent }),
+      (err: unknown) =>
+        err instanceof FitConnectError &&
+        /^Invalid userAgent: it contains control characters or characters outside Latin-1/.test(err.message),
+      JSON.stringify(userAgent),
+    );
+  }
+  assert.doesNotThrow(() => new RequestEngine({ userAgent: "a\tb-\u00fc" }));
+});
+
 test("a real User-Agent is sent verbatim", async () => {
   const mt = makeMockTransport(() => jsonResponse({ ok: true }));
   const e = new RequestEngine({ transport: mt.transport, userAgent: "my-tool/2.0" });

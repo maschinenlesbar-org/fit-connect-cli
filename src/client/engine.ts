@@ -108,6 +108,23 @@ function describeViolations(violations: unknown): string | undefined {
   return parts.length > 0 ? parts.join("; ") : undefined;
 }
 
+/**
+ * Throw a `FitConnectError` for a header value Node cannot send (a control
+ * character other than tab, or a code unit above U+00FF): Node would otherwise
+ * throw a bare TypeError ("Invalid character in header content") from inside the
+ * transport, outside the library's error hierarchy.
+ */
+function assertHeaderValue(name: string, value: string): void {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if ((code < 0x20 && code !== 0x09) || code === 0x7f || code > 0xff) {
+      throw new FitConnectError(
+        `Invalid ${name}: it contains control characters or characters outside Latin-1 (above U+00FF), which an HTTP header cannot carry.`,
+      );
+    }
+  }
+}
+
 const realSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -211,6 +228,7 @@ export class RequestEngine {
     // User-Agent is semantically equivalent to none, so " " should not be sent
     // verbatim as if it were a real header value.
     this.userAgent = options.userAgent && options.userAgent.trim() !== "" ? options.userAgent : DEFAULT_USER_AGENT;
+    assertHeaderValue("userAgent", this.userAgent);
     this.timeoutMs = options.timeoutMs ?? 30_000;
     this.maxRetries = options.maxRetries ?? 2;
     this.retryDelayMs = options.retryDelayMs ?? 200;

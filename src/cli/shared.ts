@@ -110,23 +110,33 @@ export function parseApiVersion(value: string): ApiVersion {
 }
 
 /**
- * commander value-parser for `--user-agent`. Control characters (notably CR/LF)
- * are illegal in an HTTP header value: Node's http layer throws a low-level
- * TypeError when the request is built, which previously surfaced to the user as
- * an opaque "Unexpected error". Reject them up front as a usage error; this also
- * forecloses header injection via the User-Agent value. Checked by char code so
- * no control-character literal need appear in the source.
+ * commander value-parser for `--user-agent`: a value Node can send as an HTTP
+ * header. Control characters (notably CR/LF; tab is allowed, as in HTTP) and code
+ * units above U+00FF make Node's http layer throw a low-level TypeError when the
+ * request is built, which surfaced as an opaque "Unexpected error". Reject them up
+ * front as a usage error; this also forecloses header injection via the
+ * User-Agent. A blank value is accepted: the engine falls back to its default UA
+ * (documented). Checked by char code so no control-character literal need appear
+ * in the source.
  */
 export function parseUserAgentArg(value: string): string {
+  const problem = headerValueProblem(value);
+  if (problem !== undefined) throw new InvalidArgumentError(`Value contains ${problem}.`);
+  return value;
+}
+
+/**
+ * What makes `value` unsendable as an HTTP header value, or undefined when Node's
+ * `validateHeaderValue` would accept it: a control character other than tab, or a
+ * code unit above U+00FF (Node sends header values as Latin-1).
+ */
+export function headerValueProblem(value: string): string | undefined {
   for (let i = 0; i < value.length; i += 1) {
     const code = value.charCodeAt(i);
-    if (code < 0x20 || code === 0x7f) {
-      throw new InvalidArgumentError(
-        "Control characters (including CR/LF) are not allowed in --user-agent.",
-      );
-    }
+    if ((code < 0x20 && code !== 0x09) || code === 0x7f) return "control characters";
+    if (code > 0xff) return "characters outside Latin-1 (above U+00FF)";
   }
-  return value;
+  return undefined;
 }
 
 /**

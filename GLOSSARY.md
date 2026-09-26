@@ -85,7 +85,7 @@ for `routes` (`--ars`).
 | `--base-url <url>` | API base URL, http(s), a path prefix allowed but no `?query` or `#fragment` (default `https://routing-api-prod.fit-connect.fitko.net`) |
 | `--api-version <version>` | Routing API version, `v1` or `v2` (default `v2`; `v1` is legacy) |
 | `--timeout <ms>` | Time limit per request, reading the whole response included (default `30000`; `0` disables; at most `2147483647`) |
-| `--user-agent <ua>` | `User-Agent` header (blank falls back to default; some values are blocked by the API's bot detection) |
+| `--user-agent <ua>` | `User-Agent` header (blank falls back to default; Latin-1 only, no control characters except tab; some values are blocked by the API's bot detection) |
 | `--max-retries <n>` | Retries for transient `429`/`503` (`0`–`10`, default `2`). Each retry waits the server's `Retry-After`, else its `RateLimit-Reset` (up to 30 s; a longer wait is not retried), or else backs off linearly |
 | `--max-response-bytes <n>` | Response body size cap in bytes (`0` = unlimited; default 100 MiB) |
 
