@@ -194,10 +194,26 @@ test("an out-of-range --limit is rejected client-side (non-zero, no request)", a
 
 test("a malformed --ags is rejected client-side (non-zero, no request)", async () => {
   const cli = makeCli(() => jsonResponse(ROUTE_BODY));
-  const code = await run(["routes", "99123456760610", "--ags", "123"], cli.deps);
+  const code = await run(["routes", "99123456760610", "--ags", "1234"], cli.deps);
   assert.notEqual(code, 0);
   assert.equal(cli.mt.calls.length, 0);
-  assert.match(cli.err.join("\n"), /8-digit/);
+  assert.match(cli.err.join("\n"), /2, 3, 5 or 8 digits/);
+});
+
+test("Land/Kreis-level --ags and --ars keys are sent as given (the API accepts them)", async () => {
+  for (const [flag, value] of [
+    ["--ags", "16"],
+    ["--ags", "064"],
+    ["--ags", "06435"],
+    ["--ars", "16"],
+    ["--ars", "06435"],
+    ["--ars", "064350014"],
+  ] as const) {
+    const cli = makeCli(() => jsonResponse(ROUTE_BODY));
+    const code = await run(["routes", "99123456760610", flag, value], cli.deps);
+    assert.equal(code, 0, `${flag} ${value}`);
+    assert.equal(new URL(cli.mt.last().url).searchParams.get(flag.slice(2)), value);
+  }
 });
 
 test("a whitespace-only --ags reports a malformed value, not 'no selector'", async () => {
@@ -205,7 +221,7 @@ test("a whitespace-only --ags reports a malformed value, not 'no selector'", asy
   const code = await run(["routes", "99123456760610", "--ags", "   "], cli.deps);
   assert.notEqual(code, 0);
   assert.equal(cli.mt.calls.length, 0);
-  assert.match(cli.err.join("\n"), /8-digit/);
+  assert.match(cli.err.join("\n"), /2, 3, 5 or 8 digits/);
   // The runtime "got none" selector error (which this used to produce) must not fire.
   assert.doesNotMatch(cli.err.join("\n"), /got none/);
 });

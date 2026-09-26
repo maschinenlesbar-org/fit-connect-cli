@@ -84,8 +84,8 @@ Find the responsible destination(s) for a public service in an area. Requires a
 
 | Option | Description |
 | --- | --- |
-| `--ags <ags>` | Amtlicher Gemeindeschlüssel of the place |
-| `--ars <ars>` | Amtlicher Regionalschlüssel of the area |
+| `--ags <ags>` | Amtlicher Gemeindeschlüssel: 8 digits (Gemeinde), or 2 / 3 / 5 digits (Land / Regierungsbezirk / Kreis) |
+| `--ars <ars>` | Amtlicher Regionalschlüssel: 12 digits (Gemeinde), 9 (Gemeindeverband), or 2 / 3 / 5 digits (Land / Regierungsbezirk / Kreis) |
 | `--area-id <id>` | Area id from `fit-connect areas` |
 | `--offset <n>` | Start offset into the result set (default `0`) |
 | `--limit <n>` | Page size, `1`..`500` (default `100`) |
@@ -161,8 +161,8 @@ JSON. `--compact` is a **global** option and works **before or after** the comma
 - **Empty `routes: []`** — no FIT-Connect Zustellpunkt is registered for that
   service in that area. This is normal and exits `0`, and it is the usual result:
   routing data is sparse, and many real service keys return no route in large
-  cities too. Try a broader area (the Landkreis or Bundesland) or re-check the
-  Leistungsschlüssel.
+  cities too. Try a broader area — the Kreis or Land, e.g. `--ars 06435` or
+  `--ars 06` — or re-check the Leistungsschlüssel.
 - **`403` / bot-detection** — the Routing API filters on the `User-Agent`. The
   CLI's default UA is accepted, but some UA strings are blocked, so a custom
   `--user-agent` can trigger a `403`. A missing or blank UA is *not* itself

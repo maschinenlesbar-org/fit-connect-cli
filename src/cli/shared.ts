@@ -4,6 +4,7 @@
 import type { Command } from "commander";
 import { InvalidArgumentError } from "commander";
 import type { CliDeps } from "./io.js";
+import { AGS_PATTERN, ARS_PATTERN } from "../client/client.js";
 import type { ApiVersion, FitConnectClientOptions } from "../client/client.js";
 
 /**
@@ -54,28 +55,35 @@ export function parseLimit(value: string): number {
 }
 
 /**
- * commander value-parser for `--ags` (Amtlicher Gemeindeschlüssel): exactly 8
- * digits. Trims first — the value was previously forwarded untrimmed (unlike
- * leikaKey) — then validates, so surrounding whitespace, a wrong length, or a
- * whitespace-only value is a clear usage error rather than an opaque API 400 or a
- * misleading "got no selector" error.
+ * commander value-parser for `--ags` (Amtlicher Gemeindeschlüssel): 2, 3, 5 or 8
+ * digits — the Land, Regierungsbezirk, Kreis and Gemeinde levels, exactly the
+ * lengths the Routing API accepts (`routing-api.yaml`, `^(\d{2}|\d{3}|\d{5}|\d{8})$`).
+ * Trims first, then validates, so surrounding whitespace, a length the API rejects,
+ * or a whitespace-only value is a clear usage error rather than an opaque API 400 or
+ * a misleading "got no selector" error.
  */
 export function parseAgs(value: string): string {
   const trimmed = value.trim();
-  if (!/^\d{8}$/.test(trimmed)) {
-    throw new InvalidArgumentError("Expected an 8-digit Amtlicher Gemeindeschlüssel (AGS).");
+  if (!AGS_PATTERN.test(trimmed)) {
+    throw new InvalidArgumentError(
+      "Expected an Amtlicher Gemeindeschlüssel (AGS) of 2, 3, 5 or 8 digits (Land, Regierungsbezirk, Kreis or Gemeinde).",
+    );
   }
   return trimmed;
 }
 
 /**
- * commander value-parser for `--ars` (Amtlicher Regionalschlüssel): exactly 12
- * digits. Trims, then validates — see {@link parseAgs}.
+ * commander value-parser for `--ars` (Amtlicher Regionalschlüssel): 2, 3, 5, 9 or
+ * 12 digits — Land, Regierungsbezirk, Kreis, Gemeindeverband and Gemeinde, as the
+ * Routing API accepts (`^(\d{2}|\d{3}|\d{5}|\d{9}|\d{12})$`). Trims, then
+ * validates — see {@link parseAgs}.
  */
 export function parseArs(value: string): string {
   const trimmed = value.trim();
-  if (!/^\d{12}$/.test(trimmed)) {
-    throw new InvalidArgumentError("Expected a 12-digit Amtlicher Regionalschlüssel (ARS).");
+  if (!ARS_PATTERN.test(trimmed)) {
+    throw new InvalidArgumentError(
+      "Expected an Amtlicher Regionalschlüssel (ARS) of 2, 3, 5, 9 or 12 digits (Land, Regierungsbezirk, Kreis, Gemeindeverband or Gemeinde).",
+    );
   }
   return trimmed;
 }

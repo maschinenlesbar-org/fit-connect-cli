@@ -90,5 +90,6 @@ Rules:
   (`fit-connect routes <leikaKey> --area-id <id>`).
 - `ags`/`ars` vs `area-id`: this endpoint returns only an `id` (use as
   `--area-id`), never an `ags` or `ars`. If the user already has an official `ags`
-  (Gemeindeschlüssel, 8 digits) or `ars` (Regionalschlüssel, 12 digits), they can
+  (Gemeindeschlüssel, 8 digits; 2/3/5 for Land/Regierungsbezirk/Kreis) or `ars`
+  (Regionalschlüssel, 12 digits; 9 for a Gemeindeverband, 2/3/5 as for ags), they can
   route directly with `--ags`/`--ars` and skip this lookup entirely.

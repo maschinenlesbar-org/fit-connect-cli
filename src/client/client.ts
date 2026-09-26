@@ -19,6 +19,18 @@ export type ApiVersion = "v1" | "v2";
 
 export const DEFAULT_API_VERSION: ApiVersion = "v2";
 
+/**
+ * The Amtlicher Gemeindeschlüssel lengths the Routing API accepts: 2 (Land),
+ * 3 (Regierungsbezirk), 5 (Kreis) or 8 digits (Gemeinde) — `routing-api.yaml`.
+ */
+export const AGS_PATTERN = /^(\d{2}|\d{3}|\d{5}|\d{8})$/;
+
+/**
+ * The Amtlicher Regionalschlüssel lengths the Routing API accepts: 2 (Land),
+ * 3 (Regierungsbezirk), 5 (Kreis), 9 (Gemeindeverband) or 12 digits (Gemeinde).
+ */
+export const ARS_PATTERN = /^(\d{2}|\d{3}|\d{5}|\d{9}|\d{12})$/;
+
 export interface FitConnectClientOptions extends EngineOptions {
   /** Routing API major version to target (path prefix). Defaults to "v2". */
   apiVersion?: ApiVersion;
@@ -28,9 +40,9 @@ export interface FitConnectClientOptions extends EngineOptions {
 export interface RouteQuery {
   /** Leistungsschlüssel (formerly LeiKa key) of the public service. Required. */
   leikaKey: string;
-  /** Amtlicher Gemeindeschlüssel — provide exactly one area selector. */
+  /** Amtlicher Gemeindeschlüssel, 2/3/5/8 digits ({@link AGS_PATTERN}) — provide exactly one area selector. */
   ags?: string;
-  /** Amtlicher Regionalschlüssel — provide exactly one area selector. */
+  /** Amtlicher Regionalschlüssel, 2/3/5/9/12 digits ({@link ARS_PATTERN}) — provide exactly one area selector. */
   ars?: string;
   /** Area id from {@link FitConnectClient.areas} — provide exactly one area selector. */
   areaId?: string;

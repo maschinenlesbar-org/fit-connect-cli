@@ -46,8 +46,9 @@ A route lookup needs **both**:
    service names to keys). Do **not** invent one — a wrong key returns an empty
    or misleading result.
 2. **Exactly one area selector** — one of:
-   - `--ars <ars>` Amtlicher Regionalschlüssel,
-   - `--ags <ags>` Amtlicher Gemeindeschlüssel, or
+   - `--ars <ars>` Amtlicher Regionalschlüssel (12 digits for a Gemeinde, 9 for a
+     Gemeindeverband, 2/3/5 for Land/Regierungsbezirk/Kreis),
+   - `--ags <ags>` Amtlicher Gemeindeschlüssel (8 digits, or 2/3/5 as for ars), or
    - `--area-id <id>` an area id from `fit-connect areas`.
 
    Passing zero or more than one is an error (exit `1`). When the user gives a

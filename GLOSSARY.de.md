@@ -42,11 +42,15 @@ Zuständigkeiten, auf dem ein Großteil der Routing-Daten beruht (`origin: "PVOG
 **XZuFi.** Der XÖV-Datenstandard für Kataloge von Verwaltungsleistungen; das Quellformat hinter
 den Beschreibungen von Behörden und Leistungen.
 
-**ags – Amtlicher Gemeindeschlüssel.** Die amtliche Kennziffer einer Gemeinde, **8 Ziffern**.
-Ein Gebietsselektor für `routes` (`--ags`).
+**ags – Amtlicher Gemeindeschlüssel.** Die amtliche Kennziffer einer Gemeinde: **8 Ziffern** für
+eine Gemeinde oder deren erste **2** (Land), **3** (Regierungsbezirk) oder **5** Ziffern (Kreis)
+für die Ebene darüber – die Längen, die die Routing API annimmt. Ein Gebietsselektor für
+`routes` (`--ags`).
 
 **ars – Amtlicher Regionalschlüssel.** Die amtliche Kennziffer einer Region (eine Obermenge des
-ags mit Hierarchie), **12 Ziffern**. Ein Gebietsselektor für `routes` (`--ars`).
+ags mit Hierarchie): **12 Ziffern** für eine Gemeinde, **9** für einen Gemeindeverband oder
+**2** / **3** / **5** Ziffern für Land / Regierungsbezirk / Kreis. Ein Gebietsselektor für
+`routes` (`--ars`).
 
 **Gebiets-ID.** Die `id`, die `fit-connect areas` zurückgibt. Der dritte Gebietsselektor für
 `routes` (`--area-id`).
@@ -55,8 +59,8 @@ ags mit Hierarchie), **12 Ziffern**. Ein Gebietsselektor für `routes` (`--ars`)
 
 | Option | Bedeutung |
 | --- | --- |
-| `--ags <ags>` | Amtlicher Gemeindeschlüssel, 8 Ziffern – Gebietsselektor (genau einen angeben) |
-| `--ars <ars>` | Amtlicher Regionalschlüssel, 12 Ziffern – Gebietsselektor (genau einen angeben) |
+| `--ags <ags>` | Amtlicher Gemeindeschlüssel, 2/3/5/8 Ziffern (Land/Regierungsbezirk/Kreis/Gemeinde) – Gebietsselektor (genau einen angeben) |
+| `--ars <ars>` | Amtlicher Regionalschlüssel, 2/3/5/9/12 Ziffern (Land/Regierungsbezirk/Kreis/Gemeindeverband/Gemeinde) – Gebietsselektor (genau einen angeben) |
 | `--area-id <id>` | Gebiets-ID aus `fit-connect areas` – Gebietsselektor (genau einen angeben) |
 | `--offset <n>` | Start-Offset in der Ergebnismenge (Standard `0`) |
 | `--limit <n>` | Seitengröße, `1`..`500` (Standard `100`) |

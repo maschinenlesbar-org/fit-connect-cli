@@ -65,20 +65,31 @@ test("parseLimit rejects out-of-range values (0, 501)", () => {
   assert.throws(() => parseLimit("99999"), InvalidArgumentError);
 });
 
-test("parseAgs accepts 8 digits and trims surrounding whitespace", () => {
+test("parseAgs accepts 2, 3, 5 and 8 digits and trims surrounding whitespace", () => {
   assert.equal(parseAgs("11000000"), "11000000");
+  assert.equal(parseAgs("16"), "16");
+  assert.equal(parseAgs("064"), "064");
+  assert.equal(parseAgs("06435"), "06435");
   assert.equal(parseAgs("  16051000  "), "16051000");
 });
 
 test("parseAgs rejects wrong length, non-digits and whitespace-only", () => {
+  assert.throws(() => parseAgs("1"), InvalidArgumentError); // 1 digit
+  assert.throws(() => parseAgs("1234"), InvalidArgumentError); // 4 digits
   assert.throws(() => parseAgs("1234567"), InvalidArgumentError); // 7 digits
   assert.throws(() => parseAgs("123456789"), InvalidArgumentError); // 9 digits
   assert.throws(() => parseAgs("1100000a"), InvalidArgumentError);
   assert.throws(() => parseAgs("   "), InvalidArgumentError);
 });
 
-test("parseArs accepts 12 digits and trims; rejects wrong length", () => {
+test("parseArs accepts 2, 3, 5, 9 and 12 digits and trims; rejects other lengths", () => {
   assert.equal(parseArs("064350014014"), "064350014014");
+  assert.equal(parseArs("16"), "16");
+  assert.equal(parseArs("064"), "064");
+  assert.equal(parseArs("06435"), "06435");
+  assert.equal(parseArs("064350014"), "064350014");
+  assert.throws(() => parseArs("1234567890"), InvalidArgumentError); // 10 digits
+  assert.throws(() => parseArs("   "), InvalidArgumentError);
   assert.equal(parseArs(" 160510000000 "), "160510000000");
   assert.throws(() => parseArs("16051000"), InvalidArgumentError); // 8 digits
   assert.throws(() => parseArs("abcdefghijkl"), InvalidArgumentError);
