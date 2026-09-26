@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RequestEngine, parseRateLimitReset, parseRetryAfter, MAX_RETRY_AFTER_MS } from "../src/client/engine.js";
+import {
+  RequestEngine,
+  parseRateLimitReset,
+  parseRetryAfter,
+  sanitizeServerText,
+  MAX_RETRY_AFTER_MS,
+} from "../src/client/engine.js";
 import { FitConnectApiError, FitConnectError, FitConnectParseError } from "../src/client/errors.js";
 import type { HttpResponse } from "../src/client/http.js";
 import { makeMockTransport, jsonResponse, rawResponse } from "./helpers.js";
@@ -365,6 +371,29 @@ test("violations[] without a detail become the detail; control characters are st
     () => e.getJson("/v2/routes"),
     (err: unknown) => err instanceof FitConnectApiError && err.detail === "a[2Jb: bad]0;x",
   );
+});
+
+test("error detail loses bidi controls and line breaks, so it cannot reorder or forge lines", async () => {
+  const ESC = String.fromCharCode(0x1b);
+  const BEL = String.fromCharCode(0x07);
+  const RLO = String.fromCharCode(0x202e);
+  const LRI = String.fromCharCode(0x2066);
+  const detail = `bad request ${ESC}]0;PWNED${BEL}\nfit-connect: all good, 3 routes found${RLO}evil\r\nError: forged\u2028x\t ${LRI}y`;
+  const mt = makeMockTransport(() => jsonResponse({ detail }, 400));
+  const e = new RequestEngine({ transport: mt.transport });
+  await assert.rejects(
+    () => e.getJson("/v2/info"),
+    (err: unknown) => {
+      assert.ok(err instanceof FitConnectApiError);
+      assert.equal(err.detail, "bad request ]0;PWNED fit-connect: all good, 3 routes foundevil Error: forged x y");
+      assert.ok(!/[\n\r\u2028\u202e\u2066]/.test(err.message));
+      return true;
+    },
+  );
+});
+
+test("sanitizeServerText keeps ordinary text, umlauts and single spaces", () => {
+  assert.equal(sanitizeServerText("  No Area  was found. Größe  "), "No Area was found. Größe");
 });
 
 test("an API error tolerates a non-JSON body (no detail)", async () => {

@@ -120,6 +120,19 @@ test("--compact prints single-line JSON", async () => {
   assert.equal(cli.out.join("\n"), JSON.stringify(AREA_BODY));
 });
 
+test("bidi formatting characters in server data are escaped in the JSON output", async () => {
+  const bidi = String.fromCharCode(0x202e, 0x2066, 0x200f, 0x061c);
+  const served = { count: 1, offset: 0, totalCount: 1, areas: [{ id: "1", name: `Halle${bidi}ellah`, type: "Stadt" }] };
+  for (const format of [[], ["--compact"]]) {
+    const cli = makeCli(() => jsonResponse(served));
+    assert.equal(await run([...format, "areas", "Halle"], cli.deps), 0);
+    const text = cli.out.join("\n");
+    assert.ok(!/[\u202e\u2066\u200f\u061c]/.test(text), format.join(" "));
+    assert.match(text, /Halle\\u202e\\u2066\\u200f\\u061cellah/);
+    assert.deepEqual(JSON.parse(text), served);
+  }
+});
+
 test("DEL and C1 control characters in server data are escaped in the JSON output", async () => {
   const controls = String.fromCharCode(0x7f, 0x85, 0x9b) + "2J";
   const served = {
