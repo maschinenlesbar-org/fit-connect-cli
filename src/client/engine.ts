@@ -75,6 +75,27 @@ function sanitizeServerText(text: string): string {
   return out;
 }
 
+/**
+ * Summarise the `violations[]` a Routing API 400 carries next to its bare
+ * "Constraint Violation" detail — `[{"field":"route.areaId","message":"must match
+ * \"^\\d{1,}\""}]` — as `route.areaId: must match "^\d{1,}"`, joined with "; ".
+ * They name the rejected parameter and the rule, which the detail alone does not.
+ * Entries without a string `message` are skipped; every part is server text and
+ * goes through `sanitizeServerText`. Undefined when there is nothing to show.
+ */
+function describeViolations(violations: unknown): string | undefined {
+  if (!Array.isArray(violations)) return undefined;
+  const parts: string[] = [];
+  for (const v of violations as unknown[]) {
+    if (v === null || typeof v !== "object") continue;
+    const { field, message } = v as { field?: unknown; message?: unknown };
+    if (typeof message !== "string" || sanitizeServerText(message) === "") continue;
+    const name = typeof field === "string" ? sanitizeServerText(field) : "";
+    parts.push(name ? `${name}: ${sanitizeServerText(message)}` : sanitizeServerText(message));
+  }
+  return parts.length > 0 ? parts.join("; ") : undefined;
+}
+
 const realSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -218,16 +239,23 @@ export class RequestEngine {
     try {
       // RFC 7807 problem+json carries human-readable text in `detail` (and a
       // short `title`); fall back to `message` for non-standard error bodies.
-      const parsed = JSON.parse(text) as { detail?: unknown; title?: unknown; message?: unknown };
+      const parsed = JSON.parse(text) as {
+        detail?: unknown;
+        title?: unknown;
+        message?: unknown;
+        violations?: unknown;
+      };
       if (parsed && typeof parsed.detail === "string") detail = parsed.detail;
       else if (parsed && typeof parsed.title === "string") detail = parsed.title;
       else if (parsed && typeof parsed.message === "string") detail = parsed.message;
+      // `detail` came from the response body; strip control characters so a hostile
+      // endpoint cannot inject terminal escape sequences via the stderr error message.
+      if (detail !== undefined) detail = sanitizeServerText(detail);
+      const violations = describeViolations(parsed?.violations);
+      if (violations !== undefined) detail = detail ? `${detail} (${violations})` : violations;
     } catch {
       // Non-JSON error body; leave detail undefined.
     }
-    // `detail` came from the response body; strip control characters so a hostile
-    // endpoint cannot inject terminal escape sequences via the stderr error message.
-    if (detail !== undefined) detail = sanitizeServerText(detail);
     return new FitConnectApiError({ status, url, method, body: text, detail });
   }
 }

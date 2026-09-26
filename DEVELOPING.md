@@ -168,7 +168,9 @@ Lets the whole CLI run in tests with a mocked client and captured output.
 
 **Error types.** [`errors.ts`](src/client/errors.ts): `FitConnectApiError`
 (non-2xx; carries `status`/`detail`/`url`/`body`; `detail` is read from the
-RFC 7807 `application/problem+json` body's `detail`/`title`), `FitConnectNetworkError`
+RFC 7807 `application/problem+json` body's `detail`/`title`/`message`, followed by
+its `violations[]` as `(field: message; …)` — a 400 "Constraint Violation" names the
+rejected parameter and rule only there), `FitConnectNetworkError`
 (transport failure/timeout), `FitConnectParseError` (bad JSON), all extending
 `FitConnectError` (also raised for client-side validation).
 

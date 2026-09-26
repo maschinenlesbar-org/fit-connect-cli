@@ -251,6 +251,46 @@ test("an API error strips terminal control characters from the detail (no escape
   );
 });
 
+test("an API error names the problem+json violations[] after the detail", async () => {
+  // Live shape (2026-09-26): GET /v2/routes?…&areaId=%20940%20
+  const body = {
+    detail: "Constraint Violation",
+    status: 400,
+    title: "Bad Request",
+    violations: [
+      { field: "route.areaId", message: 'must match "^\\d{1,}"' },
+      { field: "route.ags", message: 'must match "^(\\d{2}|\\d{3}|\\d{5}|\\d{8})$"' },
+      { field: "ignored" },
+      "junk",
+    ],
+  };
+  const mt = makeMockTransport(() => rawResponse(JSON.stringify(body), "application/problem+json", 400));
+  const e = new RequestEngine({ transport: mt.transport });
+  await assert.rejects(
+    () => e.getJson("/v2/routes"),
+    (err: unknown) => {
+      assert.ok(err instanceof FitConnectApiError);
+      assert.equal(
+        err.detail,
+        'Constraint Violation (route.areaId: must match "^\\d{1,}"; route.ags: must match "^(\\d{2}|\\d{3}|\\d{5}|\\d{8})$")',
+      );
+      assert.match(err.message, /: Constraint Violation \(route\.areaId: must match/);
+      return true;
+    },
+  );
+});
+
+test("violations[] without a detail become the detail; control characters are stripped", async () => {
+  const ESC = String.fromCharCode(0x1b);
+  const body = { violations: [{ field: `a${ESC}[2Jb`, message: `bad${ESC}]0;x` }] };
+  const mt = makeMockTransport(() => rawResponse(JSON.stringify(body), "application/problem+json", 400));
+  const e = new RequestEngine({ transport: mt.transport });
+  await assert.rejects(
+    () => e.getJson("/v2/routes"),
+    (err: unknown) => err instanceof FitConnectApiError && err.detail === "a[2Jb: bad]0;x",
+  );
+});
+
 test("an API error tolerates a non-JSON body (no detail)", async () => {
   const mt = makeMockTransport(() => rawResponse("<html>oops</html>", "text/html", 500));
   const e = new RequestEngine({ transport: mt.transport });
