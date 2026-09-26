@@ -1,6 +1,6 @@
 {
   "name": "fit-connect",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Find the responsible German authority (Zustellpunkt) for a public service in any area, powered by the fit-connect-cli (FIT-Connect Routing API).",
   "author": {
     "name": "Sebastian Schürmann",
