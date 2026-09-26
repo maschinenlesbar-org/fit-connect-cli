@@ -27,11 +27,15 @@ export interface EngineOptions {
   /** Time limit per request in milliseconds, covering the whole response body, not
    *  only idle gaps (0 disables; capped at `MAX_TIMEOUT_MS`, 2^31 - 1 ms). */
   timeoutMs?: number;
-  /** Number of automatic retries for transient (429/503) responses. */
+  /**
+   * Number of automatic retries for transient (429/503) responses. Each waits the
+   * response's `Retry-After` (up to `MAX_RETRY_AFTER_MS`; a longer one is not
+   * retried), or else `retryDelayMs * attempt`.
+   */
   maxRetries?: number;
   /**
    * Base backoff between retries in milliseconds. Grows linearly per attempt,
-   * unless the response carries a `Retry-After` header, which takes precedence.
+   * unless the response carries a usable `Retry-After` header, which takes precedence.
    */
   retryDelayMs?: number;
   /**
@@ -46,13 +50,20 @@ export interface EngineOptions {
 const DEFAULT_MAX_RESPONSE_BYTES = 100 * 1024 * 1024;
 
 /**
- * Upper bound on the server-supplied `Retry-After` delay. Without a ceiling a
- * hostile or misconfigured endpoint could answer `429`/`503` with
- * `Retry-After: 9999999999` (or a far-future HTTP date) and stall the process
- * for years — the sleep is not bounded by `timeoutMs`. We honour the header up
- * to this cap and clamp anything larger.
+ * Longest `Retry-After` the engine waits out before retrying a 429/503. When the
+ * server asks for longer, the engine does not retry at all and surfaces the error at
+ * once: retrying early would only land inside the window the server asked us to wait
+ * out, and a hostile value must not stall the CLI (the sleep is not bounded by
+ * `timeoutMs`).
  */
 export const MAX_RETRY_AFTER_MS = 30_000;
+
+/** Upper bound for `--max-retries` (each retry may wait up to `MAX_RETRY_AFTER_MS`). */
+export const MAX_RETRIES = 10;
+
+/** An IMF-fixdate (RFC 9110 §5.6.7), the one HTTP-date form senders must generate. */
+const IMF_FIXDATE =
+  /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/;
 
 /**
  * Strip control characters out of a string that originates in an
@@ -126,27 +137,26 @@ function assertValidBaseUrl(baseUrl: string): void {
 }
 
 /**
- * Parse a `Retry-After` header into a delay in milliseconds, supporting both
- * the delta-seconds form (`Retry-After: 120`) and the HTTP-date form
- * (`Retry-After: Wed, 21 Oct 2025 07:28:00 GMT`). Returns `undefined` when the
- * header is absent or unparseable so the caller can fall back to its own backoff.
+ * Parse a `Retry-After` header into a delay in milliseconds (RFC 9110 §10.2.3):
+ * either delay-seconds (`"120"`) or an HTTP-date (`"Wed, 21 Oct 2026 07:28:00 GMT"`,
+ * turned into the time left from `now`; a date in the past gives 0).
  *
- * The result is clamped to `MAX_RETRY_AFTER_MS`: the value is server-controlled
- * and the sleep is not bounded by `timeoutMs`, so an unclamped `Retry-After`
- * (huge delta-seconds or a far-future date) would let a hostile/misconfigured
- * endpoint stall the process indefinitely.
+ * Returns `undefined` when the header is absent or malformed — negative (`"-1"`),
+ * fractional (`"1.5"`), any other date format — so the caller falls back to its own
+ * backoff. The strict patterns matter: `Date.parse` alone would read `"1.5"` as a
+ * date in 2001 and retry at once. The value is not clamped; the engine does not
+ * retry at all when it exceeds `MAX_RETRY_AFTER_MS`.
  */
-export function parseRetryAfter(value: string | string[] | undefined): number | undefined {
-  const raw = (Array.isArray(value) ? value[0] : value)?.trim();
-  if (!raw) return undefined;
-
-  if (/^\d+$/.test(raw)) {
-    return Math.min(Number(raw) * 1000, MAX_RETRY_AFTER_MS);
-  }
-
-  const when = Date.parse(raw);
-  if (Number.isNaN(when)) return undefined;
-  return Math.min(Math.max(0, when - Date.now()), MAX_RETRY_AFTER_MS);
+export function parseRetryAfter(
+  header: string | string[] | undefined,
+  now: number = Date.now(),
+): number | undefined {
+  const value = (Array.isArray(header) ? header[0] : header)?.trim();
+  if (value === undefined || value === "") return undefined;
+  if (/^\d+$/.test(value)) return Number(value) * 1000;
+  if (!IMF_FIXDATE.test(value)) return undefined;
+  const when = Date.parse(value);
+  return Number.isNaN(when) ? undefined : Math.max(0, when - now);
 }
 
 export class RequestEngine {
@@ -211,10 +221,14 @@ export class RequestEngine {
       const status = response.status;
       const retryable = status === 429 || status === 503;
       if (retryable && attempt < this.maxRetries) {
-        attempt += 1;
+        // Honour Retry-After; without a usable one, back off linearly. A Retry-After
+        // beyond MAX_RETRY_AFTER_MS is not retried: the error below surfaces at once.
         const retryAfter = parseRetryAfter(response.headers["retry-after"]);
-        await this.sleep(retryAfter ?? this.retryDelayMs * attempt);
-        continue;
+        if (retryAfter === undefined || retryAfter <= MAX_RETRY_AFTER_MS) {
+          attempt += 1;
+          await this.sleep(retryAfter ?? this.retryDelayMs * attempt);
+          continue;
+        }
       }
 
       const contentType = String(response.headers["content-type"] ?? "");

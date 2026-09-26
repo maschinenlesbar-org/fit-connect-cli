@@ -287,6 +287,18 @@ test("a non-http(s) or malformed --base-url is a usage error (non-zero, no reque
   }
 });
 
+test("--max-retries is bounded to 0..10", async () => {
+  for (const [value, ok] of [["0", true], ["10", true], ["11", false], ["9007199254740991", false]] as const) {
+    const cli = makeCli(() => jsonResponse({ version: { major: 2, minor: 0, patch: 0 } }));
+    const code = await run(["--max-retries", value, "info"], cli.deps);
+    assert.equal(code, ok ? 0 : 1, value);
+    if (!ok) {
+      assert.equal(cli.mt.calls.length, 0);
+      assert.match(cli.err.join("\n"), /between 0 and 10/);
+    }
+  }
+});
+
 test("an invalid --api-version is a usage error (non-zero, no request)", async () => {
   const cli = makeCli(() => jsonResponse({}));
   const code = await run(["--api-version", "v9", "info"], cli.deps);
