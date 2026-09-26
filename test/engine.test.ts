@@ -94,6 +94,27 @@ test("getJson parses a JSON body", async () => {
   assert.deepEqual(await e.getJson("/v2/info"), { ok: true });
 });
 
+test("getJson parses a body with a UTF-8 byte-order mark and honours the charset", async () => {
+  const bom = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('{"a":1}')]);
+  let e = new RequestEngine({ transport: makeMockTransport(() => rawResponse(bom, "application/json")).transport });
+  assert.deepEqual(await e.getJson("/v2/info"), { a: 1 });
+
+  const latin1 = Buffer.from('{"name":"K\u00f6ln"}', "latin1");
+  e = new RequestEngine({
+    transport: makeMockTransport(() => rawResponse(latin1, "application/json; charset=ISO-8859-1")).transport,
+  });
+  assert.deepEqual(await e.getJson("/v2/areas"), { name: "K\u00f6ln" });
+
+  e = new RequestEngine({
+    transport: makeMockTransport(() => rawResponse("{}", "application/json; charset=x-bogus")).transport,
+  });
+  await assert.rejects(
+    () => e.getJson("/v2/info"),
+    (err: unknown) =>
+      err instanceof FitConnectParseError && err.message === 'Unsupported response charset "x-bogus" from /v2/info.',
+  );
+});
+
 test("getJson throws FitConnectParseError on invalid JSON", async () => {
   const mt = makeMockTransport(() => rawResponse("not json", "application/json"));
   const e = new RequestEngine({ transport: mt.transport });

@@ -150,6 +150,24 @@ function assertHeaderValue(name: string, value: string): void {
   }
 }
 
+/**
+ * Decode a response body by the Content-Type's `charset` (default UTF-8) with
+ * TextDecoder, which — unlike Buffer#toString — drops a leading byte-order mark,
+ * so a BOM-prefixed JSON body parses. An unknown charset label is a
+ * `FitConnectParseError`. The Routing API sends UTF-8; this matters for proxies and
+ * mirrors that re-encode or prepend a BOM.
+ */
+function decodeBody(body: Buffer, contentType: string, path: string): string {
+  const charset = /;\s*charset\s*=\s*"?([^";\s]+)"?/i.exec(contentType)?.[1] ?? "utf-8";
+  let decoder: TextDecoder;
+  try {
+    decoder = new TextDecoder(charset);
+  } catch {
+    throw new FitConnectParseError(`Unsupported response charset "${sanitizeServerText(charset)}" from ${path}.`);
+  }
+  return decoder.decode(body);
+}
+
 const realSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -321,7 +339,7 @@ export class RequestEngine {
     // The Routing API serves the /areas success body as `application/problem+json`
     // (not `application/json`); we don't gate on content-type, only on parseability.
     const res = await this.request("GET", path, { query, accept: "application/json" });
-    const text = res.data.toString("utf8");
+    const text = decodeBody(res.data, res.contentType, path);
     try {
       return JSON.parse(text) as T;
     } catch (cause) {
