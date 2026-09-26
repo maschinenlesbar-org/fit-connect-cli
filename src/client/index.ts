@@ -1,11 +1,19 @@
 // Public entry point for the API client library.
 
-export { FitConnectClient, DEFAULT_API_VERSION, AGS_PATTERN, ARS_PATTERN } from "./client.js";
+export {
+  FitConnectClient,
+  DEFAULT_API_VERSION,
+  AGS_PATTERN,
+  ARS_PATTERN,
+  MAX_AREA_SEARCH_WORDS,
+  areaSearchWords,
+} from "./client.js";
 export type {
   ApiVersion,
   FitConnectClientOptions,
   RouteQuery,
   AreaQuery,
+  AreaSearchWords,
 } from "./client.js";
 export { RequestEngine, DEFAULT_BASE_URL, parseRetryAfter } from "./engine.js";
 export type { EngineOptions, RawResponse } from "./engine.js";

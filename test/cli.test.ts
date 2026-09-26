@@ -78,6 +78,16 @@ test("areas passes every search term as a repeated query param", async () => {
   assert.deepEqual(url.searchParams.getAll("areaSearchexpression"), ["Halle", "Magdeburg"]);
 });
 
+test("areas notes on stderr which too-short words it left out", async () => {
+  const cli = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
+  const code = await run(["--compact", "areas", "Frankfurt a. M."], cli.deps);
+  assert.equal(code, 0);
+  assert.deepEqual(new URL(cli.mt.last().url).searchParams.getAll("areaSearchexpression"), ["Frankfurt"]);
+  assert.deepEqual(cli.err, [
+    'Note: left out search words shorter than 2 characters (the API rejects them): "a", "M".',
+  ]);
+});
+
 test("areas sends a quoted official name with parentheses as its bare words", async () => {
   const cli = makeCli(() => jsonResponse(AREA_BODY));
   const code = await run(["areas", "Halle (Westf.)"], cli.deps);

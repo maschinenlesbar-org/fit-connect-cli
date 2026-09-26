@@ -69,7 +69,7 @@ ags mit Hierarchie): **12 Ziffern** für eine Gemeinde, **9** für einen Gemeind
 
 | Option | Bedeutung |
 | --- | --- |
-| `<query...>` | Ein oder mehrere Suchbegriffe (Namen / Postleitzahlen); Platzhalter `*` wird unterstützt. Die Begriffe werden an Leerzeichen und Satzzeichen in Wörter zerlegt, und jedes Wort muss auf dasselbe Gebiet passen (UND) |
+| `<query...>` | Ein oder mehrere Suchbegriffe (Namen / Postleitzahlen); Platzhalter `*` wird unterstützt. Die Begriffe werden an Leerzeichen und Satzzeichen in Wörter zerlegt, und jedes Wort muss auf dasselbe Gebiet passen (UND). Jedes Wort braucht mindestens 2 Buchstaben oder Ziffern (kürzere werden mit einem Hinweis weggelassen); höchstens 10 Wörter |
 | `--offset <n>` | Start-Offset in der Ergebnismenge (Standard `0`) |
 | `--limit <n>` | Seitengröße, `1`..`500` (Standard `100`) |
 

@@ -107,7 +107,10 @@ Search areas by name and/or postal code. Supports the `*` wildcard (`"Mag*"`).
 Multiple terms are combined with **AND** — every term must match the *same* area,
 so extra terms narrow the search (e.g. `areas Frankfurt am Main`) rather than
 searching several places at once. Terms are split into words on spaces and
-punctuation, so an official name like `"Halle (Westf.)"` works quoted. Each result
+punctuation, so an official name like `"Halle (Westf.)"` works quoted. The API
+needs at least 2 letters or digits per word and at most 10 words: shorter words are
+left out with a note on stderr (`"Frankfurt a. M."` searches `Frankfurt`), and more
+than 10 words, or a bare `*`, is an error before any request. Each result
 has an `id` (use as `--area-id`), `name`, and `type`. Supports `--offset` /
 `--limit`.
 

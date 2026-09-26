@@ -71,7 +71,7 @@ for `routes` (`--ars`).
 
 | Option | Meaning |
 | --- | --- |
-| `<query...>` | One or more search terms (names / postal codes); `*` wildcard supported. Terms are split into words on spaces and punctuation, and every word must match the same area (AND) |
+| `<query...>` | One or more search terms (names / postal codes); `*` wildcard supported. Terms are split into words on spaces and punctuation, and every word must match the same area (AND). Each word needs at least 2 letters or digits (shorter ones are left out, with a note); at most 10 words |
 | `--offset <n>` | Start offset into the result set (default `0`) |
 | `--limit <n>` | Page size, `1`..`500` (default `100`) |
 

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { FitConnectClient } from "../src/client/client.js";
+import { FitConnectClient, areaSearchWords } from "../src/client/client.js";
 import { FitConnectApiError, FitConnectError } from "../src/client/errors.js";
 import { makeMockTransport, jsonResponse, constantJson } from "./helpers.js";
 
@@ -95,8 +95,47 @@ test("areas() splits on punctuation the API can't parse, keeping letters, digits
     return new URL(mt.last().url).searchParams.getAll("areaSearchexpression");
   };
   assert.deepEqual(await sent("Halle (Westf.)"), ["Halle", "Westf"]);
-  assert.deepEqual(await sent("Baden-Baden"), ["Baden", "Baden"]);
+  assert.deepEqual(await sent("Baden-Baden"), ["Baden"]); // a repeated word is sent once
   assert.deepEqual(await sent(["Mülheim an der Ruhr", "Mag*", "33790"]), ["Mülheim", "an", "der", "Ruhr", "Mag*", "33790"]);
+});
+
+test("areaSearchWords() drops one-letter words and duplicates, as the API rejects them", () => {
+  assert.deepEqual(areaSearchWords("Frankfurt a. M."), { words: ["Frankfurt"], dropped: ["a", "M"] });
+  assert.deepEqual(areaSearchWords("Horschbach - OT Elzweiler Straße 1"), {
+    words: ["Horschbach", "OT", "Elzweiler", "Straße"],
+    dropped: ["1"],
+  });
+  assert.deepEqual(areaSearchWords(["OT Sarrod", "ot Rabenstein", "a*"]), {
+    words: ["OT", "Sarrod", "Rabenstein"],
+    dropped: ["a*"],
+  });
+  assert.deepEqual(areaSearchWords(["Mag*", "*burg", "*ab*", "ab*cd"]).words, ["Mag*", "*burg", "*ab*", "ab*cd"]);
+});
+
+test("areaSearchWords() rejects what the API would reject: no usable word, > 10 words, a split wildcard", () => {
+  assert.throws(() => areaSearchWords("*"), /No usable search word in "\*": every word needs at least 2/);
+  assert.throws(() => areaSearchWords(["a", "M"]), /No usable search word/);
+  assert.throws(
+    () =>
+      areaSearchWords(
+        "Steinau an der Straße, Brüder-Grimm-Stadt - OT Sarrod - OT Rabenstein (ehemaliger Wohnplatz)",
+      ),
+    /Too many search words \(12\): the API accepts at most 10/,
+  );
+  assert.equal(areaSearchWords("a1 b2 c3 d4 e5 f6 g7 h8 i9 j0").words.length, 10);
+  assert.throws(() => areaSearchWords("a*bc"), /Invalid search word "a\*bc"/);
+  assert.throws(() => areaSearchWords("**ab"), /Invalid search word/);
+});
+
+test("areas() sends only the usable words and never a request for an unusable search", async () => {
+  const mt = constantJson({ count: 0, offset: 0, totalCount: 0, areas: [] });
+  await clientWith(mt).areas({ search: "Frankfurt a. M." });
+  assert.deepEqual(new URL(mt.last().url).searchParams.getAll("areaSearchexpression"), ["Frankfurt"]);
+  const calls = mt.calls.length;
+  for (const search of ["*", "a b c d e f g h i j k l", "ab cd ef gh ij kl mn op qr st uv"]) {
+    await assert.rejects(() => clientWith(mt).areas({ search }), FitConnectError);
+  }
+  assert.equal(mt.calls.length, calls);
 });
 
 test("areas() rejects a punctuation-only search before any request", async () => {

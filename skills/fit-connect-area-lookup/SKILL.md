@@ -45,7 +45,10 @@ Notes on the search expression:
   every word must match the *same* area. Extra words narrow the search; they don't
   search for several places. `areas Köln Bonn` returns `count: 0`, so run one call
   per place.
-- Each word must be at least two non-wildcard characters.
+- Each word must be at least two non-wildcard characters. The CLI leaves shorter
+  words out and says so on stderr (`"Frankfurt a. M."` searches just `Frankfurt`,
+  so expect Frankfurt (Oder) too), and refuses more than 10 words or a bare `*`
+  before any request. For a long official name, pass its 2–3 most distinctive words.
 - The CLI splits terms on spaces and punctuation, so an official name like
   `"Halle (Westf.)"` or `"Baden-Baden"` is sent as its bare words. Older CLI versions
   (0.0.5 and earlier) sent punctuation along, and the API answered `HTTP 500`

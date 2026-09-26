@@ -58,7 +58,8 @@ export interface AreaQuery {
    * One or more search terms (names and/or postal codes). The wildcard `*` is
    * supported, e.g. `"Mag*"`. Terms are split into words on whitespace and
    * punctuation (`"Halle (Westf.)"` → `Halle`, `Westf`), and every word must
-   * match the same area. At least one non-empty word is required.
+   * match the same area. Words shorter than 2 characters are left out; 1..10
+   * words must remain (see {@link areaSearchWords}).
    */
   search: string | string[];
   /** Start offset into the result set (default 0). */
@@ -121,23 +122,17 @@ export class FitConnectClient {
     return this.engine.getJson<RouteResult>(this.path("routes"), query);
   }
 
-  /** Search for areas by name and/or postal code. */
+  /**
+   * Search for areas by name and/or postal code. The search is turned into words
+   * by {@link areaSearchWords}: words shorter than 2 characters are left out, a
+   * repeated word is sent once, and a search the API would reject (no usable word,
+   * more than {@link MAX_AREA_SEARCH_WORDS} words, a misplaced `*`) throws a
+   * `FitConnectError` before any request.
+   */
   async areas(params: AreaQuery): Promise<AreaResult> {
-    // Split each term into separate areaSearchexpression values on whitespace AND
-    // punctuation, keeping letters, digits and the `*` wildcard. The API ANDs the
-    // expressions and 500s on a space or on punctuation such as `(`, `)`, `.` or
-    // `-` inside an expression, so a quoted place like "Frankfurt am Main" must be
-    // sent as three expressions and an official name like "Halle (Westf.)" as
-    // "Halle" + "Westf" — identical to passing the bare words as separate args.
-    const terms = (Array.isArray(params.search) ? params.search : [params.search])
-      .flatMap((t) => (typeof t === "string" ? t.split(/[^\p{L}\p{M}\p{N}*]+/u) : []))
-      .filter((t) => t !== "");
-    if (terms.length === 0) {
-      throw new FitConnectError("areas() needs at least one non-empty search term");
-    }
-
+    const { words } = areaSearchWords(params.search);
     const query: QueryParams = {
-      areaSearchexpression: terms,
+      areaSearchexpression: words,
       offset: params.offset,
       limit: params.limit,
     };
@@ -148,6 +143,78 @@ export class FitConnectClient {
   info(): Promise<Info> {
     return this.engine.getJson<Info>(this.path("info"));
   }
+}
+
+/** The most `areaSearchexpression` values the Routing API accepts (`maxItems: 10`). */
+export const MAX_AREA_SEARCH_WORDS = 10;
+
+/**
+ * One `areaSearchexpression` value as the Routing API's spec allows it
+ * (`^(\*?([^\*]{2,})\*?)*$`): at least 2 non-wildcard characters, with a `*`
+ * only at the start or end of such a run.
+ */
+const AREA_WORD_PATTERN = /^(\*?([^*]{2,})\*?)*$/u;
+
+/** The words {@link areaSearchWords} sends, and the too-short ones it left out. */
+export interface AreaSearchWords {
+  /** The words to send, one `areaSearchexpression` each (1..10, no duplicates). */
+  words: string[];
+  /** Words left out because they have fewer than 2 non-wildcard characters. */
+  dropped: string[];
+}
+
+/**
+ * Turn an area search into the words the Routing API accepts.
+ *
+ * Each term is split on whitespace AND punctuation, keeping letters, digits and
+ * the `*` wildcard: the API ANDs the expressions and 500s on a space or on
+ * punctuation such as `(`, `)`, `.` or `-` inside one, so "Frankfurt am Main" is
+ * sent as three expressions and "Halle (Westf.)" as "Halle" + "Westf".
+ *
+ * The API then rejects the whole search (HTTP 400 "Constraint Violation") for a
+ * word with fewer than 2 non-wildcard characters ("Frankfurt a. M." → "a", "M"; a
+ * bare "*"), and for more than 10 words. So a too-short word is left out (it is
+ * listed in `dropped`), a word repeated in any letter case is sent once, and the
+ * rest throws a `FitConnectError`: no usable word left, more than
+ * {@link MAX_AREA_SEARCH_WORDS} words, or a word whose `*` splits it into parts
+ * shorter than 2 characters ("a*b").
+ */
+export function areaSearchWords(search: string | string[]): AreaSearchWords {
+  const terms = (Array.isArray(search) ? search : [search]).filter(
+    (t): t is string => typeof t === "string",
+  );
+  const words: string[] = [];
+  const dropped: string[] = [];
+  const seen = new Set<string>();
+  for (const word of terms.flatMap((t) => t.split(/[^\p{L}\p{M}\p{N}*]+/u))) {
+    if (word === "") continue;
+    if ([...word.replace(/\*/g, "")].length < 2) {
+      dropped.push(word);
+      continue;
+    }
+    if (!AREA_WORD_PATTERN.test(word)) {
+      throw new FitConnectError(
+        `Invalid search word "${word}": the API needs at least 2 characters between wildcards (e.g. "Mag*", "*burg").`,
+      );
+    }
+    const key = word.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    words.push(word);
+  }
+  if (words.length === 0) {
+    throw new FitConnectError(
+      `No usable search word in ${terms.map((t) => JSON.stringify(t)).join(" ") || "the search"}: ` +
+        `every word needs at least 2 letters or digits (a "*" does not count).`,
+    );
+  }
+  if (words.length > MAX_AREA_SEARCH_WORDS) {
+    throw new FitConnectError(
+      `Too many search words (${words.length}): the API accepts at most ${MAX_AREA_SEARCH_WORDS}. ` +
+        "Leave some out — every word must match the same area, so a few distinctive ones are enough.",
+    );
+  }
+  return { words, dropped };
 }
 
 /** Reject empty / whitespace-only required values up front with a clear message. */

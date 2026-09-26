@@ -80,8 +80,11 @@ new FitConnectClient({
   are enforced client-side (a `FitConnectError` rejection) before any request.
 - `areas({ search, offset?, limit? })` → `AreaResult`. `search` is a string or
   string array; each term is split into words on whitespace and punctuation
-  (`"Halle (Westf.)"` → `Halle`, `Westf`; `*` is kept), and a search with no words
-  left rejects.
+  (`"Halle (Westf.)"` → `Halle`, `Westf`; `*` is kept). Words with fewer than 2
+  non-wildcard characters are left out and a repeated word is sent once; a search
+  with no word left, more than 10 words, or a `*` inside a word part shorter than 2
+  characters rejects (the API answers each with a 400). `areaSearchWords(search)`
+  (exported) returns the `words` sent and the `dropped` ones.
 - `info()` → `Info` (the deployed API's semantic version).
 - `client.apiVersion` reflects the configured version.
 
@@ -160,7 +163,9 @@ multi-valued `areaSearchexpression`), and encodes spaces as `%20`. Note the API
 **ANDs** repeated `areaSearchexpression` values (every term must match the same
 area) and answers `500` when a value contains a space or punctuation such as `(`,
 `.` or `-`; the client therefore splits each search term on whitespace and
-punctuation into separate values, keeping letters, digits and `*`.
+punctuation into separate values, keeping letters, digits and `*`. The spec
+(`routing-api.yaml`) also limits the values to 1..10, each with at least 2
+non-wildcard characters, so `areaSearchWords` drops shorter words and rejects the rest.
 
 **CliDeps / CliIO.** The dependency-injection seam for the CLI
 ([`io.ts`](src/cli/io.ts)): a client factory plus an I/O object (`out`/`err`).
