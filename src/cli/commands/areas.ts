@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import type { CliDeps } from "../io.js";
 import { areaSearchWords } from "../../client/client.js";
+import { FitConnectError } from "../../client/errors.js";
 import { action, parseLimit, parseOffset, renderJson } from "../shared.js";
 
 export function registerAreasCommand(program: Command, deps: CliDeps): void {
@@ -15,6 +16,17 @@ export function registerAreasCommand(program: Command, deps: CliDeps): void {
     )
     .option("--offset <n>", "start offset into the result set, 0..2147483647 (default 0)", parseOffset)
     .option("--limit <n>", "page size, 1..500 (default 100)", parseLimit)
+    // A search the API would reject (no usable word, > 10 words, a misplaced `*`)
+    // is a usage error with help, like a bad option value — not an API-style
+    // "Error:" line naming the library method.
+    .hook("preAction", (command) => {
+      try {
+        areaSearchWords((command.processedArgs[0] ?? []) as string[]);
+      } catch (err) {
+        if (err instanceof FitConnectError) command.error(`error: ${err.message}`);
+        throw err;
+      }
+    })
     .action(
       action(deps, async ({ client, global, opts }, positionals) => {
         // A variadic positional (`<query...>`) arrives as a single array argument,

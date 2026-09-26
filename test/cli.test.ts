@@ -84,6 +84,23 @@ test("areas sends a decomposed umlaut composed (the API 500s on the NFD form)", 
   assert.match(cli.mt.last().url, /areaSearchexpression=K%C3%B6ln$/);
 });
 
+test("an areas search with no usable word is a usage error with help, naming no library method", async () => {
+  for (const query of ["", "&", "*", "a b"]) {
+    const cli = makeCli(() => jsonResponse({}));
+    const code = await run(["areas", query], cli.deps);
+    assert.equal(code, 1, query);
+    assert.equal(cli.mt.calls.length, 0, query);
+    const err = cli.err.join("\n");
+    assert.match(err, /^error: No usable search word in /, query);
+    assert.match(err, /Usage: fit-connect areas/, query);
+    assert.doesNotMatch(err, /areas\(\)/, query);
+  }
+  const cli = makeCli(() => jsonResponse({}));
+  assert.equal(await run(["areas", "a1 b2 c3 d4 e5 f6 g7 h8 i9 j0 k1"], cli.deps), 1);
+  assert.match(cli.err.join("\n"), /^error: Too many search words \(11\)/);
+  assert.equal(cli.mt.calls.length, 0);
+});
+
 test("areas notes on stderr which too-short words it left out", async () => {
   const cli = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
   const code = await run(["--compact", "areas", "Frankfurt a. M."], cli.deps);
