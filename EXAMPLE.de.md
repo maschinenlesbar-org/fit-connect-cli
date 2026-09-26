@@ -18,13 +18,15 @@ Skills: [fit-connect-area-lookup](#fit-connect-area-lookup) · [fit-connect-find
 ```bash
 fit-connect --compact areas "Halle"
 fit-connect --compact areas 33790
-fit-connect --compact areas "Halle (Westf.)"      # Exit 1: HTTP 500 von der API
+fit-connect --compact areas "Halle (Westf.)"      # 0.0.5: Exit 1, HTTP 500; seit 0.0.6: 1 Treffer, ID 44466
 ```
 
 „Halle" ergab 50 Gebiete, alle auf der ersten Seite. Die Suche nach der Postleitzahl lieferte genau
-ein Gebiet und bestätigte damit den richtigen Ort. Die Suche mit dem exakten Namen, den die API gerade
-geliefert hatte, schlug fehl: Die CLI trennt am Leerzeichen, und die API meldet für `(Westf.)` einen
-Fehler. Die Einträge enthalten nur `id`, `name` und `type` – keinen AGS oder ARS.
+ein Gebiet und bestätigte damit den richtigen Ort. Mit 0.0.5 schlug die Suche mit dem exakten Namen,
+den die API gerade geliefert hatte, fehl: Die CLI schickte die Satzzeichen von `(Westf.)` mit, und die
+API meldete einen Fehler. Seit 0.0.6 sendet die CLI die reinen Wörter `Halle` + `Westf`; am
+26. September 2026 nachgeprüft, liefert die Suche genau ein Gebiet, `44466 Halle (Westf.)` (Stadt).
+Die Einträge enthalten nur `id`, `name` und `type` – keinen AGS oder ARS.
 
 ```
 „Halle" → 50 Treffer:

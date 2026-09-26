@@ -18,12 +18,14 @@ Skills: [fit-connect-area-lookup](#fit-connect-area-lookup) · [fit-connect-find
 ```bash
 fit-connect --compact areas "Halle"
 fit-connect --compact areas 33790
-fit-connect --compact areas "Halle (Westf.)"      # exit 1: HTTP 500 from the API
+fit-connect --compact areas "Halle (Westf.)"      # 0.0.5: exit 1, HTTP 500; since 0.0.6: 1 match, id 44466
 ```
 
 "Halle" matched 50 areas, and every one of them came back on the first page. The postcode search
-returned exactly one area, which confirmed the right town. Searching by the exact name the API had
-just returned failed: the CLI splits on the space, and the API returns an error for the `(Westf.)` term.
+returned exactly one area, which confirmed the right town. With 0.0.5, searching by the exact name the
+API had just returned failed: the CLI sent the `(Westf.)` punctuation along and the API returned an
+error. Since 0.0.6 the CLI sends the bare words `Halle` + `Westf`; re-checked on 26 September 2026, the
+search returns exactly one area, `44466 Halle (Westf.)` (Stadt).
 The entries carry only `id`, `name` and `type`, with no AGS or ARS.
 
 ```
