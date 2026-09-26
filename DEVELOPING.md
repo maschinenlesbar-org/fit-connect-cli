@@ -211,6 +211,7 @@ npm test          # builds, then runs `node --test` over dist/test
 - **`client.test.ts`** — path/version building, query params, area-selector validation — mocked transport.
 - **`shared.test.ts`** — option parsing (`parseIntArg`, `parseApiVersion`) and `toClientOptions` mapping.
 - **`cli.test.ts`** — end-to-end command parsing, rendering, error/exit codes and option flow-through — mocked client.
+- **`io.test.ts`** — `handleOutputErrors` (EPIPE on a closed stdout/stderr exits 0) — fake streams.
 
 ## Continuous integration
 
