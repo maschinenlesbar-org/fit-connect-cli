@@ -46,7 +46,7 @@ export interface RouteQuery {
   ars?: string;
   /** Area id from {@link FitConnectClient.areas} — provide exactly one area selector. */
   areaId?: string;
-  /** Start offset into the result set (default 0). */
+  /** Start offset into the result set (0..2147483647, default 0). */
   offset?: number;
   /** Page size (1..500, default 100). */
   limit?: number;
@@ -100,9 +100,13 @@ export class FitConnectClient {
       );
     }
 
-    const selectors = (["ags", "ars", "areaId"] as const).filter(
-      (k) => params[k] !== undefined && String(params[k]).trim() !== "",
-    );
+    // Trim each selector and treat a blank one as not given — and then do not send
+    // it either: an empty `ars=` or a padded `areaId=%20940%20` is an API 400.
+    const ags = optionalTrimmed(params.ags);
+    const ars = optionalTrimmed(params.ars);
+    const areaId = optionalTrimmed(params.areaId);
+    const given = { ags, ars, areaId };
+    const selectors = (["ags", "ars", "areaId"] as const).filter((k) => given[k] !== undefined);
     if (selectors.length !== 1) {
       throw new FitConnectError(
         `routes() needs exactly one area selector (ags, ars or areaId); got ${
@@ -110,14 +114,20 @@ export class FitConnectClient {
         }`,
       );
     }
+    if (ags !== undefined && !AGS_PATTERN.test(ags)) {
+      throw new FitConnectError(`Invalid ags "${ags}": expected 2, 3, 5 or 8 digits.`);
+    }
+    if (ars !== undefined && !ARS_PATTERN.test(ars)) {
+      throw new FitConnectError(`Invalid ars "${ars}": expected 2, 3, 5, 9 or 12 digits.`);
+    }
 
     const query: QueryParams = {
       leikaKey,
-      ags: params.ags,
-      ars: params.ars,
-      areaId: params.areaId,
-      offset: params.offset,
-      limit: params.limit,
+      ags,
+      ars,
+      areaId,
+      offset: checkPaging("offset", params.offset, 0, MAX_OFFSET),
+      limit: checkPaging("limit", params.limit, 1, MAX_LIMIT),
     };
     return this.engine.getJson<RouteResult>(this.path("routes"), query);
   }
@@ -133,8 +143,8 @@ export class FitConnectClient {
     const { words } = areaSearchWords(params.search);
     const query: QueryParams = {
       areaSearchexpression: words,
-      offset: params.offset,
-      limit: params.limit,
+      offset: checkPaging("offset", params.offset, 0, MAX_OFFSET),
+      limit: checkPaging("limit", params.limit, 1, MAX_LIMIT),
     };
     return this.engine.getJson<AreaResult>(this.path("areas"), query);
   }
@@ -147,6 +157,9 @@ export class FitConnectClient {
 
 /** The largest `offset` the Routing API accepts (`int32`, `routing-api.yaml`). */
 export const MAX_OFFSET = 2_147_483_647;
+
+/** The largest page size (`limit`) the Routing API accepts. */
+export const MAX_LIMIT = 500;
 
 /** The most `areaSearchexpression` values the Routing API accepts (`maxItems: 10`). */
 export const MAX_AREA_SEARCH_WORDS = 10;
@@ -222,6 +235,22 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
     );
   }
   return { words, dropped };
+}
+
+/** Trim an optional string parameter; undefined, blank or non-string → undefined. */
+function optionalTrimmed(value: string | undefined): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+/** Validate an optional `offset`/`limit` against the API's documented range. */
+function checkPaging(name: string, value: number | undefined, min: number, max: number): number | undefined {
+  if (value === undefined) return undefined;
+  if (!Number.isSafeInteger(value) || value < min || value > max) {
+    throw new FitConnectError(`Invalid ${name}: expected an integer from ${min} to ${max}, got ${String(value)}.`);
+  }
+  return value;
 }
 
 /** Reject empty / whitespace-only required values up front with a clear message. */

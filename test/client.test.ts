@@ -99,6 +99,38 @@ test("areas() splits on punctuation the API can't parse, keeping letters, digits
   assert.deepEqual(await sent(["Mülheim an der Ruhr", "Mag*", "33790"]), ["Mülheim", "an", "der", "Ruhr", "Mag*", "33790"]);
 });
 
+test("routes() trims selectors and never sends a blank one", async () => {
+  const mt = constantJson({ count: 0, offset: 0, totalCount: 0, routes: [] });
+  await clientWith(mt).routes({ leikaKey: "99123456760610", ags: "12345678", ars: "" });
+  let url = new URL(mt.last().url);
+  assert.equal(url.searchParams.get("ags"), "12345678");
+  assert.equal(url.searchParams.has("ars"), false);
+  await clientWith(mt).routes({ leikaKey: "99123456760610", areaId: " 940 ", ags: "  " });
+  url = new URL(mt.last().url);
+  assert.equal(url.searchParams.get("areaId"), "940");
+  assert.equal(url.searchParams.has("ags"), false);
+});
+
+test("routes() and areas() validate ags/ars and offset/limit before any request", async () => {
+  const mt = constantJson({});
+  const c = clientWith(mt);
+  const cases: [() => Promise<unknown>, RegExp][] = [
+    [() => c.routes({ leikaKey: "99123456760610", ags: "1" }), /^Invalid ags "1": expected 2, 3, 5 or 8 digits\.$/],
+    [() => c.routes({ leikaKey: "99123456760610", ars: "1234567890" }), /^Invalid ars "1234567890"/],
+    [() => c.routes({ leikaKey: "99123456760610", ags: "16", offset: -1 }), /^Invalid offset: expected an integer from 0 to 2147483647, got -1\.$/],
+    [() => c.routes({ leikaKey: "99123456760610", ags: "16", limit: NaN }), /^Invalid limit: expected an integer from 1 to 500, got NaN\.$/],
+    [() => c.areas({ search: "Köln", limit: 0 }), /^Invalid limit: expected an integer from 1 to 500, got 0\.$/],
+    [() => c.areas({ search: "Köln", offset: 2147483648 }), /^Invalid offset/],
+    [() => c.areas({ search: "Köln", offset: 1.5 }), /^Invalid offset/],
+  ];
+  for (const [call, message] of cases) {
+    await assert.rejects(call, (err: unknown) => err instanceof FitConnectError && message.test(err.message));
+  }
+  assert.equal(mt.calls.length, 0);
+  await c.routes({ leikaKey: "99123456760610", ars: "06435", offset: 0, limit: 500 });
+  assert.equal(mt.calls.length, 1);
+});
+
 test("areaSearchWords() drops one-letter words and duplicates, as the API rejects them", () => {
   assert.deepEqual(areaSearchWords("Frankfurt a. M."), { words: ["Frankfurt"], dropped: ["a", "M"] });
   assert.deepEqual(areaSearchWords("Horschbach - OT Elzweiler Straße 1"), {

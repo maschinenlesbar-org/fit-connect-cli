@@ -78,6 +78,10 @@ new FitConnectClient({
 - `routes({ leikaKey, ags? , ars?, areaId?, offset?, limit? })` → `RouteResult`.
   Requires `leikaKey` and **exactly one** of `ags` / `ars` / `areaId`; both rules
   are enforced client-side (a `FitConnectError` rejection) before any request.
+  Selectors are trimmed, and a blank one counts as not given and is not sent;
+  `ags` / `ars` must match `AGS_PATTERN` / `ARS_PATTERN` (the API's lengths).
+  On `routes` and `areas`, `offset` must be an integer 0..`MAX_OFFSET` (2147483647)
+  and `limit` 1..`MAX_LIMIT` (500), else a `FitConnectError`.
 - `areas({ search, offset?, limit? })` → `AreaResult`. `search` is a string or
   string array; each term is normalised to NFKC (the API 500s on a decomposed
   umlaut or fullwidth digits) and split into words on whitespace and punctuation
