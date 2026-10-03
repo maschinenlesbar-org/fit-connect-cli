@@ -4,6 +4,8 @@
 
 import { mock } from "node:test";
 import type { Transport, HttpRequest, HttpResponse } from "../src/client/http.js";
+import { FitConnectClient } from "../src/client/client.js";
+import { run } from "../src/cli/run.js";
 
 export function jsonResponse(body: unknown, status = 200): HttpResponse {
   return {
@@ -59,4 +61,55 @@ export function makeMockTransport(
 /** A transport that always returns the same JSON body. */
 export function constantJson(body: unknown, status = 200): MockTransport {
   return makeMockTransport(() => jsonResponse(body, status));
+}
+
+/** What the CLI did with one input: exit code, captured output, requests sent. */
+export interface CliOutcome {
+  code: number;
+  out: string;
+  err: string;
+  requests: HttpRequest[];
+}
+
+/** What the library did with the same input: its value or error, requests sent. */
+export interface LibOutcome {
+  ok: boolean;
+  value?: unknown;
+  error?: { name: string; message: string };
+  requests: HttpRequest[];
+}
+
+/**
+ * Send one input through the CLI (`run(argv)`, its client built on a recording mock
+ * transport) and through the library (`call(transport)`, typically
+ * `new FitConnectClient({ transport, ... }).method(...)`) on a second recorder with
+ * the same responder, and return both outcomes. A synchronous throw from the library
+ * call (constructor validation) is captured like a rejection. A parity test asserts
+ * that both reject without a request, or both send the same requests.
+ */
+export async function parity(
+  argv: string[],
+  call: (transport: Transport) => unknown,
+  responder: (req: HttpRequest) => HttpResponse | Promise<HttpResponse> = () => jsonResponse({}),
+): Promise<{ cli: CliOutcome; lib: LibOutcome }> {
+  const cliTransport = makeMockTransport(responder);
+  const out: string[] = [];
+  const err: string[] = [];
+  const code = await run(argv, {
+    io: { out: (s) => out.push(s), err: (s) => err.push(s) },
+    createClient: (options) => new FitConnectClient({ ...options, transport: cliTransport.transport }),
+  });
+  const cli: CliOutcome = { code, out: out.join("\n"), err: err.join("\n"), requests: cliTransport.calls };
+
+  const libTransport = makeMockTransport(responder);
+  let lib: LibOutcome;
+  try {
+    const value = await call(libTransport.transport);
+    lib = { ok: true, value, requests: libTransport.calls };
+  } catch (e) {
+    const error =
+      e instanceof Error ? { name: e.constructor.name, message: e.message } : { name: typeof e, message: String(e) };
+    lib = { ok: false, error, requests: libTransport.calls };
+  }
+  return { cli, lib };
 }

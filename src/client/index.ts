@@ -35,6 +35,9 @@ export {
   FitConnectApiError,
   FitConnectNetworkError,
   FitConnectParseError,
+  FitConnectValidationError,
 } from "./errors.js";
+export { assertValid } from "./validate.js";
+export type { Problem } from "./validate.js";
 
 export * from "./types.js";

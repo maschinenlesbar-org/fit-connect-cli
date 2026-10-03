@@ -126,7 +126,8 @@ src/
     query.ts     # dependency-free query-string builder (repeats keys for arrays)
     http.ts      # the Transport interface + default node:http/https transport
     engine.ts    # URL building, retry/backoff, JSON decoding, error mapping
-    errors.ts    # FitConnectError / …ApiError / …NetworkError / …ParseError
+    errors.ts    # FitConnectError / …ApiError / …NetworkError / …ParseError / …ValidationError
+    validate.ts  # the Problem type + assertValid(): input rules shared by library and CLI
     client.ts    # FitConnectClient — routes() / areas() / info() over the engine
   cli/
     io.ts        # injectable I/O seam (stdout/stderr) + client factory
@@ -184,6 +185,15 @@ rejected parameter and rule only there), `FitConnectNetworkError`
 (transport failure/timeout), `FitConnectParseError` (bad JSON), all extending
 `FitConnectError` (also raised for client-side validation).
 
+**Input validation.** [`validate.ts`](src/client/validate.ts): a rule is a pure
+`<thing>Problem(value)` function that returns why a value is invalid, or `undefined`.
+The library enforces it with `assertValid(name, value, problem)` before any request,
+which throws `FitConnectValidationError` (extends `FitConnectError`, exported) with the
+message `Invalid <name>: <reason>`; a method that returns a promise rejects with it. The
+CLI's option parsers call the same `…Problem` functions, so an input gets the same
+outcome on both sides, and `run.ts` reports a `FitConnectValidationError` raised in an
+action as a usage error (`Error: <message>`, exit `1`).
+
 **Retry / backoff.** Transient `429` and `503` are retried automatically with
 backoff, up to `maxRetries` (default `2`; the CLI allows `0`..`MAX_RETRIES` = 10),
 honouring a `Retry-After` header when present (delta-seconds or an IMF-fixdate
@@ -209,6 +219,7 @@ npm test          # builds, then runs `node --test` over dist/test
 - **`http.test.ts`** — the default transport against a real loopback `http.createServer`.
 - **`engine.test.ts`** — URL building, JSON decoding, error mapping, 429/503 retry, UA fallback — mocked transport.
 - **`client.test.ts`** — path/version building, query params, area-selector validation — mocked transport.
+- **`validate.test.ts`** — `assertValid` and the `parity()` helper (`test/helpers.ts`), which sends one input through `run()` and through the library, each on a recording mock transport, so a test can assert both give the same outcome.
 - **`shared.test.ts`** — option parsing (`parseIntArg`, `parseApiVersion`) and `toClientOptions` mapping.
 - **`cli.test.ts`** — end-to-end command parsing, rendering, error/exit codes and option flow-through — mocked client.
 - **`io.test.ts`** — `handleOutputErrors` (EPIPE on a closed stdout/stderr exits 0) — fake streams.

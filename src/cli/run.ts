@@ -5,7 +5,7 @@
 import { CommanderError, type Command } from "commander";
 import { buildProgram, defaultDeps } from "./program.js";
 import type { CliDeps } from "./io.js";
-import { FitConnectApiError, FitConnectError } from "../client/errors.js";
+import { FitConnectApiError, FitConnectError, FitConnectValidationError } from "../client/errors.js";
 
 /**
  * Apply exitOverride + output redirection to every command in the tree.
@@ -47,6 +47,12 @@ export async function run(argv: string[], deps: CliDeps = defaultDeps): Promise<
       deps.io.err(`Error: ${err.message}`);
       // Map a few notable statuses to distinct exit codes for scripting.
       if (err.status === 404) return 4;
+      return 1;
+    }
+    if (err instanceof FitConnectValidationError) {
+      // An input the library rejected before any request: a usage error, which
+      // exits 1 here like commander's own parse errors.
+      deps.io.err(`Error: ${err.message}`);
       return 1;
     }
     if (err instanceof FitConnectError) {

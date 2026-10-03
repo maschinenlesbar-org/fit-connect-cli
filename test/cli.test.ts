@@ -5,7 +5,7 @@ import { FitConnectClient } from "../src/client/client.js";
 import type { CliDeps } from "../src/cli/io.js";
 import type { FitConnectClientOptions } from "../src/client/client.js";
 import type { HttpRequest, HttpResponse } from "../src/client/http.js";
-import { FitConnectNetworkError } from "../src/client/errors.js";
+import { FitConnectNetworkError, FitConnectValidationError } from "../src/client/errors.js";
 import { makeMockTransport, jsonResponse, rawResponse } from "./helpers.js";
 
 function makeCli(responder: (req: HttpRequest) => HttpResponse | Promise<HttpResponse>) {
@@ -459,4 +459,20 @@ test("--area-id is trimmed before it is sent", async () => {
   const code = await run(["routes", "99123456760610", "--area-id", " 1024 "], cli.deps);
   assert.equal(code, 0);
   assert.equal(new URL(cli.mt.last().url).searchParams.get("areaId"), "1024");
+});
+
+test("a FitConnectValidationError raised in an action is a usage error: exit 1, 'Error: <message>'", async () => {
+  const out: string[] = [];
+  const err: string[] = [];
+  const client = new FitConnectClient({ transport: makeMockTransport(() => jsonResponse({})).transport });
+  client.info = async () => {
+    throw new FitConnectValidationError("Invalid areaId: Value must not be blank.");
+  };
+  const code = await run(["info"], {
+    io: { out: (s) => out.push(s), err: (s) => err.push(s) },
+    createClient: () => client,
+  });
+  assert.equal(code, 1);
+  assert.deepEqual(out, []);
+  assert.deepEqual(err, ["Error: Invalid areaId: Value must not be blank."]);
 });
