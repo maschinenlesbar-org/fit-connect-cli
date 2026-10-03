@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertValid, intRangeProblem, nonBlankProblem, type Problem } from "../src/client/validate.js";
+import {
+  assertValid,
+  headerValueProblem,
+  intRangeProblem,
+  nonBlankProblem,
+  type Problem,
+} from "../src/client/validate.js";
+import { resolveUserAgent } from "../src/client/engine.js";
 import { FitConnectError, FitConnectValidationError } from "../src/client/errors.js";
 import * as library from "../src/index.js";
 import { FitConnectClient } from "../src/client/client.js";
@@ -76,4 +83,28 @@ test("intRangeProblem accepts safe integers in min..max only", () => {
   assert.equal(bytes(Number.MAX_SAFE_INTEGER), undefined);
   assert.equal(bytes(-1), "Expected a non-negative integer.");
   assert.equal(bytes(Number.MAX_SAFE_INTEGER + 2), "Expected a non-negative integer.");
+});
+
+test("headerValueProblem names control characters and code units above U+00FF", () => {
+  assert.equal(headerValueProblem("my-tool/2.0"), undefined);
+  assert.equal(headerValueProblem("a\tb-ü"), undefined);
+  assert.equal(headerValueProblem(""), undefined);
+  for (const bad of ["\n", "a\r\nb", "a\u0000b", "a\u007fb"]) {
+    assert.equal(headerValueProblem(bad), "Value contains control characters.", JSON.stringify(bad));
+  }
+  for (const bad of [" ", "﻿", "Mozilla €"]) {
+    assert.equal(headerValueProblem(bad), "Value contains characters outside Latin-1 (above U+00FF).", JSON.stringify(bad));
+  }
+});
+
+test("resolveUserAgent checks the raw value first, then lets a blank one fall back", () => {
+  assert.equal(resolveUserAgent(undefined), "fit-connect-cli");
+  assert.equal(resolveUserAgent(""), "fit-connect-cli");
+  assert.equal(resolveUserAgent(" \t "), "fit-connect-cli");
+  assert.equal(resolveUserAgent("my-tool/2.0"), "my-tool/2.0");
+  for (const bad of ["\n", " \r\n ", "　"]) {
+    assert.throws(() => resolveUserAgent(bad), FitConnectValidationError, JSON.stringify(bad));
+  }
+  assert.equal(library.resolveUserAgent, resolveUserAgent);
+  assert.equal(library.headerValueProblem, headerValueProblem);
 });

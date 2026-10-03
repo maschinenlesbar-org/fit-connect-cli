@@ -79,7 +79,8 @@ test("a User-Agent Node cannot send is a FitConnectError, not a raw TypeError", 
       () => new RequestEngine({ userAgent }),
       (err: unknown) =>
         err instanceof FitConnectError &&
-        /^Invalid userAgent: it contains control characters or characters outside Latin-1/.test(err.message),
+        err instanceof FitConnectValidationError &&
+        /^Invalid userAgent: Value contains (control characters|characters outside Latin-1)/.test(err.message),
       JSON.stringify(userAgent),
     );
   }

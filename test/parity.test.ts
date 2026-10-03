@@ -116,3 +116,40 @@ test("base URL: an empty or blank baseUrl is rejected by both, not replaced by p
   assert.equal(ok.cli.code, 0);
   assert.deepEqual(ok.cli.requests, ok.lib.requests);
 });
+
+test("User-Agent: whitespace with CR/LF or above U+00FF is rejected by both", async () => {
+  const cases: [string, RegExp][] = [
+    ["\n", /^Invalid userAgent: Value contains control characters\.$/],
+    [" \r\n ", /^Invalid userAgent: Value contains control characters\.$/],
+    [" ", /^Invalid userAgent: Value contains characters outside Latin-1 \(above U\+00FF\)\.$/],
+    ["﻿", /^Invalid userAgent: Value contains characters outside Latin-1/],
+    ["　", /^Invalid userAgent: Value contains characters outside Latin-1/],
+  ];
+  for (const [userAgent, message] of cases) {
+    const { cli, lib } = await parity(
+      ["--user-agent", userAgent, "info"],
+      (transport) => new FitConnectClient({ transport, userAgent }).info(),
+      () => jsonResponse({ version: "2.1.0" }),
+    );
+    assert.equal(cli.code, 1, JSON.stringify(userAgent));
+    assert.equal(cli.requests.length, 0);
+    assert.equal(lib.ok, false, JSON.stringify(userAgent));
+    assert.equal(lib.error?.name, "FitConnectValidationError");
+    assert.match(lib.error?.message ?? "", message);
+    assert.equal(lib.requests.length, 0);
+  }
+});
+
+test("User-Agent: a blank value falls back to the default UA in both", async () => {
+  for (const userAgent of ["", "   ", " \t ", " "]) {
+    const { cli, lib } = await parity(
+      ["--user-agent", userAgent, "info"],
+      (transport) => new FitConnectClient({ transport, userAgent }).info(),
+      () => jsonResponse({ version: "2.1.0" }),
+    );
+    assert.equal(cli.code, 0, JSON.stringify(userAgent));
+    assert.equal(lib.ok, true, JSON.stringify(userAgent));
+    assert.deepEqual(cli.requests, lib.requests);
+    assert.equal(lib.requests[0]?.headers?.["User-Agent"], "fit-connect-cli");
+  }
+});

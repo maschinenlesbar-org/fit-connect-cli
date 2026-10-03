@@ -7,7 +7,7 @@ import type { CliDeps } from "./io.js";
 import { AGS_PATTERN, ARS_PATTERN, MAX_OFFSET } from "../client/client.js";
 import { isBidiControl } from "../client/engine.js";
 import { FitConnectError } from "../client/errors.js";
-import { intRangeProblem, nonBlankProblem } from "../client/validate.js";
+import { headerValueProblem, intRangeProblem, nonBlankProblem } from "../client/validate.js";
 import type { ApiVersion, FitConnectClientOptions } from "../client/client.js";
 
 /**
@@ -117,32 +117,16 @@ export function parseApiVersion(value: string): ApiVersion {
 
 /**
  * commander value-parser for `--user-agent`: a value Node can send as an HTTP
- * header. Control characters (notably CR/LF; tab is allowed, as in HTTP) and code
- * units above U+00FF make Node's http layer throw a low-level TypeError when the
- * request is built, which surfaced as an opaque "Unexpected error". Reject them up
- * front as a usage error; this also forecloses header injection via the
- * User-Agent. A blank value is accepted: the engine falls back to its default UA
- * (documented). Checked by char code so no control-character literal need appear
- * in the source.
+ * header — the library's `headerValueProblem`, checked on the raw value as
+ * `resolveUserAgent` does. Control characters (notably CR/LF; tab is allowed, as in
+ * HTTP) and code units above U+00FF are a usage error, which also forecloses header
+ * injection via the User-Agent. A blank value is accepted: the engine falls back to
+ * its default UA (documented).
  */
 export function parseUserAgentArg(value: string): string {
   const problem = headerValueProblem(value);
-  if (problem !== undefined) throw new InvalidArgumentError(`Value contains ${problem}.`);
+  if (problem !== undefined) throw new InvalidArgumentError(problem);
   return value;
-}
-
-/**
- * What makes `value` unsendable as an HTTP header value, or undefined when Node's
- * `validateHeaderValue` would accept it: a control character other than tab, or a
- * code unit above U+00FF (Node sends header values as Latin-1).
- */
-export function headerValueProblem(value: string): string | undefined {
-  for (let i = 0; i < value.length; i += 1) {
-    const code = value.charCodeAt(i);
-    if ((code < 0x20 && code !== 0x09) || code === 0x7f) return "control characters";
-    if (code > 0xff) return "characters outside Latin-1 (above U+00FF)";
-  }
-  return undefined;
 }
 
 /**

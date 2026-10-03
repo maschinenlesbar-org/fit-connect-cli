@@ -41,3 +41,20 @@ export function intRangeProblem(min: number, max: number): Problem<number> {
       : `Expected an integer between ${min} and ${max}.`;
   return (n) => (typeof n === "number" && Number.isSafeInteger(n) && n >= min && n <= max ? undefined : reason);
 }
+
+/**
+ * What makes `value` unsendable as an HTTP header value, or undefined when Node's
+ * `validateHeaderValue` would accept it: a control character other than tab
+ * (notably CR/LF, which would also allow header injection) or DEL, or a code unit
+ * above U+00FF (Node sends header values as Latin-1 and otherwise throws a bare
+ * TypeError from inside the transport). Checked by char code so no
+ * control-character literal appears in the source.
+ */
+export const headerValueProblem: Problem = (value) => {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if ((code < 0x20 && code !== 0x09) || code === 0x7f) return "Value contains control characters.";
+    if (code > 0xff) return "Value contains characters outside Latin-1 (above U+00FF).";
+  }
+  return undefined;
+};

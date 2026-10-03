@@ -4,10 +4,9 @@
 
 import { MAX_TIMEOUT_MS, nodeHttpTransport, type Transport } from "./http.js";
 import { buildQueryString, type QueryParams } from "./query.js";
-import { assertValid, intRangeProblem } from "./validate.js";
+import { assertValid, headerValueProblem, intRangeProblem } from "./validate.js";
 import {
   FitConnectApiError,
-  FitConnectError,
   FitConnectParseError,
   FitConnectValidationError,
   redactUrl,
@@ -29,7 +28,10 @@ export interface EngineOptions {
   transport?: Transport;
   /** Value of the User-Agent header. The Routing API applies bot detection to the
    *  User-Agent: the default is accepted, but some UA strings are blocked with a
-   *  403. An empty or whitespace-only value falls back to the default. */
+   *  403. An empty or whitespace-only value falls back to the default; a value
+   *  with a control character other than tab or a code unit above U+00FF (checked
+   *  before the fallback, so "\n" or U+3000 too) is a `FitConnectValidationError`
+   *  (see `resolveUserAgent`). */
   userAgent?: string;
   /** Time limit per request in milliseconds, covering the whole response body, not
    *  only idle gaps: an integer 0..`MAX_TIMEOUT_MS` (2^31 - 1 ms); 0 disables.
@@ -154,20 +156,18 @@ function describeViolations(violations: unknown): string | undefined {
 }
 
 /**
- * Throw a `FitConnectError` for a header value Node cannot send (a control
- * character other than tab, or a code unit above U+00FF): Node would otherwise
- * throw a bare TypeError ("Invalid character in header content") from inside the
- * transport, outside the library's error hierarchy.
+ * The User-Agent the engine sends for `value`: the raw value is checked first
+ * (`headerValueProblem`: no control character other than tab, nothing above
+ * U+00FF), so `"\n"` or `"\u3000"` is a FitConnectValidationError
+ * (`Invalid userAgent: ...`) even though `trim()` would blank it. Then undefined,
+ * an empty or a whitespace-only value falls back to the default: a blank
+ * User-Agent is semantically equivalent to none and would trip the Routing API's
+ * bot detection (403). The CLI's `--user-agent` parser applies the same rule.
  */
-function assertHeaderValue(name: string, value: string): void {
-  for (let i = 0; i < value.length; i += 1) {
-    const code = value.charCodeAt(i);
-    if ((code < 0x20 && code !== 0x09) || code === 0x7f || code > 0xff) {
-      throw new FitConnectError(
-        `Invalid ${name}: it contains control characters or characters outside Latin-1 (above U+00FF), which an HTTP header cannot carry.`,
-      );
-    }
-  }
+export function resolveUserAgent(value: string | undefined): string {
+  if (value === undefined) return DEFAULT_USER_AGENT;
+  assertValid("userAgent", value, headerValueProblem);
+  return value.trim() === "" ? DEFAULT_USER_AGENT : value;
 }
 
 /**
@@ -288,13 +288,8 @@ export class RequestEngine {
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     assertValidBaseUrl(this.baseUrl);
     this.transport = options.transport ?? nodeHttpTransport;
-    // Fall back to the default for an empty OR whitespace-only UA (the one string
-    // option where blank means "default"; a blank UA header would trip the Routing
-    // API's bot detection and 403): a blank
-    // User-Agent is semantically equivalent to none, so " " should not be sent
-    // verbatim as if it were a real header value.
-    this.userAgent = options.userAgent && options.userAgent.trim() !== "" ? options.userAgent : DEFAULT_USER_AGENT;
-    assertHeaderValue("userAgent", this.userAgent);
+    // The one string option where blank means "default" (see resolveUserAgent).
+    this.userAgent = resolveUserAgent(options.userAgent);
     this.timeoutMs = intOption("timeoutMs", options.timeoutMs, MAX_TIMEOUT_MS, 30_000);
     this.maxRetries = intOption("maxRetries", options.maxRetries, MAX_RETRIES, 2);
     this.retryDelayMs = intOption("retryDelayMs", options.retryDelayMs, Number.MAX_SAFE_INTEGER, 200);

@@ -169,7 +169,9 @@ JSON. `--compact` is a **global** option and works **before or after** the comma
 - **`403` / bot-detection** — the Routing API filters on the `User-Agent`. The
   CLI's default UA is accepted, but some UA strings are blocked, so a custom
   `--user-agent` can trigger a `403`. A missing or blank UA is *not* itself
-  rejected — and the CLI falls back to its default for an empty value anyway.
+  rejected — and the CLI falls back to its default for an empty or
+  whitespace-only value anyway (but a value with a line break or a character above
+  U+00FF, whitespace or not, is a usage error).
 - **`429` / rate limited** — the CLI retries automatically and waits the
   `Retry-After`, or the `RateLimit-Reset` the Routing API sends with a 429
   (either up to 30 s; a longer wait is not retried). Raise `--max-retries` or slow

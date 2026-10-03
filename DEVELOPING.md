@@ -120,7 +120,12 @@ Two non-obvious upstream behaviours the client handles:
   (`fit-connect-cli`) is accepted, but some UA strings are blocked with `403`, so
   overriding `--user-agent` may cause failures. A missing or blank UA is *not*
   itself rejected; the client falls back to the default for an empty or
-  whitespace-only `--user-agent` regardless.
+  whitespace-only `--user-agent` regardless. One rule, `resolveUserAgent` (exported),
+  decides this for the library and the CLI: the raw value is checked first
+  (`headerValueProblem`: no control character other than tab, nothing above U+00FF,
+  else a `FitConnectValidationError`), so whitespace such as `"\n"`, `" \r\n "`,
+  U+2028, U+FEFF or U+3000 is rejected rather than falling back; only spaces, tabs
+  and other Latin-1 whitespace (U+00A0) fall back.
 - **`--base-url` is trusted input**: the CLI fetches whatever host you point it
   at; only `http:`/`https:` URLs are accepted, and redirects are **not** followed
   — a `3xx` surfaces as an error rather than being chased to another host.
