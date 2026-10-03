@@ -93,3 +93,26 @@ test("engine limits: 0 and the maximum are accepted by both", async () => {
     assert.deepEqual(cli.requests, lib.requests);
   }
 });
+
+test("base URL: an empty or blank baseUrl is rejected by both, not replaced by production", async () => {
+  for (const baseUrl of ["", "  ", "\t"]) {
+    const { cli, lib } = await parity(
+      ["--base-url", baseUrl, "info"],
+      (transport) => new FitConnectClient({ transport, baseUrl }).info(),
+      () => jsonResponse({ version: "2.1.0" }),
+    );
+    assert.equal(cli.code, 1, JSON.stringify(baseUrl));
+    assert.equal(cli.requests.length, 0);
+    assert.equal(lib.ok, false, JSON.stringify(baseUrl));
+    assert.equal(lib.error?.name, "FitConnectValidationError");
+    assert.equal(lib.error?.message, `Invalid base URL "${baseUrl}".`);
+    assert.equal(lib.requests.length, 0);
+  }
+  const ok = await parity(
+    ["--base-url", "http://mock.local", "info"],
+    (transport) => new FitConnectClient({ transport, baseUrl: "http://mock.local" }).info(),
+    () => jsonResponse({ version: "2.1.0" }),
+  );
+  assert.equal(ok.cli.code, 0);
+  assert.deepEqual(ok.cli.requests, ok.lib.requests);
+});

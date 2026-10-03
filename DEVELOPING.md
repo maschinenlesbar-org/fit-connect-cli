@@ -73,6 +73,11 @@ new FitConnectClient({
 });
 ```
 
+Only an omitted (`undefined`) `baseUrl` selects the production default; an empty
+or blank one, a non-http(s) URL and one with a `?query` or `#fragment` throw a
+`FitConnectValidationError` (`Invalid base URL "".`), as `--base-url` rejects them
+in the CLI.
+
 The constructor range-checks the numeric options and throws a
 `FitConnectValidationError` (`Invalid maxRetries: Expected an integer between 0 and
 10.`) unless each is a safe integer in range: `timeoutMs` 0..`MAX_TIMEOUT_MS`

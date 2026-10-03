@@ -5,7 +5,13 @@
 import { MAX_TIMEOUT_MS, nodeHttpTransport, type Transport } from "./http.js";
 import { buildQueryString, type QueryParams } from "./query.js";
 import { assertValid, intRangeProblem } from "./validate.js";
-import { FitConnectApiError, FitConnectError, FitConnectParseError, redactUrl } from "./errors.js";
+import {
+  FitConnectApiError,
+  FitConnectError,
+  FitConnectParseError,
+  FitConnectValidationError,
+  redactUrl,
+} from "./errors.js";
 
 export const DEFAULT_BASE_URL = "https://routing-api-prod.fit-connect.fitko.net";
 const DEFAULT_USER_AGENT = "fit-connect-cli";
@@ -190,16 +196,18 @@ const realSleep = (ms: number): Promise<void> =>
  * lived in the transport, which rejects the *fully built* request URL — so a bad
  * `--base-url ftp://x` produced a message echoing `ftp://x/v2/...` rather than the
  * value the user passed. Throwing here keeps the message about the base URL itself.
+ * A rejected value is a FitConnectValidationError (a configuration error, not a
+ * transport failure).
  */
 function assertValidBaseUrl(baseUrl: string): void {
   let parsed: URL;
   try {
     parsed = new URL(baseUrl);
   } catch {
-    throw new FitConnectError(`Invalid base URL "${redactUrl(baseUrl)}".`);
+    throw new FitConnectValidationError(`Invalid base URL "${redactUrl(baseUrl)}".`);
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new FitConnectError(
+    throw new FitConnectValidationError(
       `Unsupported base URL scheme "${parsed.protocol}" in "${redactUrl(baseUrl)}"; only http and https are supported.`,
     );
   }
@@ -207,7 +215,7 @@ function assertValidBaseUrl(baseUrl: string): void {
   // would swallow every path: `http://h/?x=1` requests `/?x=1/v2/...` and
   // `http://h/#f` requests `/` (the fragment, path and query are never sent).
   if (/[?#]/.test(baseUrl)) {
-    throw new FitConnectError(`Base URL must not contain a query or fragment: ${redactUrl(baseUrl)}`);
+    throw new FitConnectValidationError(`Base URL must not contain a query or fragment: ${redactUrl(baseUrl)}`);
   }
 }
 
@@ -274,14 +282,15 @@ export class RequestEngine {
   private readonly sleep: (ms: number) => Promise<void>;
 
   constructor(options: EngineOptions = {}) {
-    // Use `||` (not `??`) for the string options so that an empty string — which
-    // commander can hand us from `--base-url ""` / `--user-agent ""` — falls back
-    // to the default rather than producing an invalid URL or a blank UA header
-    // (the latter would trip the Routing API's bot detection and 403).
-    this.baseUrl = (options.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
+    // Only `undefined` selects the default base URL (`??`, not `||`): an explicit
+    // "" is rejected like "  ", as the CLI rejects `--base-url ""`, rather than
+    // quietly sending the request to the production host.
+    this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     assertValidBaseUrl(this.baseUrl);
     this.transport = options.transport ?? nodeHttpTransport;
-    // Fall back to the default for an empty OR whitespace-only UA: a blank
+    // Fall back to the default for an empty OR whitespace-only UA (the one string
+    // option where blank means "default"; a blank UA header would trip the Routing
+    // API's bot detection and 403): a blank
     // User-Agent is semantically equivalent to none, so " " should not be sent
     // verbatim as if it were a real header value.
     this.userAgent = options.userAgent && options.userAgent.trim() !== "" ? options.userAgent : DEFAULT_USER_AGENT;
