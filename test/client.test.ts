@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FitConnectClient, areaSearchWords } from "../src/client/client.js";
-import { FitConnectApiError, FitConnectError } from "../src/client/errors.js";
+import { FitConnectApiError, FitConnectError, FitConnectValidationError } from "../src/client/errors.js";
 import { makeMockTransport, jsonResponse, constantJson } from "./helpers.js";
 
 function clientWith(
@@ -99,16 +99,24 @@ test("areas() splits on punctuation the API can't parse, keeping letters, digits
   assert.deepEqual(await sent(["Mülheim an der Ruhr", "Mag*", "33790"]), ["Mülheim", "an", "der", "Ruhr", "Mag*", "33790"]);
 });
 
-test("routes() trims selectors and never sends a blank one", async () => {
+test("routes() trims selectors and rejects a blank one before any request", async () => {
   const mt = constantJson({ count: 0, offset: 0, totalCount: 0, routes: [] });
-  await clientWith(mt).routes({ leikaKey: "99123456760610", ags: "12345678", ars: "" });
-  let url = new URL(mt.last().url);
-  assert.equal(url.searchParams.get("ags"), "12345678");
-  assert.equal(url.searchParams.has("ars"), false);
-  await clientWith(mt).routes({ leikaKey: "99123456760610", areaId: " 940 ", ags: "  " });
-  url = new URL(mt.last().url);
+  await clientWith(mt).routes({ leikaKey: "99123456760610", areaId: " 940 " });
+  const url = new URL(mt.last().url);
   assert.equal(url.searchParams.get("areaId"), "940");
-  assert.equal(url.searchParams.has("ags"), false);
+  const blanks: [Record<string, string>, string][] = [
+    [{ ags: "12345678", ars: "" }, "ars"],
+    [{ areaId: " 940 ", ags: "  " }, "ags"],
+    [{ areaId: "\t" }, "areaId"],
+  ];
+  for (const [selectors, name] of blanks) {
+    await assert.rejects(
+      clientWith(mt).routes({ leikaKey: "99123456760610", ...selectors }),
+      (err: unknown) =>
+        err instanceof FitConnectValidationError && err.message === `Invalid ${name}: Value must not be blank.`,
+    );
+  }
+  assert.equal(mt.calls.length, 1);
 });
 
 test("routes() and areas() validate ags/ars and offset/limit before any request", async () => {

@@ -11,6 +11,7 @@
 
 import { RequestEngine, type EngineOptions } from "./engine.js";
 import { FitConnectError } from "./errors.js";
+import { assertValid, nonBlankProblem } from "./validate.js";
 import type { QueryParams } from "./query.js";
 import type { AreaResult, Info, RouteResult } from "./types.js";
 
@@ -100,11 +101,12 @@ export class FitConnectClient {
       );
     }
 
-    // Trim each selector and treat a blank one as not given — and then do not send
-    // it either: an empty `ars=` or a padded `areaId=%20940%20` is an API 400.
-    const ags = optionalTrimmed(params.ags);
-    const ars = optionalTrimmed(params.ars);
-    const areaId = optionalTrimmed(params.areaId);
+    // Trim each selector (a padded `areaId=%20940%20` is an API 400) and reject a
+    // blank one before any request: dropping it would let a second selector pass the
+    // exactly-one rule, and sending it as an empty `ars=` is an API 400.
+    const ags = optionalNonBlank("ags", params.ags);
+    const ars = optionalNonBlank("ars", params.ars);
+    const areaId = optionalNonBlank("areaId", params.areaId);
     const given = { ags, ars, areaId };
     const selectors = (["ags", "ars", "areaId"] as const).filter((k) => given[k] !== undefined);
     if (selectors.length !== 1) {
@@ -237,11 +239,14 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
   return { words, dropped };
 }
 
-/** Trim an optional string parameter; undefined, blank or non-string → undefined. */
-function optionalTrimmed(value: string | undefined): string | undefined {
+/**
+ * Trim an optional string parameter; undefined or non-string → undefined, and a
+ * blank string is a FitConnectValidationError (`Invalid <name>: Value must not be
+ * blank.`), not "not given".
+ */
+function optionalNonBlank(name: string, value: string | undefined): string | undefined {
   if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed === "" ? undefined : trimmed;
+  return assertValid(name, value, nonBlankProblem).trim();
 }
 
 /** Validate an optional `offset`/`limit` against the API's documented range. */

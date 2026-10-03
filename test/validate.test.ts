@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertValid, type Problem } from "../src/client/validate.js";
+import { assertValid, nonBlankProblem, type Problem } from "../src/client/validate.js";
 import { FitConnectError, FitConnectValidationError } from "../src/client/errors.js";
 import * as library from "../src/index.js";
 import { FitConnectClient } from "../src/client/client.js";
@@ -57,4 +57,10 @@ test("parity() runs one input through run() and the library on recording transpo
     error: { name: "FitConnectValidationError", message: "Invalid x: y" },
     requests: [],
   });
+});
+
+test("nonBlankProblem rejects an empty or whitespace-only value", () => {
+  assert.equal(nonBlankProblem("x"), undefined);
+  assert.equal(nonBlankProblem(" 940 "), undefined);
+  for (const blank of ["", " ", "\t", "\n "]) assert.equal(nonBlankProblem(blank), "Value must not be blank.");
 });

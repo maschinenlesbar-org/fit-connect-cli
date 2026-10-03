@@ -78,8 +78,10 @@ new FitConnectClient({
 - `routes({ leikaKey, ags? , ars?, areaId?, offset?, limit? })` → `RouteResult`.
   Requires `leikaKey` and **exactly one** of `ags` / `ars` / `areaId`; both rules
   are enforced client-side (a `FitConnectError` rejection) before any request.
-  Selectors are trimmed, and a blank one counts as not given and is not sent;
-  `ags` / `ars` must match `AGS_PATTERN` / `ARS_PATTERN` (the API's lengths).
+  Selectors are trimmed, and a blank one (`""` or whitespace) rejects with a
+  `FitConnectValidationError` (`Invalid ags: Value must not be blank.`, the
+  `nonBlankProblem` rule the CLI's `--area-id` parser uses too) rather than counting
+  as not given; `ags` / `ars` must match `AGS_PATTERN` / `ARS_PATTERN` (the API's lengths).
   On `routes` and `areas`, `offset` must be an integer 0..`MAX_OFFSET` (2147483647)
   and `limit` 1..`MAX_LIMIT` (500), else a `FitConnectError`.
 - `areas({ search, offset?, limit? })` → `AreaResult`. `search` is a string or
@@ -221,6 +223,7 @@ npm test          # builds, then runs `node --test` over dist/test
 - **`client.test.ts`** — path/version building, query params, area-selector validation — mocked transport.
 - **`validate.test.ts`** — `assertValid` and the `parity()` helper (`test/helpers.ts`), which sends one input through `run()` and through the library, each on a recording mock transport, so a test can assert both give the same outcome.
 - **`shared.test.ts`** — option parsing (`parseIntArg`, `parseApiVersion`) and `toClientOptions` mapping.
+- **`parity.test.ts`** — CLI ↔ library parity: one input through `run()` and through the library (`parity()`), asserting the same outcome.
 - **`cli.test.ts`** — end-to-end command parsing, rendering, error/exit codes and option flow-through — mocked client.
 - **`io.test.ts`** — `handleOutputErrors` (EPIPE on a closed stdout/stderr exits 0) — fake streams.
 

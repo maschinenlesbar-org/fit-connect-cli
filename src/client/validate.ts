@@ -20,3 +20,11 @@ export function assertValid<T>(name: string, value: T, problem: Problem<T>): T {
   if (reason !== undefined) throw new FitConnectValidationError(`Invalid ${name}: ${reason}`);
   return value;
 }
+
+/**
+ * A value that is not blank: an empty or whitespace-only string (often an unset
+ * shell variable) is invalid rather than "not given", so it never silently drops a
+ * parameter.
+ */
+export const nonBlankProblem: Problem = (value) =>
+  value.trim() === "" ? "Value must not be blank." : undefined;

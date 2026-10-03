@@ -7,6 +7,7 @@ import type { CliDeps } from "./io.js";
 import { AGS_PATTERN, ARS_PATTERN, MAX_OFFSET } from "../client/client.js";
 import { isBidiControl } from "../client/engine.js";
 import { FitConnectError } from "../client/errors.js";
+import { nonBlankProblem } from "../client/validate.js";
 import type { ApiVersion, FitConnectClientOptions } from "../client/client.js";
 
 /**
@@ -98,17 +99,13 @@ export function parseArs(value: string): string {
 
 /**
  * commander value-parser for a free-form id (`--area-id`): trimmed, and a blank
- * value ("" or whitespace, often an unset shell variable) is a usage error. It was
- * previously forwarded as an empty `areaId=` parameter next to another selector,
- * so the command ran and exited 0. The CLI counterpart of the client's
- * `requireNonEmpty`.
+ * value ("" or whitespace, often an unset shell variable) is a usage error — the
+ * library's `nonBlankProblem`, which `routes()` applies to every selector.
  */
 export function parseNonEmpty(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed === "") {
-    throw new InvalidArgumentError("Value must not be blank.");
-  }
-  return trimmed;
+  const problem = nonBlankProblem(value);
+  if (problem !== undefined) throw new InvalidArgumentError(problem);
+  return value.trim();
 }
 
 /** commander value-parser for the Routing API version: "v1" or "v2". */
