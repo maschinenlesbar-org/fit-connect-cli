@@ -7,7 +7,12 @@ import {
   sanitizeServerText,
   MAX_RETRY_AFTER_MS,
 } from "../src/client/engine.js";
-import { FitConnectApiError, FitConnectError, FitConnectParseError } from "../src/client/errors.js";
+import {
+  FitConnectApiError,
+  FitConnectError,
+  FitConnectParseError,
+  FitConnectValidationError,
+} from "../src/client/errors.js";
 import type { HttpResponse } from "../src/client/http.js";
 import { makeMockTransport, jsonResponse, rawResponse } from "./helpers.js";
 
@@ -439,4 +444,14 @@ test("an empty/blank User-Agent falls back to the default (never blank, to avoid
   const e = new RequestEngine({ transport: mt.transport, userAgent: "" });
   await e.getJson("/v2/info");
   assert.equal(mt.last().headers?.["User-Agent"], "fit-connect-cli");
+});
+
+test("the engine range-checks retryDelayMs like the other numeric options", () => {
+  for (const retryDelayMs of [-1, 1.5, NaN, Infinity]) {
+    assert.throws(
+      () => new RequestEngine({ retryDelayMs }),
+      (err: unknown) => err instanceof FitConnectValidationError && /^Invalid retryDelayMs: /.test(err.message),
+    );
+  }
+  assert.doesNotThrow(() => new RequestEngine({ retryDelayMs: 0 }));
 });

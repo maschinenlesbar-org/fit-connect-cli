@@ -73,6 +73,15 @@ new FitConnectClient({
 });
 ```
 
+The constructor range-checks the numeric options and throws a
+`FitConnectValidationError` (`Invalid maxRetries: Expected an integer between 0 and
+10.`) unless each is a safe integer in range: `timeoutMs` 0..`MAX_TIMEOUT_MS`
+(2147483647), `maxRetries` 0..`MAX_RETRIES` (10), `retryDelayMs` and
+`maxResponseBytes` non-negative. `0` keeps its documented meaning (no timeout, no
+size cap, no retries); a negative, `NaN`, fractional or infinite value is rejected
+rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries` and
+`--max-response-bytes` parsers use the same bounds (`intRangeProblem`).
+
 ### Client surface
 
 - `routes({ leikaKey, ags? , ars?, areaId?, offset?, limit? })` → `RouteResult`.
@@ -197,7 +206,7 @@ outcome on both sides, and `run.ts` reports a `FitConnectValidationError` raised
 action as a usage error (`Error: <message>`, exit `1`).
 
 **Retry / backoff.** Transient `429` and `503` are retried automatically with
-backoff, up to `maxRetries` (default `2`; the CLI allows `0`..`MAX_RETRIES` = 10),
+backoff, up to `maxRetries` (default `2`; `0`..`MAX_RETRIES` = 10, checked by the library),
 honouring a `Retry-After` header when present (delta-seconds or an IMF-fixdate
 HTTP-date, parsed strictly by `parseRetryAfter`; a malformed, negative or fractional
 value falls back to linear backoff). Without a usable `Retry-After`, the

@@ -7,7 +7,7 @@ import type { CliDeps } from "./io.js";
 import { AGS_PATTERN, ARS_PATTERN, MAX_OFFSET } from "../client/client.js";
 import { isBidiControl } from "../client/engine.js";
 import { FitConnectError } from "../client/errors.js";
-import { nonBlankProblem } from "../client/validate.js";
+import { intRangeProblem, nonBlankProblem } from "../client/validate.js";
 import type { ApiVersion, FitConnectClientOptions } from "../client/client.js";
 
 /**
@@ -31,14 +31,15 @@ export function parseIntArg(value: string): number {
 
 /**
  * Build a commander value-parser for an integer constrained to [min, max]
- * (a canonical non-negative integer, see {@link parseIntArg}).
+ * (a canonical non-negative integer, see {@link parseIntArg}; the range is the
+ * library's `intRangeProblem`, which the engine applies to the same options).
  */
 export function parseBoundedInt(min: number, max: number): (value: string) => number {
+  const problem = intRangeProblem(min, max);
   return (value: string) => {
     const n = parseIntArg(value);
-    if (n < min || n > max) {
-      throw new InvalidArgumentError(`Expected an integer between ${min} and ${max}.`);
-    }
+    const reason = problem(n);
+    if (reason !== undefined) throw new InvalidArgumentError(reason);
     return n;
   };
 }

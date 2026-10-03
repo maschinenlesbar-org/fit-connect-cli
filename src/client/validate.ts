@@ -28,3 +28,16 @@ export function assertValid<T>(name: string, value: T, problem: Problem<T>): T {
  */
 export const nonBlankProblem: Problem = (value) =>
   value.trim() === "" ? "Value must not be blank." : undefined;
+
+/**
+ * An integer in min..max (a safe integer; NaN, Infinity and fractions are
+ * invalid). With min 0 and max Number.MAX_SAFE_INTEGER the reason reads "Expected a
+ * non-negative integer.".
+ */
+export function intRangeProblem(min: number, max: number): Problem<number> {
+  const reason =
+    min === 0 && max === Number.MAX_SAFE_INTEGER
+      ? "Expected a non-negative integer."
+      : `Expected an integer between ${min} and ${max}.`;
+  return (n) => (typeof n === "number" && Number.isSafeInteger(n) && n >= min && n <= max ? undefined : reason);
+}

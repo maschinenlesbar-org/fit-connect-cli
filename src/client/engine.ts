@@ -2,8 +2,9 @@
 // requests via a Transport, applies retry/backoff for transient statuses
 // (429, 503), and decodes responses.
 
-import { nodeHttpTransport, type Transport } from "./http.js";
+import { MAX_TIMEOUT_MS, nodeHttpTransport, type Transport } from "./http.js";
 import { buildQueryString, type QueryParams } from "./query.js";
+import { assertValid, intRangeProblem } from "./validate.js";
 import { FitConnectApiError, FitConnectError, FitConnectParseError, redactUrl } from "./errors.js";
 
 export const DEFAULT_BASE_URL = "https://routing-api-prod.fit-connect.fitko.net";
@@ -25,23 +26,26 @@ export interface EngineOptions {
    *  403. An empty or whitespace-only value falls back to the default. */
   userAgent?: string;
   /** Time limit per request in milliseconds, covering the whole response body, not
-   *  only idle gaps (0 disables; capped at `MAX_TIMEOUT_MS`, 2^31 - 1 ms). */
+   *  only idle gaps: an integer 0..`MAX_TIMEOUT_MS` (2^31 - 1 ms); 0 disables.
+   *  Defaults to 30000. Any other value is a `FitConnectValidationError`. */
   timeoutMs?: number;
   /**
-   * Number of automatic retries for transient (429/503) responses. Each waits the
-   * response's `Retry-After`, or without one its `RateLimit-Reset` (up to
-   * `MAX_RETRY_AFTER_MS`; a longer wait is not retried), or else
-   * `retryDelayMs * attempt`.
+   * Number of automatic retries for transient (429/503) responses, an integer
+   * 0..`MAX_RETRIES` (10); defaults to 2. Each waits the response's `Retry-After`,
+   * or without one its `RateLimit-Reset` (up to `MAX_RETRY_AFTER_MS`; a longer wait
+   * is not retried), or else `retryDelayMs * attempt`.
    */
   maxRetries?: number;
   /**
-   * Base backoff between retries in milliseconds. Grows linearly per attempt,
-   * unless the response carries a usable `Retry-After` header, which takes precedence.
+   * Base backoff between retries in milliseconds, a non-negative integer; defaults
+   * to 200. Grows linearly per attempt, unless the response carries a usable
+   * `Retry-After` header, which takes precedence.
    */
   retryDelayMs?: number;
   /**
    * Hard cap on response body size in bytes (defends against memory exhaustion
-   * from a hostile/buggy endpoint). Defaults to 100 MiB; set to 0 for no limit.
+   * from a hostile/buggy endpoint), a non-negative integer. Defaults to 100 MiB;
+   * set to 0 for no limit.
    */
   maxResponseBytes?: number;
   /** Injectable sleep, primarily for deterministic tests. */
@@ -59,8 +63,18 @@ const DEFAULT_MAX_RESPONSE_BYTES = 100 * 1024 * 1024;
  */
 export const MAX_RETRY_AFTER_MS = 30_000;
 
-/** Upper bound for `--max-retries` (each retry may wait up to `MAX_RETRY_AFTER_MS`). */
+/** Upper bound for `maxRetries` / `--max-retries` (each retry may wait up to `MAX_RETRY_AFTER_MS`). */
 export const MAX_RETRIES = 10;
+
+/**
+ * A numeric engine option: `fallback` when undefined, else an integer in 0..max,
+ * or a FitConnectValidationError (`Invalid <name>: ...`). A negative, NaN or
+ * fractional value would otherwise silently disable the timeout or the size cap
+ * (both are off only for `> 0` tests), and an unbounded maxRetries keeps retrying.
+ */
+export function intOption(name: string, value: number | undefined, max: number, fallback: number): number {
+  return value === undefined ? fallback : assertValid(name, value, intRangeProblem(0, max));
+}
 
 /** An IMF-fixdate (RFC 9110 §5.6.7), the one HTTP-date form senders must generate. */
 const IMF_FIXDATE =
@@ -272,10 +286,15 @@ export class RequestEngine {
     // verbatim as if it were a real header value.
     this.userAgent = options.userAgent && options.userAgent.trim() !== "" ? options.userAgent : DEFAULT_USER_AGENT;
     assertHeaderValue("userAgent", this.userAgent);
-    this.timeoutMs = options.timeoutMs ?? 30_000;
-    this.maxRetries = options.maxRetries ?? 2;
-    this.retryDelayMs = options.retryDelayMs ?? 200;
-    this.maxResponseBytes = options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
+    this.timeoutMs = intOption("timeoutMs", options.timeoutMs, MAX_TIMEOUT_MS, 30_000);
+    this.maxRetries = intOption("maxRetries", options.maxRetries, MAX_RETRIES, 2);
+    this.retryDelayMs = intOption("retryDelayMs", options.retryDelayMs, Number.MAX_SAFE_INTEGER, 200);
+    this.maxResponseBytes = intOption(
+      "maxResponseBytes",
+      options.maxResponseBytes,
+      Number.MAX_SAFE_INTEGER,
+      DEFAULT_MAX_RESPONSE_BYTES,
+    );
     this.sleep = options.sleep ?? realSleep;
   }
 

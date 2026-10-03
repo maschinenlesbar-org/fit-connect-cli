@@ -21,6 +21,7 @@ export {
   RequestEngine,
   DEFAULT_BASE_URL,
   MAX_RETRIES,
+  intOption,
   MAX_RETRY_AFTER_MS,
   parseRateLimitReset,
   parseRetryAfter,
@@ -37,7 +38,7 @@ export {
   FitConnectParseError,
   FitConnectValidationError,
 } from "./errors.js";
-export { assertValid, nonBlankProblem } from "./validate.js";
+export { assertValid, intRangeProblem, nonBlankProblem } from "./validate.js";
 export type { Problem } from "./validate.js";
 
 export * from "./types.js";

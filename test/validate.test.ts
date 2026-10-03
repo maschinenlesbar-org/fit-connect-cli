@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertValid, nonBlankProblem, type Problem } from "../src/client/validate.js";
+import { assertValid, intRangeProblem, nonBlankProblem, type Problem } from "../src/client/validate.js";
 import { FitConnectError, FitConnectValidationError } from "../src/client/errors.js";
 import * as library from "../src/index.js";
 import { FitConnectClient } from "../src/client/client.js";
@@ -63,4 +63,17 @@ test("nonBlankProblem rejects an empty or whitespace-only value", () => {
   assert.equal(nonBlankProblem("x"), undefined);
   assert.equal(nonBlankProblem(" 940 "), undefined);
   for (const blank of ["", " ", "\t", "\n "]) assert.equal(nonBlankProblem(blank), "Value must not be blank.");
+});
+
+test("intRangeProblem accepts safe integers in min..max only", () => {
+  const retries = intRangeProblem(0, 10);
+  assert.equal(retries(0), undefined);
+  assert.equal(retries(10), undefined);
+  for (const bad of [-1, 11, 2.5, NaN, Infinity, -Infinity]) {
+    assert.equal(retries(bad), "Expected an integer between 0 and 10.");
+  }
+  const bytes = intRangeProblem(0, Number.MAX_SAFE_INTEGER);
+  assert.equal(bytes(Number.MAX_SAFE_INTEGER), undefined);
+  assert.equal(bytes(-1), "Expected a non-negative integer.");
+  assert.equal(bytes(Number.MAX_SAFE_INTEGER + 2), "Expected a non-negative integer.");
 });
