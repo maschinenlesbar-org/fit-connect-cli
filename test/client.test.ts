@@ -251,3 +251,14 @@ test("a long server detail is cut at 500 characters in the message, kept in body
   await assert.rejects(c.info(), (err: unknown) =>
     err instanceof FitConnectApiError && err.message.length < 700 && err.message.includes("x".repeat(500) + "…") && err.body.length > 200_000);
 });
+
+test("combining marks NFKC leaves over are dropped, never sent (the API answers them with a 500)", async () => {
+  assert.deepEqual(areaSearchWords("Kö̈ln").words, ["Köln"]);
+  assert.deepEqual(areaSearchWords("Kö̈ln").words, ["Köln"]);
+  assert.throws(() => areaSearchWords("̈̈"), FitConnectValidationError);
+  const mt = constantJson({ count: 0, offset: 0, totalCount: 0, areas: [] });
+  await assert.rejects(clientWith(mt).areas({ search: "̈̈" }), FitConnectValidationError);
+  await clientWith(mt).areas({ search: "Kö̈ln" });
+  assert.equal(mt.calls.length, 1);
+  assert.equal(new URL(mt.last().url).searchParams.get("areaSearchexpression"), "Köln");
+});

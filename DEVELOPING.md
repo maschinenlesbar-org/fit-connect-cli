@@ -103,8 +103,9 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   and `limit` 1..`MAX_LIMIT` (500), else a `FitConnectValidationError`.
 - `areas({ search, offset?, limit? })` → `AreaResult`. `search` is a string or
   string array; each term is normalised to NFKC (the API 500s on a decomposed
-  umlaut or fullwidth digits) and split into words on whitespace and punctuation
-  (`"Halle (Westf.)"` → `Halle`, `Westf`; `*` is kept). Words with fewer than 2
+  umlaut or fullwidth digits), and combining marks NFKC leaves over are dropped (the
+  API 500s on those too: `"Kö\u0308ln"` searches `Köln`); the result is split into
+  words on whitespace and punctuation (`"Halle (Westf.)"` → `Halle`, `Westf`; `*` is kept). Words with fewer than 2
   non-wildcard characters are left out and a repeated word is sent once; a search
   with no word left, more than 10 words, or a `*` inside a word part shorter than 2
   characters rejects (the API answers each with a 400). `areaSearchWords(search)`

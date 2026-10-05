@@ -306,8 +306,12 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
   const seen = new Set<string>();
   // NFKC first: the API answers HTTP 500 for a decomposed umlaut ("Ko" + U+0308,
   // as pasted from macOS file names) and for fullwidth digits (IME input), both of
-  // which look identical to the composed / ASCII text it does find.
-  for (const word of terms.flatMap((t) => t.normalize("NFKC").split(/[^\p{L}\p{M}\p{N}*]+/u))) {
+  // which look identical to the composed / ASCII text it does find. A combining mark
+  // NFKC leaves over (a doubled diaeresis in "Kö" + U+0308 + "ln", or marks with no
+  // letter at all) gets the same 500, so it is dropped: "Kö̈ln" searches "Köln", and a
+  // term of marks alone has no usable word. German place names need no combining
+  // mark once composed.
+  for (const word of terms.flatMap((t) => stripMarks(t.normalize("NFKC")).split(/[^\p{L}\p{N}*]+/u))) {
     if (word === "") continue;
     if ([...word.replace(/\*/g, "")].length < 2) {
       dropped.push(word);
@@ -374,6 +378,11 @@ function checkParams(method: string, params: unknown, allowed: readonly string[]
       );
     }
   }
+}
+
+/** `text` without combining marks (`\p{M}`), as left over after NFKC composition. */
+function stripMarks(text: string): string {
+  return text.replace(/\p{M}/gu, "");
 }
 
 /**
