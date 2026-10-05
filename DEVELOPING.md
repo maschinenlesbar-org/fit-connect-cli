@@ -66,10 +66,10 @@ new FitConnectClient({
   baseUrl: "https://routing-api-prod.fit-connect.fitko.net",
   apiVersion: "v2",           // "v1" | "v2" — path prefix; v2 is current
   timeoutMs: 30_000,
-  maxRetries: 2,              // 429 / 503 are retried (honours Retry-After, else linear backoff)
+  maxRetries: 2,              // 429 / 503 and resets are retried (honours Retry-After, else linear backoff)
   maxResponseBytes: 100 << 20,// abort responses larger than 100 MiB (0 = unlimited)
   userAgent: "my-app/1.0",    // default is accepted; some UA strings are blocked by bot detection
-  transport: customTransport, // inject your own HTTP transport
+  transport: customTransport, // inject your own HTTP transport (the engine enforces timeoutMs / maxResponseBytes)
 });
 ```
 
@@ -242,7 +242,18 @@ value falls back to linear backoff). Without a usable `Retry-After`, the
 signal and sends no `Retry-After`; `parseRateLimitReset` reads delta-seconds, or a
 Unix timestamp for values ≥ 10^9, because the spec's wording allows both. A wait
 above `MAX_RETRY_AFTER_MS` (30 s) is not retried at all: the error surfaces at once.
-`FitConnectApiError.isRetryable` reflects this.
+`FitConnectApiError.isRetryable` reflects this. A connection reset (`ECONNRESET`,
+`EPIPE`, `ECONNABORTED`, undici's `UND_ERR_SOCKET`, anywhere in the error's `cause`
+chain) is retried the same way with linear backoff; a refused connection, a DNS
+failure and a timeout are not.
+
+**Custom transports.** The engine, not the transport, enforces the documented limits:
+every call runs under the `timeoutMs` deadline (the request carries an `AbortSignal`
+in `signal`, which the built-in transport honours and a `fetch` transport should pass
+on), and a body over `maxResponseBytes` is rejected after the fact. Headers are read in
+any letter case and from a `Headers` object or a `Map`, the body may be any
+ArrayBuffer view or an ArrayBuffer, and whatever a transport throws or returns that
+isn't a usable response becomes a `FitConnectNetworkError`.
 
 **problem+json content type.** The Routing API serves the `/areas` *success* body
 as `application/problem+json` (not `application/json`). The engine does not gate

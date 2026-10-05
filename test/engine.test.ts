@@ -461,3 +461,31 @@ test("the engine range-checks retryDelayMs like the other numeric options", () =
   }
   assert.doesNotThrow(() => new RequestEngine({ retryDelayMs: 0 }));
 });
+
+test("RateLimit-Reset and Content-Type are read from a Headers object and any header case (P5)", async () => {
+  for (const headers of [new Headers({ "RateLimit-Reset": "7" }), { "RATELIMIT-RESET": "7" }]) {
+    const sleeps: number[] = [];
+    let n = 0;
+    const e = new RequestEngine({
+      maxRetries: 1,
+      sleep: async (ms) => void sleeps.push(ms),
+      transport: async () =>
+        n++ === 0
+          ? ({ status: 429, headers: headers as unknown as HttpResponse["headers"], body: Buffer.from("{}") })
+          : { status: 200, headers: {}, body: Buffer.from("{}") },
+    });
+    await e.getJson("/v2/info");
+    assert.deepEqual(sleeps, [7000]);
+  }
+  const latin1 = Buffer.from(JSON.stringify({ name: "Köln" }), "latin1");
+  for (const headers of [new Headers({ "Content-Type": "application/json; charset=iso-8859-1" }), { "Content-Type": "application/json; charset=iso-8859-1" }]) {
+    const e = new RequestEngine({ transport: async () => ({ status: 200, headers: headers as unknown as HttpResponse["headers"], body: latin1 }) });
+    assert.deepEqual(await e.getJson("/v2/info"), { name: "Köln" });
+  }
+});
+
+test("a Uint8Array error body keeps its detail (P5)", async () => {
+  const body = new Uint8Array(Buffer.from(JSON.stringify({ detail: "Constraint Violation" })));
+  const e = new RequestEngine({ maxRetries: 0, transport: async () => ({ status: 400, headers: {}, body: body as Buffer }) });
+  await assert.rejects(e.getJson("/v2/info"), (err: unknown) => err instanceof FitConnectApiError && err.detail === "Constraint Violation");
+});

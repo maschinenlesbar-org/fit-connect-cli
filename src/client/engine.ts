@@ -2,7 +2,14 @@
 // requests via a Transport, applies retry/backoff for transient statuses
 // (429, 503), and decodes responses.
 
-import { MAX_TIMEOUT_MS, nodeHttpTransport, type HttpResponse, type Transport } from "./http.js";
+import {
+  MAX_TIMEOUT_MS,
+  nodeHttpTransport,
+  sizeLimitMessage,
+  type HttpRequest,
+  type HttpResponse,
+  type Transport,
+} from "./http.js";
 import { buildQueryString, type QueryParams } from "./query.js";
 import { assertValid, baseUrlProblem, headerValueProblem, intRangeProblem } from "./validate.js";
 import {
@@ -26,7 +33,12 @@ export interface RawResponse {
 export interface EngineOptions {
   /** Base URL of the API. Defaults to the production routing service. */
   baseUrl?: string;
-  /** Swappable transport. Defaults to the built-in node http/https transport. */
+  /**
+   * Swappable transport. Defaults to the built-in node http/https transport. The engine
+   * enforces `timeoutMs` and `maxResponseBytes` for any transport, reads its headers in
+   * any case (a fetch `Headers` or a `Map` too) and its body as any ArrayBuffer view, and
+   * turns whatever it throws into a `FitConnectNetworkError`.
+   */
   transport?: Transport;
   /** Value of the User-Agent header. The Routing API applies bot detection to the
    *  User-Agent: the default is accepted, but some UA strings are blocked with a
@@ -37,11 +49,14 @@ export interface EngineOptions {
   userAgent?: string;
   /** Time limit per request in milliseconds, covering the whole response body, not
    *  only idle gaps: an integer 0..`MAX_TIMEOUT_MS` (2^31 - 1 ms); 0 disables.
-   *  Defaults to 30000. Any other value is a `FitConnectValidationError`. */
+   *  Defaults to 30000. Enforced by the engine for every transport (the request's
+   *  `signal` aborts then). Any other value is a `FitConnectValidationError`. */
   timeoutMs?: number;
   /**
-   * Number of automatic retries for transient (429/503) responses, an integer
-   * 0..`MAX_RETRIES` (10); defaults to 2. Each waits the response's `Retry-After`,
+   * Number of automatic retries for transient (429/503) responses and reset connections
+   * (`ECONNRESET`, `UND_ERR_SOCKET`, …; a refused connection, a DNS failure and a timeout
+   * are not retried), an integer 0..`MAX_RETRIES` (10); defaults to 2. Each waits the
+   * response's `Retry-After`,
    * or without one its `RateLimit-Reset` (up to `MAX_RETRY_AFTER_MS`; a longer wait
    * is not retried), or else `retryDelayMs * attempt`.
    */
@@ -55,7 +70,7 @@ export interface EngineOptions {
   /**
    * Hard cap on response body size in bytes (defends against memory exhaustion
    * from a hostile/buggy endpoint), a non-negative integer. Defaults to 100 MiB;
-   * set to 0 for no limit.
+   * set to 0 for no limit. Enforced by the engine for every transport.
    */
   maxResponseBytes?: number;
   /** Injectable sleep, primarily for deterministic tests. */
@@ -245,6 +260,71 @@ export function parseRateLimitReset(
   return seconds >= UNIX_TIMESTAMP_FLOOR ? Math.max(0, seconds * 1000 - now) : seconds * 1000;
 }
 
+/** Why `value` is not a usable HttpResponse, or undefined when it is. */
+function responseProblem(value: unknown): string | undefined {
+  if (typeof value !== "object" || value === null) return "not an object";
+  const r = value as Partial<Record<"status" | "headers" | "body", unknown>>;
+  if (typeof r.status !== "number" || !Number.isInteger(r.status) || r.status < 100 || r.status > 599) {
+    return "status is not an HTTP status code";
+  }
+  if (typeof r.headers !== "object" || r.headers === null || Array.isArray(r.headers)) return "headers is not an object";
+  if (bodyBytes(r.body) === undefined) return "body is not a Buffer, Uint8Array, other ArrayBuffer view or ArrayBuffer";
+  return undefined;
+}
+
+/**
+ * The response body as a Buffer (a view, no copy): a Buffer, any ArrayBuffer view (a
+ * Uint8Array from fetch, a DataView) or an ArrayBuffer/SharedArrayBuffer — checked by internal
+ * slot, not `instanceof`, so a value from another realm (a vm context, a Jest test) counts.
+ * Undefined for anything else.
+ */
+function bodyBytes(value: unknown): Buffer | undefined {
+  if (Buffer.isBuffer(value)) return value;
+  if (ArrayBuffer.isView(value)) return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+  const tag = Object.prototype.toString.call(value);
+  if (tag === "[object ArrayBuffer]" || tag === "[object SharedArrayBuffer]") return Buffer.from(value as ArrayBuffer);
+  return undefined;
+}
+
+/**
+ * The response headers as a plain record with lower-case names. A transport built on
+ * `fetch` naturally returns its `Headers` object, which has no plain properties, and a
+ * custom one may write `Retry-After`, `RateLimit-Reset` or `Content-Type` in any case:
+ * the engine then saw none of them (a "wait 120 s" 429 was retried after 200 ms, a
+ * Latin-1 body decoded as UTF-8). Such an object (anything with `get` and `forEach`, a
+ * `Headers` or a `Map`) is copied into a record; a plain record gets its names
+ * lower-cased.
+ */
+function plainHeaders(headers: object): Record<string, string | string[] | undefined> {
+  const h = headers as { get?: unknown; forEach?: unknown };
+  if (typeof h.get === "function" && typeof h.forEach === "function") {
+    const record: Record<string, string> = {};
+    (h.forEach as (cb: (value: unknown, name: unknown) => void) => void).call(headers, (value, name) => {
+      record[String(name).toLowerCase()] = String(value);
+    });
+    return record;
+  }
+  const record: Record<string, string | string[] | undefined> = {};
+  for (const [name, value] of Object.entries(headers as Record<string, string | string[] | undefined>)) {
+    record[name.toLowerCase()] = value;
+  }
+  return record;
+}
+
+/**
+ * Error codes of a connection that broke off mid-request: Node's (`socket hang up` is
+ * ECONNRESET) and undici's (`fetch failed` with cause UND_ERR_SOCKET, "other side closed").
+ */
+const TRANSIENT_NETWORK_CODES = new Set(["ECONNRESET", "EPIPE", "ECONNABORTED", "UND_ERR_SOCKET"]);
+
+/** True when `err` or an error in its `cause` chain has a transient connection code. */
+function hasTransientCode(err: unknown, depth = 0): boolean {
+  if (typeof err !== "object" || err === null || depth > 4) return false;
+  const code = (err as { code?: unknown }).code;
+  if (typeof code === "string" && TRANSIENT_NETWORK_CODES.has(code)) return true;
+  return hasTransientCode((err as { cause?: unknown }).cause, depth + 1);
+}
+
 export class RequestEngine {
   // A real private field (not TypeScript's `private`): util.inspect, console.log and
   // JSON.stringify of a client never show it, so a password in the base URL can't be
@@ -335,6 +415,32 @@ export class RequestEngine {
     return new FitConnectNetworkError(message, { cause: scrubbed });
   }
 
+  /**
+   * Call the transport under the overall deadline (`timeoutMs`): the request gets an
+   * AbortSignal that fires at the deadline, and the call rejects then whether the transport
+   * stops or not — a custom transport (fetch, a node:http wrapper) that ignores `timeoutMs`
+   * can't hang the caller. A synchronous throw becomes a rejection.
+   */
+  private async callTransport(request: HttpRequest): Promise<HttpResponse> {
+    const call = (signal?: AbortSignal): Promise<HttpResponse> =>
+      Promise.resolve().then(() => this.transport(signal === undefined ? request : { ...request, signal }));
+    if (this.timeoutMs === 0) return call();
+    const controller = new AbortController();
+    let timer: NodeJS.Timeout | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const err = new FitConnectNetworkError(`Request timed out after ${this.timeoutMs}ms`);
+        controller.abort(err);
+        reject(err);
+      }, this.timeoutMs);
+    });
+    try {
+      return await Promise.race([call(controller.signal), deadline]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   /** Build a fully-qualified URL from a path and optional query parameters. */
   buildUrl(path: string, query?: QueryParams): string {
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -354,12 +460,15 @@ export class RequestEngine {
       "User-Agent": this.userAgent,
     };
 
+    // Only an idempotent request is sent again: request() is public, and a POST re-sent
+    // after a reset or a 503 may be applied twice. The client itself sends GETs only.
+    const idempotent = /^(GET|HEAD)$/i.test(method);
     let attempt = 0;
     // attempts = initial try + maxRetries
     for (;;) {
       let response: HttpResponse;
       try {
-        response = await this.transport({
+        response = await this.callTransport({
           method,
           url,
           headers,
@@ -367,18 +476,41 @@ export class RequestEngine {
           ...(this.maxResponseBytes > 0 ? { maxResponseBytes: this.maxResponseBytes } : {}),
         });
       } catch (cause) {
+        // A connection the server (or a gateway) reset is retried like a 503, whichever
+        // transport reported it (Node's ECONNRESET, fetch's UND_ERR_SOCKET, anywhere in the
+        // cause chain). A refused connection, a DNS failure and a timeout are not: a slow
+        // or absent upstream should not be asked again at once.
+        if (idempotent && hasTransientCode(cause) && attempt < this.maxRetries) {
+          attempt += 1;
+          await this.sleep(this.retryDelayMs * attempt);
+          continue;
+        }
         throw this.transportError(cause);
       }
 
+      // An injected transport may resolve with anything; a malformed HttpResponse would
+      // otherwise surface below as a raw TypeError, outside the FitConnectError contract.
+      const invalid = responseProblem(response);
+      if (invalid !== undefined) {
+        throw new FitConnectNetworkError(`The transport returned an invalid response (${invalid}).`);
+      }
       const status = response.status;
+      const responseHeaders = plainHeaders(response.headers);
+      // fetch gives a Uint8Array; view it as a Buffer (no copy), which the decoders expect.
+      const body = bodyBytes(response.body) as Buffer;
+      // The size cap holds whatever the transport did: the default one aborts early, a custom
+      // one may have read everything.
+      if (this.maxResponseBytes > 0 && body.byteLength > this.maxResponseBytes) {
+        throw new FitConnectNetworkError(sizeLimitMessage(this.maxResponseBytes));
+      }
       const retryable = status === 429 || status === 503;
-      if (retryable && attempt < this.maxRetries) {
+      if (idempotent && retryable && attempt < this.maxRetries) {
         // Honour Retry-After, else the RateLimit-Reset the Routing API documents for
         // a 429; without either, back off linearly. A wait beyond MAX_RETRY_AFTER_MS
         // is not retried: the error below surfaces at once.
         const retryAfter =
-          parseRetryAfter(response.headers["retry-after"]) ??
-          parseRateLimitReset(response.headers["ratelimit-reset"]);
+          parseRetryAfter(responseHeaders["retry-after"]) ??
+          parseRateLimitReset(responseHeaders["ratelimit-reset"]);
         if (retryAfter === undefined || retryAfter <= MAX_RETRY_AFTER_MS) {
           attempt += 1;
           await this.sleep(retryAfter ?? this.retryDelayMs * attempt);
@@ -386,12 +518,12 @@ export class RequestEngine {
         }
       }
 
-      const contentType = String(response.headers["content-type"] ?? "");
+      const contentType = String(responseHeaders["content-type"] ?? "");
       if (status < 200 || status >= 300) {
-        throw this.toApiError(method, url, status, response.body);
+        throw this.toApiError(method, url, status, body);
       }
 
-      return { data: response.body, contentType, status };
+      return { data: body, contentType, status };
     }
   }
 

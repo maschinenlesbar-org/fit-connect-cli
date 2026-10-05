@@ -84,7 +84,7 @@ ags mit Hierarchie): **12 Ziffern** für eine Gemeinde, **9** für einen Gemeind
 | `--api-version <version>` | Version der Routing-API, `v1` oder `v2` (Standard `v2`; `v1` ist veraltet) |
 | `--timeout <ms>` | Zeitlimit pro Anfrage, einschließlich des Lesens der gesamten Antwort (Standard `30000`; `0` deaktiviert es; höchstens `2147483647`) |
 | `--user-agent <ua>` | `User-Agent`-Header (ein leerer Wert – nur Leerzeichen und Tabs – fällt auf den Standard zurück; nur Latin-1, keine Steuerzeichen außer Tab, und das wird zuerst geprüft, sodass ein Zeilenumbruch oder U+3000 auch in einem sonst leeren Wert abgelehnt wird; die Bibliothek wendet dieselbe Regel an; manche Werte blockiert die Bot-Erkennung der API) |
-| `--max-retries <n>` | Retries bei vorübergehenden `429`/`503`-Antworten (`0`–`10`, Standard `2`). Jeder Retry wartet das `Retry-After` des Servers ab, sonst dessen `RateLimit-Reset` (bis 30 s; eine längere Wartezeit wird nicht wiederholt), sonst linearer Backoff |
+| `--max-retries <n>` | Retries bei vorübergehenden `429`/`503`-Antworten und abgebrochenen Verbindungen (`0`–`10`, Standard `2`). Jeder Retry wartet das `Retry-After` des Servers ab, sonst dessen `RateLimit-Reset` (bis 30 s; eine längere Wartezeit wird nicht wiederholt), sonst linearer Backoff |
 | `--max-response-bytes <n>` | Obergrenze für die Größe des Antwort-Bodys in Bytes (`0` = unbegrenzt; Standard 100 MiB) |
 
 ## Antwortfelder – `routes`
