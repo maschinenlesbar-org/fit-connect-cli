@@ -110,6 +110,12 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   characters rejects (the API answers each with a 400). `areaSearchWords(search)`
   (exported) returns the `words` sent and the `dropped` ones.
 - `info()` → `Info` (the deployed API's semantic version).
+- Every method checks the answer's shape before returning it: `routes` / `areas` need
+  `{ count, offset, totalCount, routes|areas: [object, …] }` with integer counts,
+  `info` `{ version: { major, minor, patch } }`. Anything else — `null`, `{}`, an array,
+  a string, an error envelope a proxy answered with `200` — is a `FitConnectParseError`
+  (`Unexpected response from /v2/routes: "routes" is not an array, not the documented
+  shape.`), never data, since the skills read `count: 0` as a valid answer.
 - `client.apiVersion` reflects the configured version.
 
 ## Authentication internals

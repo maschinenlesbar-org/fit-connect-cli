@@ -10,7 +10,7 @@
 // implement the FIT-Connect Submission/Destination (write) path.
 
 import { RequestEngine, type EngineOptions } from "./engine.js";
-import { FitConnectError } from "./errors.js";
+import { FitConnectError, FitConnectParseError } from "./errors.js";
 import { assertValid, nonBlankProblem } from "./validate.js";
 import type { QueryParams } from "./query.js";
 import type { AreaResult, Info, RouteResult } from "./types.js";
@@ -131,7 +131,7 @@ export class FitConnectClient {
       offset: checkPaging("offset", params.offset, 0, MAX_OFFSET),
       limit: checkPaging("limit", params.limit, 1, MAX_LIMIT),
     };
-    return this.engine.getJson<RouteResult>(this.path("routes"), query);
+    return expectShape(this.path("routes"), await this.engine.getJson<unknown>(this.path("routes"), query), listProblem("routes"));
   }
 
   /**
@@ -148,13 +148,61 @@ export class FitConnectClient {
       offset: checkPaging("offset", params.offset, 0, MAX_OFFSET),
       limit: checkPaging("limit", params.limit, 1, MAX_LIMIT),
     };
-    return this.engine.getJson<AreaResult>(this.path("areas"), query);
+    return expectShape(this.path("areas"), await this.engine.getJson<unknown>(this.path("areas"), query), listProblem("areas"));
   }
 
   /** Fetch the version of the deployed Routing API instance. */
-  info(): Promise<Info> {
-    return this.engine.getJson<Info>(this.path("info"));
+  async info(): Promise<Info> {
+    return expectShape(this.path("info"), await this.engine.getJson<unknown>(this.path("info")), infoProblem);
   }
+}
+
+/** A plain JSON object (not null, not an array). */
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Why `value` is not the documented page envelope of `/routes` or `/areas` —
+ * `{ count, offset, totalCount, <key>: [object, …] }` with integer counts — or undefined
+ * when it is. A proxy, captive portal or misconfigured `--base-url` answering 200 with
+ * `null`, `{}`, an array or a string would otherwise read as an answer (`count`
+ * undefined, exit 0), and the skills treat `count: 0` as a valid "nothing registered".
+ */
+function listProblem(key: "routes" | "areas"): (value: unknown) => string | undefined {
+  return (value) => {
+    if (!isObject(value)) return "not a JSON object";
+    for (const field of ["count", "offset", "totalCount"]) {
+      if (!Number.isInteger(value[field])) return `"${field}" is not an integer`;
+    }
+    const list = value[key];
+    if (!Array.isArray(list)) return `"${key}" is not an array`;
+    if (!list.every(isObject)) return `"${key}" holds a value that is not an object`;
+    return undefined;
+  };
+}
+
+/** Why `value` is not the `/info` answer `{ version: { major, minor, patch } }`, or undefined. */
+function infoProblem(value: unknown): string | undefined {
+  if (!isObject(value)) return "not a JSON object";
+  const version = value["version"];
+  if (!isObject(version)) return '"version" is not an object';
+  for (const field of ["major", "minor", "patch"]) {
+    if (!Number.isInteger(version[field])) return `"version.${field}" is not an integer`;
+  }
+  return undefined;
+}
+
+/**
+ * `value` typed as `T` when `problem` finds nothing; otherwise a `FitConnectParseError`
+ * naming the path and what is wrong (the body itself is not echoed).
+ */
+function expectShape<T>(path: string, value: unknown, problem: (value: unknown) => string | undefined): T {
+  const reason = problem(value);
+  if (reason !== undefined) {
+    throw new FitConnectParseError(`Unexpected response from ${path}: ${reason}, not the documented shape.`);
+  }
+  return value as T;
 }
 
 /** The largest `offset` the Routing API accepts (`int32`, `routing-api.yaml`). */

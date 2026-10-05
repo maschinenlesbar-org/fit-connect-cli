@@ -63,7 +63,7 @@ test("engine limits: an out-of-range timeout, retry count or size cap is rejecte
     const { cli, lib } = await parity(
       [...flags, "info"],
       (transport) => new FitConnectClient({ transport, ...options }).info(),
-      () => jsonResponse({ version: "2.1.0" }),
+      () => jsonResponse({ version: { major: 2, minor: 1, patch: 0 } }),
     );
     assert.equal(cli.code, 1, flags.join(" "));
     assert.equal(cli.requests.length, 0);
@@ -86,7 +86,7 @@ test("engine limits: 0 and the maximum are accepted by both", async () => {
     const { cli, lib } = await parity(
       [...flags, "info"],
       (transport) => new FitConnectClient({ transport, ...options }).info(),
-      () => jsonResponse({ version: "2.1.0" }),
+      () => jsonResponse({ version: { major: 2, minor: 1, patch: 0 } }),
     );
     assert.equal(cli.code, 0, flags.join(" "));
     assert.equal(lib.ok, true, JSON.stringify(options));
@@ -99,7 +99,7 @@ test("base URL: an empty or blank baseUrl is rejected by both, not replaced by p
     const { cli, lib } = await parity(
       ["--base-url", baseUrl, "info"],
       (transport) => new FitConnectClient({ transport, baseUrl }).info(),
-      () => jsonResponse({ version: "2.1.0" }),
+      () => jsonResponse({ version: { major: 2, minor: 1, patch: 0 } }),
     );
     assert.equal(cli.code, 1, JSON.stringify(baseUrl));
     assert.equal(cli.requests.length, 0);
@@ -111,7 +111,7 @@ test("base URL: an empty or blank baseUrl is rejected by both, not replaced by p
   const ok = await parity(
     ["--base-url", "http://mock.local", "info"],
     (transport) => new FitConnectClient({ transport, baseUrl: "http://mock.local" }).info(),
-    () => jsonResponse({ version: "2.1.0" }),
+    () => jsonResponse({ version: { major: 2, minor: 1, patch: 0 } }),
   );
   assert.equal(ok.cli.code, 0);
   assert.deepEqual(ok.cli.requests, ok.lib.requests);
@@ -129,7 +129,7 @@ test("User-Agent: whitespace with CR/LF or above U+00FF is rejected by both", as
     const { cli, lib } = await parity(
       ["--user-agent", userAgent, "info"],
       (transport) => new FitConnectClient({ transport, userAgent }).info(),
-      () => jsonResponse({ version: "2.1.0" }),
+      () => jsonResponse({ version: { major: 2, minor: 1, patch: 0 } }),
     );
     assert.equal(cli.code, 1, JSON.stringify(userAgent));
     assert.equal(cli.requests.length, 0);
@@ -145,7 +145,7 @@ test("User-Agent: a blank value falls back to the default UA in both", async () 
     const { cli, lib } = await parity(
       ["--user-agent", userAgent, "info"],
       (transport) => new FitConnectClient({ transport, userAgent }).info(),
-      () => jsonResponse({ version: "2.1.0" }),
+      () => jsonResponse({ version: { major: 2, minor: 1, patch: 0 } }),
     );
     assert.equal(cli.code, 0, JSON.stringify(userAgent));
     assert.equal(lib.ok, true, JSON.stringify(userAgent));

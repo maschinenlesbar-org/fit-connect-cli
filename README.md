@@ -152,7 +152,7 @@ JSON. `--compact` is a **global** option and works **before or after** the comma
 | --- | --- |
 | `0` | Success (also `--help` / `--version`; includes an empty `routes: []`) |
 | `4` | Not found — the API returned `404` |
-| `1` | Any other API, network, parse, validation, or usage error |
+| `1` | Any other API, network, parse, validation, or usage error — including a `2xx` answer that isn't the documented shape (`null`, `{}`, an HTML page from a proxy): `Unexpected response from /v2/routes: …` |
 
 ## Troubleshooting
 

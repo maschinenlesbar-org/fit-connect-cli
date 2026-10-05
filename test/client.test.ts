@@ -120,7 +120,7 @@ test("routes() trims selectors and rejects a blank one before any request", asyn
 });
 
 test("routes() and areas() validate ags/ars and offset/limit before any request", async () => {
-  const mt = constantJson({});
+  const mt = constantJson({ count: 0, offset: 0, totalCount: 0, routes: [] });
   const c = clientWith(mt);
   const cases: [() => Promise<unknown>, RegExp][] = [
     [() => c.routes({ leikaKey: "99123456760610", ags: "1" }), /^Invalid ags "1": expected 2, 3, 5 or 8 digits\.$/],

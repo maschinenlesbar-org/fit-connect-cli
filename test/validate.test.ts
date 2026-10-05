@@ -46,11 +46,11 @@ test("parity() runs one input through run() and the library on recording transpo
   const { cli, lib } = await parity(
     ["--compact", "info"],
     (transport) => new FitConnectClient({ transport }).info(),
-    () => jsonResponse({ version: "2.1.0" }),
+    () => jsonResponse({ version: { major: 2, minor: 1, patch: 0 } }),
   );
   assert.equal(cli.code, 0);
-  assert.equal(cli.out, '{"version":"2.1.0"}');
-  assert.deepEqual(lib, { ok: true, value: { version: "2.1.0" }, requests: lib.requests });
+  assert.equal(cli.out, '{"version":{"major":2,"minor":1,"patch":0}}');
+  assert.deepEqual(lib, { ok: true, value: { version: { major: 2, minor: 1, patch: 0 } }, requests: lib.requests });
   assert.deepEqual(
     cli.requests.map((r) => r.url),
     lib.requests.map((r) => r.url),
