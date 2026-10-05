@@ -221,10 +221,20 @@ test("a parse error (non-JSON body) maps to exit code 1", async () => {
   assert.match(cli.err.join("\n"), /Error: Failed to parse JSON/);
 });
 
-test("an unexpected (non-FitConnect) error maps to exit code 1", async () => {
+test("whatever a transport throws is reported as a network error, exit 1", async () => {
   const cli = makeCli(() => {
     throw new Error("kaboom");
   });
+  const code = await run(["info"], cli.deps);
+  assert.equal(code, 1);
+  assert.match(cli.err.join("\n"), /^Error: kaboom$/m);
+});
+
+test("an unexpected (non-FitConnect) error maps to exit code 1", async () => {
+  const cli = makeCli(() => jsonResponse({}));
+  cli.deps.createClient = () => {
+    throw new Error("kaboom");
+  };
   const code = await run(["info"], cli.deps);
   assert.equal(code, 1);
   assert.match(cli.err.join("\n"), /Unexpected error: kaboom/);

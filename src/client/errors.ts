@@ -82,6 +82,7 @@ export function redactCredentials(text: string, credentials: readonly string[]):
 export class FitConnectApiError extends FitConnectError {
   readonly status: number;
   readonly detail: string | undefined;
+  /** The request URL, absolute, with any userinfo redacted (`https://***@host/…`). */
   readonly url: string;
   readonly method: string;
   readonly body: string;
@@ -96,7 +97,8 @@ export class FitConnectApiError extends FitConnectError {
     const detailPart = args.detail ? `: ${args.detail}` : "";
     super(`HTTP ${args.status} for ${args.method} ${redactUrl(args.url)}${detailPart}`);
     this.status = args.status;
-    this.url = args.url;
+    // Redacted too: structured loggers serialise the error's properties.
+    this.url = redactUrl(args.url);
     this.method = args.method;
     this.body = args.body;
     this.detail = args.detail;

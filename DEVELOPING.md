@@ -140,6 +140,13 @@ Two non-obvious upstream behaviours the client handles:
   unknown command, and the CLI's own messages — so a password with spaces, quotes, `#`,
   `?` or `/` is caught as well as an ordinary one. `redactUrl` (exported) falls back to
   the same text-based cut for a value that doesn't parse as a URL.
+- **The library keeps them out of what a service logs.** The engine holds the base URL
+  in a real `#private` field, so `console.log(client)`, `util.inspect` and
+  `JSON.stringify` never show it; `FitConnectApiError.url` carries the request URL with
+  its userinfo redacted (`https://***@host/…`); and the userinfo (raw and
+  percent-decoded) is scrubbed from error bodies, transport error text and the `cause`
+  chain. Whatever a custom transport throws reaches the caller as a
+  `FitConnectNetworkError` (the original, scrubbed, as `cause`).
 - **`destinationSignature` is passed through unverified.** Each route carries a
   JWS (RFC 7515) over its addressing information. This client treats it as an
   **opaque string** — it does no JWS/JWK/crypto validation of any kind (there is
