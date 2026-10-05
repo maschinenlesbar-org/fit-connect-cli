@@ -105,7 +105,7 @@ test("base URL: an empty or blank baseUrl is rejected by both, not replaced by p
     assert.equal(cli.requests.length, 0);
     assert.equal(lib.ok, false, JSON.stringify(baseUrl));
     assert.equal(lib.error?.name, "FitConnectValidationError");
-    assert.equal(lib.error?.message, `Invalid base URL "${baseUrl}".`);
+    assert.equal(lib.error?.message, "Invalid baseUrl: Expected an absolute http(s) URL.");
     assert.equal(lib.requests.length, 0);
   }
   const ok = await parity(

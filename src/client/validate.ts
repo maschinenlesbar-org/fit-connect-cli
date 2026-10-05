@@ -58,3 +58,51 @@ export const headerValueProblem: Problem = (value) => {
   }
   return undefined;
 };
+
+/**
+ * Why `value` cannot be used as the base URL, or undefined when it can. The engine
+ * appends every request path to the base URL as a string, so the rules guard the
+ * request URL it builds:
+ *
+ * - it must be a string that parses as an absolute URL with an `http:` or `https:`
+ *   scheme (a `file:` or `ftp:` base URL would otherwise reach a custom transport that
+ *   does no such check);
+ * - no `?` or `#`: either would swallow every path (`http://h/?x=1` requests
+ *   `/?x=1/v2/...`, `http://h/#f` requests `/`);
+ * - a `%` in the user name or password must start a valid escape (`%25` for a literal
+ *   one): Node decodes the userinfo for the Authorization header and fails at request
+ *   time;
+ * - no surrounding whitespace (U+00A0 included) and no control character anywhere:
+ *   `new URL()` trims or drops them silently, but the raw string is what gets sent, so
+ *   `"http://h "` would request `http://h /v2/info` and fail with "Invalid URL".
+ *
+ * The reasons never repeat the value, so a credential in it cannot reach a message.
+ * The engine enforces it (as `Invalid baseUrl: <reason>`), and the CLI's `--base-url`
+ * parser calls it.
+ */
+export function baseUrlProblem(value: string): string | undefined {
+  if (typeof value !== "string") return "Expected a string.";
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return "Expected an absolute http(s) URL.";
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return `Unsupported scheme "${url.protocol}". Expected an http(s) URL.`;
+  }
+  if (/[?#]/.test(value)) return "A base URL cannot have a query (?) or fragment (#).";
+  for (const part of [url.username, url.password]) {
+    try {
+      decodeURIComponent(part);
+    } catch {
+      return 'The user name or password has a "%" that is not followed by two hex digits; write a literal "%" as %25.';
+    }
+  }
+  if (value !== value.trim()) return "A base URL cannot have surrounding whitespace.";
+  for (let i = 0; i < value.length; i++) {
+    const c = value.charCodeAt(i);
+    if (c < 0x20 || c === 0x7f) return "A base URL cannot contain control characters.";
+  }
+  return undefined;
+}

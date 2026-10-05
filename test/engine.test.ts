@@ -25,16 +25,21 @@ test("buildUrl normalises the path and appends the query", () => {
   );
 });
 
-test("rejects a non-http base URL naming the base URL", () => {
+test("rejects a non-http base URL naming the scheme", () => {
   assert.throws(
     () => new RequestEngine({ baseUrl: "ftp://example.test" }),
     (err: unknown) => {
       assert.ok(err instanceof FitConnectError);
-      assert.match(err.message, /ftp:/);
-      assert.match(err.message, /example\.test/);
+      assert.equal(err.message, 'Invalid baseUrl: Unsupported scheme "ftp:". Expected an http(s) URL.');
       return true;
     },
   );
+});
+
+test("a base URL with surrounding whitespace is rejected (it would break every request URL)", () => {
+  for (const baseUrl of ["http://h ", " http://h", "http://h\t", "http://h\u00a0", "http://h/a\nb"]) {
+    assert.throws(() => new RequestEngine({ baseUrl }), FitConnectValidationError, JSON.stringify(baseUrl));
+  }
 });
 
 test("a base URL with a query or fragment is rejected (it would swallow every path)", () => {
@@ -43,7 +48,7 @@ test("a base URL with a query or fragment is rejected (it would swallow every pa
       () => new RequestEngine({ baseUrl }),
       (err: unknown) =>
         err instanceof FitConnectError &&
-        /^Base URL must not contain a query or fragment: /.test(err.message) &&
+        err.message === "Invalid baseUrl: A base URL cannot have a query (?) or fragment (#)." &&
         !err.message.includes("secret"),
       baseUrl,
     );

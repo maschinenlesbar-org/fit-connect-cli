@@ -7,7 +7,7 @@ import type { CliDeps } from "./io.js";
 import { AGS_PATTERN, ARS_PATTERN, MAX_OFFSET } from "../client/client.js";
 import { isBidiControl } from "../client/engine.js";
 import { FitConnectError } from "../client/errors.js";
-import { headerValueProblem, intRangeProblem, nonBlankProblem } from "../client/validate.js";
+import { baseUrlProblem, headerValueProblem, intRangeProblem, nonBlankProblem } from "../client/validate.js";
 import type { ApiVersion, FitConnectClientOptions } from "../client/client.js";
 
 /**
@@ -130,27 +130,14 @@ export function parseUserAgentArg(value: string): string {
 }
 
 /**
- * commander value-parser for `--base-url`: an absolute http(s) URL. The client
- * already rejects any other scheme, but only at runtime; checking here makes a
- * `file:`, `ftp:` or malformed value a usage error before any client is built.
+ * commander value-parser for `--base-url`: the library's `baseUrlProblem` rule (an
+ * absolute http(s) URL without a query, fragment, surrounding whitespace or a "%" in the
+ * userinfo that isn't an escape), so a bad value is a usage error before any client is
+ * built. The reason never repeats the value.
  */
 export function parseBaseUrl(value: string): string {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    throw new InvalidArgumentError("Expected an absolute http(s) URL.");
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new InvalidArgumentError(
-      `Unsupported scheme "${url.protocol}". Expected an http(s) URL.`,
-    );
-  }
-  // Paths are appended to the base URL as a string, so a query or fragment would
-  // swallow every request path ("http://h/#f" requests "/" for every command).
-  if (/[?#]/.test(value)) {
-    throw new InvalidArgumentError("A base URL cannot have a query (?) or fragment (#).");
-  }
+  const problem = baseUrlProblem(value);
+  if (problem !== undefined) throw new InvalidArgumentError(problem);
   return value;
 }
 

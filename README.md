@@ -186,7 +186,7 @@ These apply to every command and may go before or after it:
 | `-v, --version` | Print the version number |
 | `-h, --help` | Show help for the program or a command |
 | `--compact` | Print JSON on a single line instead of pretty-printed |
-| `--base-url <url>` | API base URL, http(s), a path prefix allowed but no `?query` or `#fragment` (default `https://routing-api-prod.fit-connect.fitko.net`) |
+| `--base-url <url>` | API base URL, http(s), a path prefix allowed but no `?query`, `#fragment` or surrounding whitespace; a literal `%` in a password is written `%25` (default `https://routing-api-prod.fit-connect.fitko.net`) |
 | `--api-version <version>` | Routing API version, `v1` or `v2` (default `v2`; `v1` is legacy) |
 | `--timeout <ms>` | Time limit per request in ms, reading the whole response included (default `30000`; `0` disables; at most `2147483647`) |
 | `--user-agent <ua>` | `User-Agent` header value (blank falls back to default; Latin-1 only, no control characters except tab; some values are blocked by the API's bot detection) |

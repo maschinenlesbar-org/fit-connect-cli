@@ -4,13 +4,8 @@
 
 import { MAX_TIMEOUT_MS, nodeHttpTransport, type Transport } from "./http.js";
 import { buildQueryString, type QueryParams } from "./query.js";
-import { assertValid, headerValueProblem, intRangeProblem } from "./validate.js";
-import {
-  FitConnectApiError,
-  FitConnectParseError,
-  FitConnectValidationError,
-  redactUrl,
-} from "./errors.js";
+import { assertValid, baseUrlProblem, headerValueProblem, intRangeProblem } from "./validate.js";
+import { FitConnectApiError, FitConnectParseError } from "./errors.js";
 
 export const DEFAULT_BASE_URL = "https://routing-api-prod.fit-connect.fitko.net";
 const DEFAULT_USER_AGENT = "fit-connect-cli";
@@ -192,34 +187,6 @@ const realSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Validate the configured base URL up front. Without this the only scheme check
- * lived in the transport, which rejects the *fully built* request URL — so a bad
- * `--base-url ftp://x` produced a message echoing `ftp://x/v2/...` rather than the
- * value the user passed. Throwing here keeps the message about the base URL itself.
- * A rejected value is a FitConnectValidationError (a configuration error, not a
- * transport failure).
- */
-function assertValidBaseUrl(baseUrl: string): void {
-  let parsed: URL;
-  try {
-    parsed = new URL(baseUrl);
-  } catch {
-    throw new FitConnectValidationError(`Invalid base URL "${redactUrl(baseUrl)}".`);
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new FitConnectValidationError(
-      `Unsupported base URL scheme "${parsed.protocol}" in "${redactUrl(baseUrl)}"; only http and https are supported.`,
-    );
-  }
-  // Request paths are appended to the base URL as a string, so a `?` or `#` in it
-  // would swallow every path: `http://h/?x=1` requests `/?x=1/v2/...` and
-  // `http://h/#f` requests `/` (the fragment, path and query are never sent).
-  if (/[?#]/.test(baseUrl)) {
-    throw new FitConnectValidationError(`Base URL must not contain a query or fragment: ${redactUrl(baseUrl)}`);
-  }
-}
-
-/**
  * Parse a `Retry-After` header into a delay in milliseconds (RFC 9110 §10.2.3):
  * either delay-seconds (`"120"`) or an HTTP-date (`"Wed, 21 Oct 2026 07:28:00 GMT"`,
  * turned into the time left from `now`; a date in the past gives 0).
@@ -285,8 +252,10 @@ export class RequestEngine {
     // Only `undefined` selects the default base URL (`??`, not `||`): an explicit
     // "" is rejected like "  ", as the CLI rejects `--base-url ""`, rather than
     // quietly sending the request to the production host.
-    this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
-    assertValidBaseUrl(this.baseUrl);
+    // The raw value is checked (baseUrlProblem: an http(s) URL, no query, fragment,
+    // surrounding whitespace or malformed "%" in the userinfo) before the trailing
+    // slashes are dropped; the message never repeats the value.
+    this.baseUrl = assertValid("baseUrl", options.baseUrl ?? DEFAULT_BASE_URL, baseUrlProblem).replace(/\/+$/, "");
     this.transport = options.transport ?? nodeHttpTransport;
     // The one string option where blank means "default" (see resolveUserAgent).
     this.userAgent = resolveUserAgent(options.userAgent);

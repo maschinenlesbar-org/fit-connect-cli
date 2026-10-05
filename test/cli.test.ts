@@ -476,3 +476,14 @@ test("a FitConnectValidationError raised in an action is a usage error: exit 1, 
   assert.deepEqual(out, []);
   assert.deepEqual(err, ["Error: Invalid areaId: Value must not be blank."]);
 });
+
+test("--base-url with surrounding whitespace is a usage error before any request (P4)", async () => {
+  for (const bad of ["http://127.0.0.1:20260 ", "http://alice:s3cret@127.0.0.1:20260 ", "\thttp://h"]) {
+    const cli = makeCli(() => jsonResponse({}));
+    const code = await run(["--base-url", bad, "info"], cli.deps);
+    assert.equal(code, 1, bad);
+    assert.equal(cli.mt.calls.length, 0, bad);
+    assert.match(cli.err.join("\n"), /surrounding whitespace/, bad);
+    assert.doesNotMatch(cli.err.join("\n"), /s3cret/, bad);
+  }
+});

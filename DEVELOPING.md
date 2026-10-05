@@ -74,9 +74,12 @@ new FitConnectClient({
 ```
 
 Only an omitted (`undefined`) `baseUrl` selects the production default; an empty
-or blank one, a non-http(s) URL and one with a `?query` or `#fragment` throw a
-`FitConnectValidationError` (`Invalid base URL "".`), as `--base-url` rejects them
-in the CLI.
+or blank one, a non-http(s) URL, one with a `?query` or `#fragment`, surrounding
+whitespace or a control character, and one whose user name or password has a `%`
+that isn't an escape (write a literal `%` as `%25`) throw a
+`FitConnectValidationError` (`Invalid baseUrl: Expected an absolute http(s) URL.`),
+as `--base-url` rejects them in the CLI. One rule, `baseUrlProblem` (exported),
+decides for both, and its reasons never repeat the value.
 
 The constructor range-checks the numeric options and throws a
 `FitConnectValidationError` (`Invalid maxRetries: Expected an integer between 0 and

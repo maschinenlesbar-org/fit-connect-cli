@@ -42,7 +42,7 @@ export {
   redactCredentials,
   redactUrl,
 } from "./errors.js";
-export { assertValid, headerValueProblem, intRangeProblem, nonBlankProblem } from "./validate.js";
+export { assertValid, baseUrlProblem, headerValueProblem, intRangeProblem, nonBlankProblem } from "./validate.js";
 export type { Problem } from "./validate.js";
 
 export * from "./types.js";

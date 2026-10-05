@@ -80,7 +80,7 @@ ags mit Hierarchie): **12 Ziffern** für eine Gemeinde, **9** für einen Gemeind
 | `-v, --version` | Gibt die Version der CLI aus |
 | `-h, --help` | Zeigt die Hilfe an |
 | `--compact` | JSON in einer Zeile statt formatiert |
-| `--base-url <url>` | Basis-URL der API, http(s), Pfad-Präfix erlaubt, aber keine `?query` und kein `#fragment` (Standard `https://routing-api-prod.fit-connect.fitko.net`) |
+| `--base-url <url>` | Basis-URL der API, http(s), Pfad-Präfix erlaubt, aber keine `?query`, kein `#fragment` und kein Leerraum am Anfang oder Ende; ein `%` im Passwort wird als `%25` geschrieben (Standard `https://routing-api-prod.fit-connect.fitko.net`) |
 | `--api-version <version>` | Version der Routing-API, `v1` oder `v2` (Standard `v2`; `v1` ist veraltet) |
 | `--timeout <ms>` | Zeitlimit pro Anfrage, einschließlich des Lesens der gesamten Antwort (Standard `30000`; `0` deaktiviert es; höchstens `2147483647`) |
 | `--user-agent <ua>` | `User-Agent`-Header (ein leerer Wert – nur Leerzeichen und Tabs – fällt auf den Standard zurück; nur Latin-1, keine Steuerzeichen außer Tab, und das wird zuerst geprüft, sodass ein Zeilenumbruch oder U+3000 auch in einem sonst leeren Wert abgelehnt wird; die Bibliothek wendet dieselbe Regel an; manche Werte blockiert die Bot-Erkennung der API) |
