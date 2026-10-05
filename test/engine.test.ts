@@ -489,3 +489,37 @@ test("a Uint8Array error body keeps its detail (P5)", async () => {
   const e = new RequestEngine({ maxRetries: 0, transport: async () => ({ status: 400, headers: {}, body: body as Buffer }) });
   await assert.rejects(e.getJson("/v2/info"), (err: unknown) => err instanceof FitConnectApiError && err.detail === "Constraint Violation");
 });
+
+test("RateLimit-Reset 0 waits the backoff; one above 30 s is refused with a message naming it (P6)", async () => {
+  const sleeps: number[] = [];
+  let n = 0;
+  const e = new RequestEngine({
+    maxRetries: 2,
+    sleep: async (ms) => void sleeps.push(ms),
+    transport: async () =>
+      n++ < 2 ? { status: 429, headers: { "ratelimit-reset": "0" }, body: Buffer.from("{}") } : { status: 200, headers: {}, body: Buffer.from("{}") },
+  });
+  await e.getJson("/v2/info");
+  assert.deepEqual(sleeps, [200, 400]);
+
+  const slow = new RequestEngine({
+    maxRetries: 2,
+    sleep: async () => assert.fail("must not sleep"),
+    transport: async () => ({ status: 429, headers: { "ratelimit-reset": "120" }, body: Buffer.from("{}") }),
+  });
+  await assert.rejects(slow.getJson("/v2/info"), (err: unknown) =>
+    err instanceof FitConnectApiError &&
+    err.retryAfterMs === 120_000 &&
+    err.retries === 0 &&
+    /the server asked to retry after 120 s, longer than the 30 s the client waits; not retried/.test(err.message));
+});
+
+test("an API error after spent retries says how many ran (P6)", async () => {
+  const e = new RequestEngine({ maxRetries: 2, sleep: async () => {}, transport: async () => ({ status: 503, headers: {}, body: Buffer.from("{}") }) });
+  await assert.rejects(e.getJson("/v2/info"), (err: unknown) => err instanceof FitConnectApiError && err.retries === 2 && /\(after 2 retries\)$/.test(err.message));
+});
+
+test("retryDelayMs is bounded at 30000 (P6)", () => {
+  assert.throws(() => new RequestEngine({ retryDelayMs: 30_001 }), FitConnectValidationError);
+  assert.doesNotThrow(() => new RequestEngine({ retryDelayMs: 30_000 }));
+});

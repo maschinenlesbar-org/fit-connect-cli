@@ -172,10 +172,13 @@ JSON. `--compact` is a **global** option and works **before or after** the comma
   rejected — and the CLI falls back to its default for an empty or
   whitespace-only value anyway (but a value with a line break or a character above
   U+00FF, whitespace or not, is a usage error).
-- **`429` / rate limited** — the CLI retries automatically and waits the
-  `Retry-After`, or the `RateLimit-Reset` the Routing API sends with a 429
-  (either up to 30 s; a longer wait is not retried). Raise `--max-retries` or slow
-  down if it persists.
+- **`429` / rate limited** — the CLI retries automatically, backing off linearly
+  (200 ms, 400 ms, …) or waiting the `Retry-After`, or the `RateLimit-Reset` the
+  Routing API sends with a 429, when that is longer (up to 30 s). The message ends
+  `(after N retries)` when they ran out: raise `--max-retries` or slow down. When the
+  server asks for a longer wait the CLI does not retry at all and says so (`the server
+  asked to retry after 120 s, longer than the 30 s the client waits; not retried`):
+  wait that long before trying again.
 
 ## Global options
 
@@ -190,7 +193,7 @@ These apply to every command and may go before or after it:
 | `--api-version <version>` | Routing API version, `v1` or `v2` (default `v2`; `v1` is legacy) |
 | `--timeout <ms>` | Time limit per request in ms, reading the whole response included (default `30000`; `0` disables; at most `2147483647`) |
 | `--user-agent <ua>` | `User-Agent` header value (blank falls back to default; Latin-1 only, no control characters except tab; some values are blocked by the API's bot detection) |
-| `--max-retries <n>` | Retries for transient `429`/`503` responses and reset connections (`0`–`10`, default `2`). Each retry waits the server's `Retry-After`, else its `RateLimit-Reset` (up to 30 s; a longer wait is not retried), or else backs off linearly |
+| `--max-retries <n>` | Retries for transient `429`/`503` responses and reset connections (`0`–`10`, default `2`). Each retry backs off linearly (200 ms, 400 ms, …), or waits the server's `Retry-After`, else its `RateLimit-Reset`, when that is longer (up to 30 s; a longer wait is not retried, and the error says so) |
 | `--max-response-bytes <n>` | Cap response body size in bytes (`0` = unlimited; default 100 MiB) |
 
 ## Learn more

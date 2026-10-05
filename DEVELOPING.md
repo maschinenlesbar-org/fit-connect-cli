@@ -234,15 +234,20 @@ outcome on both sides, and `run.ts` reports a `FitConnectValidationError` raised
 action as a usage error (`Error: <message>`, exit `1`).
 
 **Retry / backoff.** Transient `429` and `503` are retried automatically with
-backoff, up to `maxRetries` (default `2`; `0`..`MAX_RETRIES` = 10, checked by the library),
-honouring a `Retry-After` header when present (delta-seconds or an IMF-fixdate
-HTTP-date, parsed strictly by `parseRetryAfter`; a malformed, negative or fractional
-value falls back to linear backoff). Without a usable `Retry-After`, the
+backoff, up to `maxRetries` (default `2`; `0`..`MAX_RETRIES` = 10, checked by the library).
+Each retry waits `retryDelayMs * attempt` (`retryDelayMs` 0..30 000, default 200), or a
+`Retry-After` header when that is longer (delta-seconds or an IMF-fixdate HTTP-date,
+parsed strictly by `parseRetryAfter`; a malformed, negative or fractional value falls
+back to linear backoff): the header can lengthen a wait, never shorten it, so
+`Retry-After: 0` or a past date doesn't turn the retries into a burst. Without a usable `Retry-After`, the
 `RateLimit-Reset` header is used — the Routing API documents it as the 429 backoff
 signal and sends no `Retry-After`; `parseRateLimitReset` reads delta-seconds, or a
 Unix timestamp for values ≥ 10^9, because the spec's wording allows both. A wait
-above `MAX_RETRY_AFTER_MS` (30 s) is not retried at all: the error surfaces at once.
-`FitConnectApiError.isRetryable` reflects this. A connection reset (`ECONNRESET`,
+above `MAX_RETRY_AFTER_MS` (30 s) is not retried at all: the error surfaces at once,
+with `retryAfterMs` set and a message that names the wait (`…; the server asked to
+retry after 120 s, longer than the 30 s the client waits; not retried — try again after
+that`). After spent retries the message ends `(after N retries)` and `retries` holds the
+count. `FitConnectApiError.isRetryable` reflects the transient statuses. A connection reset (`ECONNRESET`,
 `EPIPE`, `ECONNABORTED`, undici's `UND_ERR_SOCKET`, anywhere in the error's `cause`
 chain) is retried the same way with linear backoff; a refused connection, a DNS
 failure and a timeout are not.

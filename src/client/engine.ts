@@ -55,16 +55,16 @@ export interface EngineOptions {
   /**
    * Number of automatic retries for transient (429/503) responses and reset connections
    * (`ECONNRESET`, `UND_ERR_SOCKET`, …; a refused connection, a DNS failure and a timeout
-   * are not retried), an integer 0..`MAX_RETRIES` (10); defaults to 2. Each waits the
-   * response's `Retry-After`,
-   * or without one its `RateLimit-Reset` (up to `MAX_RETRY_AFTER_MS`; a longer wait
-   * is not retried), or else `retryDelayMs * attempt`.
+   * are not retried), an integer 0..`MAX_RETRIES` (10); defaults to 2. Each waits
+   * `retryDelayMs * attempt`, or the response's `Retry-After` — without one its
+   * `RateLimit-Reset` — when that is longer (up to `MAX_RETRY_AFTER_MS`; a longer wait
+   * is not retried, and the `FitConnectApiError` says so).
    */
   maxRetries?: number;
   /**
-   * Base backoff between retries in milliseconds, a non-negative integer; defaults
-   * to 200. Grows linearly per attempt, unless the response carries a usable
-   * `Retry-After` header, which takes precedence.
+   * Base backoff between retries in milliseconds (grows linearly), an integer
+   * 0..`MAX_RETRY_AFTER_MS` (30 000); defaults to 200. It is also the floor under a
+   * `Retry-After` / `RateLimit-Reset`: the header can lengthen a wait, never shorten it.
    */
   retryDelayMs?: number;
   /**
@@ -360,7 +360,9 @@ export class RequestEngine {
     this.userAgent = resolveUserAgent(options.userAgent);
     this.timeoutMs = intOption("timeoutMs", options.timeoutMs, MAX_TIMEOUT_MS, 30_000);
     this.maxRetries = intOption("maxRetries", options.maxRetries, MAX_RETRIES, 2);
-    this.retryDelayMs = intOption("retryDelayMs", options.retryDelayMs, Number.MAX_SAFE_INTEGER, 200);
+    // Bounded like a Retry-After wait: a larger value overflowed Node's timer and fired
+    // after 1 ms, a burst rather than a backoff.
+    this.retryDelayMs = intOption("retryDelayMs", options.retryDelayMs, MAX_RETRY_AFTER_MS, 200);
     this.maxResponseBytes = intOption(
       "maxResponseBytes",
       options.maxResponseBytes,
@@ -504,23 +506,29 @@ export class RequestEngine {
         throw new FitConnectNetworkError(sizeLimitMessage(this.maxResponseBytes));
       }
       const retryable = status === 429 || status === 503;
-      if (idempotent && retryable && attempt < this.maxRetries) {
-        // Honour Retry-After, else the RateLimit-Reset the Routing API documents for
-        // a 429; without either, back off linearly. A wait beyond MAX_RETRY_AFTER_MS
-        // is not retried: the error below surfaces at once.
-        const retryAfter =
-          parseRetryAfter(responseHeaders["retry-after"]) ??
-          parseRateLimitReset(responseHeaders["ratelimit-reset"]);
-        if (retryAfter === undefined || retryAfter <= MAX_RETRY_AFTER_MS) {
-          attempt += 1;
-          await this.sleep(retryAfter ?? this.retryDelayMs * attempt);
-          continue;
-        }
+      // Honour Retry-After, else the RateLimit-Reset the Routing API documents for a 429.
+      // A wait beyond MAX_RETRY_AFTER_MS is not retried: the error below surfaces at once
+      // and names the wait the server asked for.
+      const retryAfter = retryable
+        ? (parseRetryAfter(responseHeaders["retry-after"]) ?? parseRateLimitReset(responseHeaders["ratelimit-reset"]))
+        : undefined;
+      const tooLong = retryAfter !== undefined && retryAfter > MAX_RETRY_AFTER_MS;
+      if (idempotent && retryable && !tooLong && attempt < this.maxRetries) {
+        attempt += 1;
+        // Back off linearly from retryDelayMs. A Retry-After can ask for longer, never for
+        // less: `Retry-After: 0` or a date in the past turned the retries into a zero-delay
+        // burst against a server that had just asked for less load.
+        const backoff = this.retryDelayMs * attempt;
+        await this.sleep(retryAfter === undefined ? backoff : Math.max(retryAfter, backoff));
+        continue;
       }
 
       const contentType = String(responseHeaders["content-type"] ?? "");
       if (status < 200 || status >= 300) {
-        throw this.toApiError(method, url, status, body);
+        throw this.toApiError(method, url, status, body, {
+          retries: attempt,
+          ...(tooLong ? { retryAfterMs: retryAfter } : {}),
+        });
       }
 
       return { data: body, contentType, status };
@@ -540,7 +548,13 @@ export class RequestEngine {
     }
   }
 
-  private toApiError(method: string, url: string, status: number, body: Buffer): FitConnectApiError {
+  private toApiError(
+    method: string,
+    url: string,
+    status: number,
+    body: Buffer,
+    retry: { retries: number; retryAfterMs?: number },
+  ): FitConnectApiError {
     // The body is kept on the error (`body`) and may echo the request URL: scrub it.
     const text = this.scrub(body.toString("utf8"));
     let detail: string | undefined;
@@ -564,6 +578,14 @@ export class RequestEngine {
     } catch {
       // Non-JSON error body; leave detail undefined.
     }
-    return new FitConnectApiError({ status, url, method, body: text, detail });
+    return new FitConnectApiError({
+      status,
+      url,
+      method,
+      body: text,
+      detail,
+      retries: retry.retries,
+      ...(retry.retryAfterMs === undefined ? {} : { retryAfterMs: retry.retryAfterMs, maxRetryAfterMs: MAX_RETRY_AFTER_MS }),
+    });
   }
 }
