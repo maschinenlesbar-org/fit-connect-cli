@@ -14,6 +14,7 @@ import {
   parseApiVersion,
   parseBaseUrl,
   parseBoundedInt,
+  once,
   parseIntArg,
   parseUserAgentArg,
 } from "./shared.js";
@@ -55,27 +56,27 @@ export function buildProgram(deps: CliDeps = defaultDeps): Command {
         "(Zustellpunkt) for a public service in an area, and search areas.",
     )
     .version(VERSION, "-v, --version", "output the version number")
-    .option("--base-url <url>", "API base URL", parseBaseUrl, DEFAULT_BASE_URL)
-    .option("--api-version <version>", "Routing API version: v1 or v2", parseApiVersion, "v2")
+    .option("--base-url <url>", "API base URL", once("--base-url", parseBaseUrl), DEFAULT_BASE_URL)
+    .option("--api-version <version>", "Routing API version: v1 or v2", once("--api-version", parseApiVersion), "v2")
     .option(
       "--timeout <ms>",
       "time limit per request in milliseconds, whole response included (0 disables)",
-      parseBoundedInt(0, MAX_TIMEOUT_MS),
+      once("--timeout", parseBoundedInt(0, MAX_TIMEOUT_MS)),
     )
     .option(
       "--user-agent <ua>",
       "User-Agent header value (blank falls back to default; some values are blocked by the API)",
-      parseUserAgentArg,
+      once("--user-agent", parseUserAgentArg),
     )
     .option(
       "--max-retries <n>",
       `retries for transient 429/503 responses and reset connections (0..${MAX_RETRIES}; each backs off, or waits a longer Retry-After or RateLimit-Reset, up to 30 s)`,
-      parseBoundedInt(0, MAX_RETRIES),
+      once("--max-retries", parseBoundedInt(0, MAX_RETRIES)),
     )
     .option(
       "--max-response-bytes <n>",
       "cap response body size in bytes (0 = unlimited; default 100 MiB)",
-      parseIntArg,
+      once("--max-response-bytes", parseIntArg),
     )
     .option("--compact", "print JSON on a single line instead of pretty-printed")
     .showHelpAfterError();

@@ -10,7 +10,7 @@
 // implement the FIT-Connect Submission/Destination (write) path.
 
 import { RequestEngine, type EngineOptions } from "./engine.js";
-import { FitConnectError, FitConnectParseError } from "./errors.js";
+import { FitConnectError, FitConnectParseError, FitConnectValidationError } from "./errors.js";
 import { assertValid, nonBlankProblem } from "./validate.js";
 import type { QueryParams } from "./query.js";
 import type { AreaResult, Info, RouteResult } from "./types.js";
@@ -91,6 +91,7 @@ export class FitConnectClient {
    * in an area. Requires a `leikaKey` and exactly one of `ags` / `ars` / `areaId`.
    */
   async routes(params: RouteQuery): Promise<RouteResult> {
+    checkParams("routes", params, ROUTE_PARAMS);
     const leikaKey = requireNonEmpty("leikaKey", params.leikaKey);
     // The Leistungsschlüssel is "99" followed by 12 digits (GLOSSARY: ^99\d{12}$).
     // Validate here so a malformed key is a clear error rather than an opaque
@@ -142,6 +143,7 @@ export class FitConnectClient {
    * `FitConnectError` before any request.
    */
   async areas(params: AreaQuery): Promise<AreaResult> {
+    checkParams("areas", params, AREA_PARAMS);
     const { words } = areaSearchWords(params.search);
     const query: QueryParams = {
       areaSearchexpression: words,
@@ -247,9 +249,19 @@ export interface AreaSearchWords {
  * shorter than 2 characters ("a*b").
  */
 export function areaSearchWords(search: string | string[]): AreaSearchWords {
-  const terms = (Array.isArray(search) ? search : [search]).filter(
-    (t): t is string => typeof t === "string",
-  );
+  // A non-string term was dropped silently: `["Frankfurt", 60311]` searched only
+  // "Frankfurt", a wider search than asked for.
+  const given: unknown[] = Array.isArray(search) ? search : [search];
+  for (const term of given) {
+    if (typeof term !== "string") {
+      throw new FitConnectValidationError(
+        `Invalid search: expected a string or an array of strings, got ${
+          Array.isArray(search) ? `${describeValue(term)} in the array` : describeValue(term)
+        }.`,
+      );
+    }
+  }
+  const terms = given as string[];
   const words: string[] = [];
   const dropped: string[] = [];
   const seen = new Set<string>();
@@ -287,28 +299,78 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
   return { words, dropped };
 }
 
+/** The parameters {@link FitConnectClient.routes} takes. */
+const ROUTE_PARAMS = ["leikaKey", "ags", "ars", "areaId", "offset", "limit"] as const;
+
+/** The parameters {@link FitConnectClient.areas} takes. */
+const AREA_PARAMS = ["search", "offset", "limit"] as const;
+
 /**
- * Trim an optional string parameter; undefined or non-string → undefined, and a
- * blank string is a FitConnectValidationError (`Invalid <name>: Value must not be
- * blank.`), not "not given".
+ * How a wrong-typed value reads in a message: `the string "50"`, `a number`, `an
+ * array`, `null`. A string is quoted (cut to 50 characters) so `got 50` can't be mistaken
+ * for the number.
  */
-function optionalNonBlank(name: string, value: string | undefined): string | undefined {
-  if (typeof value !== "string") return undefined;
+export function describeValue(value: unknown): string {
+  if (value === null || value === undefined) return String(value);
+  if (Array.isArray(value)) return "an array";
+  if (typeof value === "string") return `the string ${JSON.stringify(value.length > 50 ? `${value.slice(0, 50)}…` : value)}`;
+  if (typeof value === "number") return Number.isNaN(value) ? "NaN" : String(value);
+  return typeof value === "object" ? "an object" : `a ${typeof value}`;
+}
+
+/**
+ * Reject a parameter object the method can't read: not an object, or with a key it
+ * doesn't take. A misspelled key (`areaid`, `ARS`), or one that arrives from JSON as
+ * `__proto__`, was dropped without a word, so `routes({ ars: "16", areaid: "940" })`
+ * answered for the whole Land. The message names the key and the keys allowed.
+ */
+function checkParams(method: string, params: unknown, allowed: readonly string[]): void {
+  if (typeof params !== "object" || params === null || Array.isArray(params)) {
+    throw new FitConnectValidationError(`Invalid ${method}() parameters: expected an object, got ${describeValue(params)}.`);
+  }
+  for (const key of Object.keys(params)) {
+    if (!allowed.includes(key)) {
+      throw new FitConnectValidationError(
+        `Invalid ${method}() parameter ${JSON.stringify(key)}: expected one of ${allowed.join(", ")}.`,
+      );
+    }
+  }
+}
+
+/**
+ * Trim an optional string parameter: undefined → undefined; any other non-string is a
+ * FitConnectValidationError (`Invalid areaId: expected a string, got 940.`) rather
+ * than "not given" — `routes({ ars: "16", areaId: 940 })` used to answer for the Land —
+ * and a blank string is one too (`Invalid <name>: Value must not be blank.`).
+ */
+function optionalNonBlank(name: string, value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") {
+    throw new FitConnectValidationError(`Invalid ${name}: expected a string, got ${describeValue(value)}.`);
+  }
   return assertValid(name, value, nonBlankProblem).trim();
 }
 
-/** Validate an optional `offset`/`limit` against the API's documented range. */
-function checkPaging(name: string, value: number | undefined, min: number, max: number): number | undefined {
+/**
+ * Validate an optional `offset`/`limit` against the API's documented range: anything
+ * but a safe integer in range (a string, NaN, an array) is a FitConnectValidationError.
+ */
+function checkPaging(name: string, value: unknown, min: number, max: number): number | undefined {
   if (value === undefined) return undefined;
-  if (!Number.isSafeInteger(value) || value < min || value > max) {
-    throw new FitConnectError(`Invalid ${name}: expected an integer from ${min} to ${max}, got ${String(value)}.`);
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < min || value > max) {
+    throw new FitConnectValidationError(
+      `Invalid ${name}: expected an integer from ${min} to ${max}, got ${describeValue(value)}.`,
+    );
   }
   return value;
 }
 
-/** Reject empty / whitespace-only required values up front with a clear message. */
-function requireNonEmpty(name: string, value: string): string {
-  if (typeof value !== "string" || value.trim() === "") {
+/** Reject a non-string, empty or whitespace-only required value up front with a clear message. */
+function requireNonEmpty(name: string, value: unknown): string {
+  if (typeof value !== "string") {
+    throw new FitConnectValidationError(`Invalid ${name}: expected a string, got ${describeValue(value)}.`);
+  }
+  if (value.trim() === "") {
     throw new FitConnectError(`Invalid ${name}: must be a non-empty string`);
   }
   return value.trim();

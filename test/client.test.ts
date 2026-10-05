@@ -217,3 +217,18 @@ test("a 400 from the API raises FitConnectApiError with status 400", async () =>
     (err) => err instanceof FitConnectApiError && err.status === 400,
   );
 });
+
+test("areas() rejects a non-string search term and an unknown key instead of widening the search (P10)", async () => {
+  const mt = constantJson({ count: 0, offset: 0, totalCount: 0, areas: [] });
+  const c = clientWith(mt);
+  const bad: Array<[string, () => Promise<unknown>, RegExp]> = [
+    ["number in the array", () => c.areas({ search: ["Frankfurt", 60311 as unknown as string] }), /^Invalid search: expected a string or an array of strings, got 60311 in the array\.$/],
+    ["number alone", () => c.areas({ search: 60311 as unknown as string }), /^Invalid search: /],
+    ["misspelled key", () => c.areas({ search: "Hanau", limt: 5 } as never), /^Invalid areas\(\) parameter "limt": expected one of search, offset, limit\.$/],
+    ["no parameters", () => (c.areas as (p?: unknown) => Promise<unknown>)(), /^Invalid areas\(\) parameters: expected an object, got undefined\.$/],
+  ];
+  for (const [label, call, message] of bad) {
+    await assert.rejects(call, (err: unknown) => err instanceof FitConnectValidationError && message.test(err.message), label);
+  }
+  assert.equal(mt.calls.length, 0);
+});

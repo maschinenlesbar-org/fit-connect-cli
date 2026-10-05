@@ -110,6 +110,12 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   characters rejects (the API answers each with a 400). `areaSearchWords(search)`
   (exported) returns the `words` sent and the `dropped` ones.
 - `info()` → `Info` (the deployed API's semantic version).
+- `routes()` and `areas()` reject a parameter they don't take (`areaid`, `ARS`, a
+  `__proto__` key from JSON) and a value of the wrong type (`areaId: 940`, `ars: ["16"]`,
+  `limit: "50"`, a number in the `search` array) with a `FitConnectValidationError`
+  naming the key or the value (`Invalid areaId: expected a string, got 940.`) before any
+  request. They used to drop such a value as "not given", so `routes({ ars: "16",
+  areaId: 940 })` answered for the whole Land.
 - Every method checks the answer's shape before returning it: `routes` / `areas` need
   `{ count, offset, totalCount, routes|areas: [object, …] }` with integer counts,
   `info` `{ version: { major, minor, patch } }`. Anything else — `null`, `{}`, an array,

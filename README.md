@@ -182,7 +182,9 @@ JSON. `--compact` is a **global** option and works **before or after** the comma
 
 ## Global options
 
-These apply to every command and may go before or after it:
+These apply to every command and may go before or after it. Every option takes one
+value: giving it twice (`--area-id 940 --area-id 941`) is a usage error, not "the last
+one wins".
 
 | Option | Description |
 | --- | --- |

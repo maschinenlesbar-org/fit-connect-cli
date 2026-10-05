@@ -11,6 +11,21 @@ import { baseUrlProblem, headerValueProblem, intRangeProblem, nonBlankProblem } 
 import type { ApiVersion, FitConnectClientOptions } from "../client/client.js";
 
 /**
+ * Wrap a value-parser so its option may be given only once: commander keeps the last of a
+ * repeated option and drops the others without a word (`--area-id 940 --area-id 941`
+ * asked for area 941). A repeat is a usage error naming the flag. A fresh program is
+ * built per `run()`, so the state lives as long as one parse.
+ */
+export function once<T>(flag: string, parse: (value: string) => T): (value: string) => T {
+  let seen = false;
+  return (value: string) => {
+    if (seen) throw new InvalidArgumentError(`${flag} was given more than once; give it once.`);
+    seen = true;
+    return parse(value);
+  };
+}
+
+/**
  * commander value-parser: a plain non-negative decimal integer in canonical form.
  *
  * Only `0` or a digit string with no leading zero is accepted — this deliberately
