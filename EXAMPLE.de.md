@@ -3,7 +3,7 @@
 Echte Beispiele für die Claude-Code-Skills des Plugins `fit-connect`, eines pro Skill: eine
 Anfrage, die `fit-connect`-Befehle, die der Skill ausgeführt hat, und Claudes Antwort.
 
-Jedes Beispiel lief am 15. September 2026 mit `fit-connect` 0.0.5 gegen die Live-API.
+Jedes Beispiel lief am 6. Oktober 2026 mit `fit-connect` 0.2.0 gegen die Live-API.
 Die Daten ändern sich, Ihre Ergebnisse werden also abweichen; mit den gezeigten IDs und
 Schlüsseln können Sie die Anfragen selbst ausprobieren. Lange Listen sind gekürzt.
 
@@ -18,15 +18,14 @@ Skills: [fit-connect-area-lookup](#fit-connect-area-lookup) · [fit-connect-find
 ```bash
 fit-connect --compact areas "Halle"
 fit-connect --compact areas 33790
-fit-connect --compact areas "Halle (Westf.)"      # 0.0.5: Exit 1, HTTP 500; seit 0.0.6: 1 Treffer, ID 44466
+fit-connect --compact areas "Halle (Westf.)"      # gesendet als die Wörter Halle + Westf: 1 Treffer
 ```
 
 „Halle" ergab 50 Gebiete, alle auf der ersten Seite. Die Suche nach der Postleitzahl lieferte genau
-ein Gebiet und bestätigte damit den richtigen Ort. Mit 0.0.5 schlug die Suche mit dem exakten Namen,
-den die API gerade geliefert hatte, fehl: Die CLI schickte die Satzzeichen von `(Westf.)` mit, und die
-API meldete einen Fehler. Seit 0.0.6 sendet die CLI die reinen Wörter `Halle` + `Westf`; am
-26. September 2026 nachgeprüft, liefert die Suche genau ein Gebiet, `44466 Halle (Westf.)` (Stadt).
-Die Einträge enthalten nur `id`, `name` und `type` – keinen AGS oder ARS.
+ein Gebiet, `44466 Halle (Westf.)` (Stadt), und bestätigte damit den richtigen Ort; die Suche mit dem
+exakten Namen, den die API geliefert hatte, fand dasselbe eine Gebiet: Die CLI sendet die reinen Wörter
+`Halle` + `Westf`, ohne die Satzzeichen, die die API nicht verarbeitet. Die Einträge enthalten nur `id`,
+`name` und `type` – keinen AGS oder ARS.
 
 ```
 „Halle" → 50 Treffer:
@@ -56,11 +55,14 @@ fit-connect --compact routes 99128009012000 --ags 13004000
 ```
 
 FIT-Connect kann keinen Leistungsschlüssel nachschlagen, deshalb holte der Skill ihn über die CLI
-`fim-portal`: `99128009012000`, „Wahlschein Ausstellung" („Briefwahl beantragen"). Es gibt zwei Gebiete
-namens Schwerin; der Skill wählte die Landeshauptstadt und nannte das andere. Jede Routing-Abfrage
-ergab `count: 0`. Keine der 62 Routing-Abfragen in dieser Sitzung lieferte einen Zustellpunkt (13
-Leistungen in 15 Gebieten, darunter Wohngeld, Gewerbeanmeldung und Hundesteuer) – ein leeres Ergebnis
-ist derzeit der Normalfall.
+`fim-portal`: `99128009012000`, „Wahlschein Ausstellung" („Briefwahl beantragen"), der erste von drei
+Treffern. „Schwerin" ergab 36 Gebiete: zwei ganze Orte dieses Namens (dazu Alt Schwerin) und 33
+Ortsteile. Der Skill wählte die Landeshauptstadt und nannte das andere Schwerin. Die Stadt ergab
+`count: 0`; weil eine kreisfreie Stadt zu keinem Kreis gehört, war die nächsthöhere Ebene das Land
+Mecklenburg-Vorpommern (Gebiets-ID 3512, gefunden mit `Mecklenburg*`), das ebenfalls `count: 0` ergab,
+wie auch der AGS der Stadt. Ein leeres Ergebnis ist der Normalfall: Auch in der Sitzung vom
+15. September 2026 lieferte keine der 62 Routing-Abfragen (13 Leistungen in 15 Gebieten) einen
+Zustellpunkt.
 
 ```
 Für „Wahlschein Ausstellung" (99128009012000) ist in Schwerin kein FIT-Connect-Zustellpunkt registriert.
@@ -88,7 +90,8 @@ fit-connect --compact routes 99107023037000 --area-id 16688     # count 0
 ```
 
 Der Schlüssel kam aus `fim-portal`: `99107023037000`, „Wohngeld Feststellung" („Wohngeld erstmalig oder
-neu beantragen"). Das Gebiet ist der Stadteintrag 16688 (kreisfreie Stadt), keiner der 43 Ortsteile.
+neu beantragen"), unter 18 Treffern (auch Pflegewohngeld und Bildung und Teilhabe). Das Gebiet ist der
+Stadteintrag 16688 (kreisfreie Stadt), keiner der 43 Ortsteile.
 Bei `count: 0` meldet der Skill das und hört auf, wie vorgesehen. Unterlagen, Rechtsgrundlage und
 Bearbeitungsdauer gibt es nur innerhalb einer Route.
 

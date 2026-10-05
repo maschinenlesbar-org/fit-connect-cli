@@ -3,7 +3,7 @@
 Real examples for the Claude Code skills of the `fit-connect` plugin, one per skill: a request,
 the `fit-connect` commands the skill ran, and the answer Claude gave.
 
-Every example ran against the live API on 15 September 2026 with `fit-connect` 0.0.5.
+Every example ran against the live API on 6 October 2026 with `fit-connect` 0.2.0.
 The data changes, so your results will differ; the ids and keys shown work for trying the
 requests yourself. Long lists are shortened.
 
@@ -18,15 +18,14 @@ Skills: [fit-connect-area-lookup](#fit-connect-area-lookup) · [fit-connect-find
 ```bash
 fit-connect --compact areas "Halle"
 fit-connect --compact areas 33790
-fit-connect --compact areas "Halle (Westf.)"      # 0.0.5: exit 1, HTTP 500; since 0.0.6: 1 match, id 44466
+fit-connect --compact areas "Halle (Westf.)"      # sent as the words Halle + Westf: 1 match
 ```
 
 "Halle" matched 50 areas, and every one of them came back on the first page. The postcode search
-returned exactly one area, which confirmed the right town. With 0.0.5, searching by the exact name the
-API had just returned failed: the CLI sent the `(Westf.)` punctuation along and the API returned an
-error. Since 0.0.6 the CLI sends the bare words `Halle` + `Westf`; re-checked on 26 September 2026, the
-search returns exactly one area, `44466 Halle (Westf.)` (Stadt).
-The entries carry only `id`, `name` and `type`, with no AGS or ARS.
+returned exactly one area, `44466 Halle (Westf.)` (Stadt), which confirmed the right town, and searching
+by the exact name the API had returned found the same single area: the CLI sends the bare words
+`Halle` + `Westf`, without the punctuation the API can't take. The entries carry only `id`, `name` and
+`type`, with no AGS or ARS.
 
 ```
 "Halle" → 50 matches:
@@ -56,10 +55,13 @@ fit-connect --compact routes 99128009012000 --ags 13004000
 ```
 
 FIT-Connect can't look up a Leistungsschlüssel, so the skill got it from the `fim-portal` CLI:
-`99128009012000`, "Wahlschein Ausstellung" ("Briefwahl beantragen"). Two areas called Schwerin exist,
-so the skill picked the state capital and named the other one. Every route lookup returned `count: 0`.
-None of the 62 route lookups made in this session returned a destination (13 services in 15 areas,
-including Wohngeld, Gewerbeanmeldung and Hundesteuer), so an empty result is currently the normal outcome.
+`99128009012000`, "Wahlschein Ausstellung" ("Briefwahl beantragen"), the first of three matches. "Schwerin"
+matched 36 areas: two whole places of that name (plus Alt Schwerin) and 33 districts. The skill picked
+the state capital and named the other Schwerin. The city returned `count: 0`; since a kreisfreie Stadt
+belongs to no Kreis, the next level up was the Land, Mecklenburg-Vorpommern (area id 3512, found with
+`Mecklenburg*`), which returned `count: 0` too, as did the city's AGS. An empty result is the normal
+outcome: no route lookup in the 15 September 2026 session (62 lookups, 13 services in 15 areas) returned
+a destination either.
 
 ```
 No FIT-Connect Zustellpunkt is registered for "Wahlschein Ausstellung" (99128009012000) in Schwerin.
@@ -87,7 +89,8 @@ fit-connect --compact routes 99107023037000 --area-id 16688     # count 0
 ```
 
 The key came from `fim-portal`: `99107023037000`, "Wohngeld Feststellung" ("Wohngeld erstmalig oder
-neu beantragen"). The area is the city entry 16688 (kreisfreie Stadt), not one of its 43 districts.
+neu beantragen"), among 18 matches (Pflegewohngeld and Bildung-und-Teilhabe services too). The area is
+the city entry 16688 (kreisfreie Stadt), not one of its 43 districts.
 With `count: 0`, the skill reports that and stops, as it is written to do. Required documents,
 legal basis and processing time only exist inside a route.
 
