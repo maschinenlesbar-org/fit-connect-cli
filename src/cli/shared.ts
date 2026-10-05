@@ -61,7 +61,8 @@ export function parseBoundedInt(min: number, max: number): (value: string) => nu
 
 /**
  * commander value-parser for `--offset`: 0..2147483647. The API declares `offset`
- * as `int32` and answers a larger value with an HTML 400 that carries no detail.
+ * as `int32` and answers a larger value with an HTML 400 that carries no detail. The
+ * library also rejects an `offset + limit` above that (the API's sum overflows).
  */
 export const parseOffset = parseBoundedInt(0, MAX_OFFSET);
 

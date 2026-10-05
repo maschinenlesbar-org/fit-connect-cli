@@ -14,7 +14,7 @@ export function registerAreasCommand(program: Command, deps: CliDeps): void {
         "digits (shorter ones are left out), and at most 10 words are allowed. Use a " +
         "result's id as --area-id for `fit-connect routes`.",
     )
-    .option("--offset <n>", "start offset into the result set, 0..2147483647 (default 0)", once("--offset", parseOffset))
+    .option("--offset <n>", "start offset into the result set, 0..2147483647 with offset + limit at most 2147483647 (default 0)", once("--offset", parseOffset))
     .option("--limit <n>", "page size, 1..500 (default 100)", once("--limit", parseLimit))
     // A search the API would reject (no usable word, > 10 words, a misplaced `*`)
     // is a usage error with help, like a bad option value — not an API-style

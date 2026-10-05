@@ -130,8 +130,7 @@ export class FitConnectClient {
       ags,
       ars,
       areaId,
-      offset: checkPaging("offset", params.offset, 0, MAX_OFFSET),
-      limit: checkPaging("limit", params.limit, 1, MAX_LIMIT),
+      ...paging(params.offset, params.limit),
     };
     return expectShape(this.path("routes"), await this.engine.getJson<unknown>(this.path("routes"), query), listProblem("routes"));
   }
@@ -148,8 +147,7 @@ export class FitConnectClient {
     const { words } = areaSearchWords(params.search);
     const query: QueryParams = {
       areaSearchexpression: words,
-      offset: checkPaging("offset", params.offset, 0, MAX_OFFSET),
-      limit: checkPaging("limit", params.limit, 1, MAX_LIMIT),
+      ...paging(params.offset, params.limit),
     };
     return expectShape(this.path("areas"), await this.engine.getJson<unknown>(this.path("areas"), query), listProblem("areas"));
   }
@@ -208,11 +206,37 @@ function expectShape<T>(path: string, value: unknown, problem: (value: unknown) 
   return value as T;
 }
 
-/** The largest `offset` the Routing API accepts (`int32`, `routing-api.yaml`). */
+/**
+ * The largest `offset` the Routing API declares (`int32`, `routing-api.yaml`). The API
+ * also adds `offset` and `limit` in a 32-bit integer, so `offset + limit` (the limit
+ * defaulting to {@link DEFAULT_LIMIT}) must not exceed it either: see {@link paging}.
+ */
 export const MAX_OFFSET = 2_147_483_647;
 
 /** The largest page size (`limit`) the Routing API accepts. */
 export const MAX_LIMIT = 500;
+
+/** The page size the Routing API uses when no `limit` is sent. */
+export const DEFAULT_LIMIT = 100;
+
+/**
+ * The `offset` / `limit` query parameters, validated: `offset` 0..{@link MAX_OFFSET},
+ * `limit` 1..{@link MAX_LIMIT}, and their sum (with the API's default limit of 100 when
+ * none is given) at most {@link MAX_OFFSET}. The API sums them in a 32-bit integer and
+ * answers an overflow with HTTP 500 and no detail (`routes … --offset 2147483548` failed,
+ * `2147483547` worked), so such a page is a FitConnectValidationError before any request.
+ */
+function paging(offsetValue: unknown, limitValue: unknown): { offset: number | undefined; limit: number | undefined } {
+  const offset = checkPaging("offset", offsetValue, 0, MAX_OFFSET);
+  const limit = checkPaging("limit", limitValue, 1, MAX_LIMIT);
+  if (offset !== undefined && offset + (limit ?? DEFAULT_LIMIT) > MAX_OFFSET) {
+    throw new FitConnectValidationError(
+      `Invalid offset: offset + limit must not exceed ${MAX_OFFSET} (the API adds them as a 32-bit integer); ` +
+        `got offset ${offset} with ${limit === undefined ? `the default limit ${DEFAULT_LIMIT}` : `limit ${limit}`}.`,
+    );
+  }
+  return { offset, limit };
+}
 
 /** The most `areaSearchexpression` values the Routing API accepts (`maxItems: 10`). */
 export const MAX_AREA_SEARCH_WORDS = 10;

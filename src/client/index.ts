@@ -6,6 +6,7 @@ export {
   AGS_PATTERN,
   ARS_PATTERN,
   MAX_AREA_SEARCH_WORDS,
+  DEFAULT_LIMIT,
   MAX_LIMIT,
   MAX_OFFSET,
   areaSearchWords,

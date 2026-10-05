@@ -100,7 +100,9 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   `nonBlankProblem` rule the CLI's `--area-id` parser uses too) rather than counting
   as not given; `ags` / `ars` must match `AGS_PATTERN` / `ARS_PATTERN` (the API's lengths).
   On `routes` and `areas`, `offset` must be an integer 0..`MAX_OFFSET` (2147483647)
-  and `limit` 1..`MAX_LIMIT` (500), else a `FitConnectValidationError`.
+  and `limit` 1..`MAX_LIMIT` (500), and `offset + limit` (the limit defaulting to
+  `DEFAULT_LIMIT`, 100) at most `MAX_OFFSET` — the API adds them in a 32-bit integer and
+  answers an overflow with HTTP 500 — else a `FitConnectValidationError`.
 - `areas({ search, offset?, limit? })` → `AreaResult`. `search` is a string or
   string array; each term is normalised to NFKC (the API 500s on a decomposed
   umlaut or fullwidth digits), and combining marks NFKC leaves over are dropped (the

@@ -369,9 +369,23 @@ test("--offset is bounded to the API's int32 range", async () => {
     assert.equal(cli.mt.calls.length, 0);
     assert.match(cli.err.join("\n"), /between 0 and 2147483647/);
   }
-  const cli = makeCli(() => jsonResponse({ count: 0, offset: 2147483647, totalCount: 0, areas: [] }));
-  assert.equal(await run(["areas", "Hanau", "--offset", "2147483647"], cli.deps), 0);
-  assert.equal(new URL(cli.mt.last().url).searchParams.get("offset"), "2147483647");
+  // The API adds offset and limit in a 32-bit integer (HTTP 500 on overflow): the sum,
+  // with the default limit 100, must stay within 2147483647.
+  for (const argv of [
+    ["areas", "Hanau", "--offset", "2147483647"],
+    ["routes", "99123456760610", "--ags", "16", "--offset", "2147483548"],
+    ["routes", "99123456760610", "--ags", "16", "--offset", "2147483500", "--limit", "500"],
+  ]) {
+    const cli = makeCli(() => jsonResponse(ROUTE_BODY));
+    assert.equal(await run(argv, cli.deps), 1, argv.join(" "));
+    assert.equal(cli.mt.calls.length, 0);
+    assert.match(cli.err.join("\n"), /offset \+ limit must not exceed 2147483647/);
+  }
+  const cli = makeCli(() => jsonResponse({ count: 0, offset: 2147483547, totalCount: 0, areas: [] }));
+  assert.equal(await run(["areas", "Hanau", "--offset", "2147483547"], cli.deps), 0);
+  assert.equal(new URL(cli.mt.last().url).searchParams.get("offset"), "2147483547");
+  const one = makeCli(() => jsonResponse({ count: 0, offset: 2147483646, totalCount: 0, areas: [] }));
+  assert.equal(await run(["areas", "Hanau", "--offset", "2147483646", "--limit", "1"], one.deps), 0);
 });
 
 test("--max-retries is bounded to 0..10", async () => {
