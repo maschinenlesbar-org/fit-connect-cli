@@ -10,8 +10,8 @@
 // implement the FIT-Connect Submission/Destination (write) path.
 
 import { RequestEngine, type EngineOptions } from "./engine.js";
-import { FitConnectError, FitConnectParseError, FitConnectValidationError } from "./errors.js";
-import { assertValid, nonBlankProblem } from "./validate.js";
+import { FitConnectParseError, FitConnectValidationError } from "./errors.js";
+import { assertValid, nonBlankProblem, quoteValue } from "./validate.js";
 import type { QueryParams } from "./query.js";
 import type { AreaResult, Info, RouteResult } from "./types.js";
 
@@ -77,7 +77,8 @@ export class FitConnectClient {
     const { apiVersion, ...engineOptions } = options;
     this.apiVersion = apiVersion ?? DEFAULT_API_VERSION;
     if (this.apiVersion !== "v1" && this.apiVersion !== "v2") {
-      throw new FitConnectError(`Invalid apiVersion "${this.apiVersion}": expected "v1" or "v2"`);
+      const got = typeof this.apiVersion === "string" ? quoteValue(this.apiVersion) : describeValue(this.apiVersion);
+      throw new FitConnectValidationError(`Invalid apiVersion ${got}: expected "v1" or "v2"`);
     }
     this.engine = new RequestEngine(engineOptions);
   }
@@ -97,8 +98,8 @@ export class FitConnectClient {
     // Validate here so a malformed key is a clear error rather than an opaque
     // upstream HTTP 400.
     if (!/^99\d{12}$/.test(leikaKey)) {
-      throw new FitConnectError(
-        `Invalid leikaKey "${leikaKey}": expected "99" followed by 12 digits (e.g. 99123456760610).`,
+      throw new FitConnectValidationError(
+        `Invalid leikaKey ${quoteValue(leikaKey)}: expected "99" followed by 12 digits (e.g. 99123456760610).`,
       );
     }
 
@@ -111,17 +112,17 @@ export class FitConnectClient {
     const given = { ags, ars, areaId };
     const selectors = (["ags", "ars", "areaId"] as const).filter((k) => given[k] !== undefined);
     if (selectors.length !== 1) {
-      throw new FitConnectError(
+      throw new FitConnectValidationError(
         `routes() needs exactly one area selector (ags, ars or areaId); got ${
           selectors.length === 0 ? "none" : selectors.join(", ")
         }`,
       );
     }
     if (ags !== undefined && !AGS_PATTERN.test(ags)) {
-      throw new FitConnectError(`Invalid ags "${ags}": expected 2, 3, 5 or 8 digits.`);
+      throw new FitConnectValidationError(`Invalid ags ${quoteValue(ags)}: expected 2, 3, 5 or 8 digits.`);
     }
     if (ars !== undefined && !ARS_PATTERN.test(ars)) {
-      throw new FitConnectError(`Invalid ars "${ars}": expected 2, 3, 5, 9 or 12 digits.`);
+      throw new FitConnectValidationError(`Invalid ars ${quoteValue(ars)}: expected 2, 3, 5, 9 or 12 digits.`);
     }
 
     const query: QueryParams = {
@@ -140,7 +141,7 @@ export class FitConnectClient {
    * by {@link areaSearchWords}: words shorter than 2 characters are left out, a
    * repeated word is sent once, and a search the API would reject (no usable word,
    * more than {@link MAX_AREA_SEARCH_WORDS} words, a misplaced `*`) throws a
-   * `FitConnectError` before any request.
+   * `FitConnectValidationError` before any request.
    */
   async areas(params: AreaQuery): Promise<AreaResult> {
     checkParams("areas", params, AREA_PARAMS);
@@ -244,7 +245,7 @@ export interface AreaSearchWords {
  * word with fewer than 2 non-wildcard characters ("Frankfurt a. M." → "a", "M"; a
  * bare "*"), and for more than 10 words. So a too-short word is left out (it is
  * listed in `dropped`), a word repeated in any letter case is sent once, and the
- * rest throws a `FitConnectError`: no usable word left, more than
+ * rest throws a `FitConnectValidationError`: no usable word left, more than
  * {@link MAX_AREA_SEARCH_WORDS} words, or a word whose `*` splits it into parts
  * shorter than 2 characters ("a*b").
  */
@@ -275,8 +276,8 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
       continue;
     }
     if (!AREA_WORD_PATTERN.test(word)) {
-      throw new FitConnectError(
-        `Invalid search word "${word}": the API needs at least 2 characters between wildcards (e.g. "Mag*", "*burg").`,
+      throw new FitConnectValidationError(
+        `Invalid search word ${quoteValue(word)}: the API needs at least 2 characters between wildcards (e.g. "Mag*", "*burg").`,
       );
     }
     const key = word.toLowerCase();
@@ -285,13 +286,13 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
     words.push(word);
   }
   if (words.length === 0) {
-    throw new FitConnectError(
-      `No usable search word in ${terms.map((t) => JSON.stringify(t)).join(" ") || "the search"}: ` +
+    throw new FitConnectValidationError(
+      `No usable search word in ${terms.map(quoteValue).join(" ") || "the search"}: ` +
         `every word needs at least 2 letters or digits (a "*" does not count).`,
     );
   }
   if (words.length > MAX_AREA_SEARCH_WORDS) {
-    throw new FitConnectError(
+    throw new FitConnectValidationError(
       `Too many search words (${words.length}): the API accepts at most ${MAX_AREA_SEARCH_WORDS}. ` +
         "Leave some out — every word must match the same area, so a few distinctive ones are enough.",
     );
@@ -371,7 +372,7 @@ function requireNonEmpty(name: string, value: unknown): string {
     throw new FitConnectValidationError(`Invalid ${name}: expected a string, got ${describeValue(value)}.`);
   }
   if (value.trim() === "") {
-    throw new FitConnectError(`Invalid ${name}: must be a non-empty string`);
+    throw new FitConnectValidationError(`Invalid ${name}: must be a non-empty string`);
   }
   return value.trim();
 }

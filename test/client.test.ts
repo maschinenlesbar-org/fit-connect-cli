@@ -232,3 +232,22 @@ test("areas() rejects a non-string search term and an unknown key instead of wid
   }
   assert.equal(mt.calls.length, 0);
 });
+
+test("an echoed input is quoted with control and bidi characters escaped, and cut (P13)", async () => {
+  const c = clientWith(constantJson({ count: 0, offset: 0, totalCount: 0, routes: [] }));
+  await assert.rejects(
+    c.routes({ leikaKey: "99\u001b[31mX‮", ars: "16" }),
+    (err: unknown) => err instanceof FitConnectValidationError && err.message.startsWith('Invalid leikaKey "99\\u001b[31mX\\u202e":'),
+  );
+  await assert.rejects(
+    c.routes({ leikaKey: "9".repeat(5000), ars: "16" }),
+    (err: unknown) => err instanceof FitConnectValidationError && err.message.length < 250,
+  );
+});
+
+test("a long server detail is cut at 500 characters in the message, kept in body (P13)", async () => {
+  const detail = "x".repeat(200_000);
+  const c = clientWith(makeMockTransport(() => jsonResponse({ detail }, 400)));
+  await assert.rejects(c.info(), (err: unknown) =>
+    err instanceof FitConnectApiError && err.message.length < 700 && err.message.includes("x".repeat(500) + "…") && err.body.length > 200_000);
+});

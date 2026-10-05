@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import type { CliDeps } from "../io.js";
-import { FitConnectError } from "../../client/errors.js";
+import { FitConnectValidationError } from "../../client/errors.js";
 import { action, once, parseAgs, parseArs, parseLimit, parseNonEmpty, parseOffset, renderJson } from "../shared.js";
 
 /** Map each selector option (camelCased by commander) to its CLI flag. */
@@ -17,7 +17,7 @@ function requireExactlyOneSelector(opts: Record<string, unknown>): void {
     (k) => opts[k] !== undefined && String(opts[k]).trim() !== "",
   );
   if (provided.length !== 1) {
-    throw new FitConnectError(
+    throw new FitConnectValidationError(
       `Provide exactly one area selector: --ags, --ars or --area-id (got ${
         provided.length === 0 ? "none" : provided.map((k) => SELECTOR_FLAGS[k]).join(", ")
       }).`,

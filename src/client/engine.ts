@@ -17,6 +17,7 @@ import {
   FitConnectError,
   FitConnectNetworkError,
   FitConnectParseError,
+  FitConnectValidationError,
   credentialsIn,
   redactCredentials,
 } from "./errors.js";
@@ -183,6 +184,7 @@ function describeViolations(violations: unknown): string | undefined {
  */
 export function resolveUserAgent(value: string | undefined): string {
   if (value === undefined) return DEFAULT_USER_AGENT;
+  if (typeof value !== "string") throw new FitConnectValidationError("Invalid userAgent: Expected a string.");
   assertValid("userAgent", value, headerValueProblem);
   return value.trim() === "" ? DEFAULT_USER_AGENT : value;
 }
@@ -203,6 +205,14 @@ function decodeBody(body: Buffer, contentType: string, path: string): string {
     throw new FitConnectParseError(`Unsupported response charset "${sanitizeServerText(charset)}" from ${path}.`);
   }
   return decoder.decode(body);
+}
+
+/** `value` when it is undefined or a function; otherwise a FitConnectValidationError naming the option. */
+function optionalFunction<T>(name: string, value: T | undefined): T | undefined {
+  if (value !== undefined && typeof value !== "function") {
+    throw new FitConnectValidationError(`Invalid ${name}: Expected a function.`);
+  }
+  return value;
 }
 
 const realSleep = (ms: number): Promise<void> =>
@@ -355,7 +365,7 @@ export class RequestEngine {
         return [raw];
       }
     });
-    this.transport = options.transport ?? nodeHttpTransport;
+    this.transport = optionalFunction("transport", options.transport) ?? nodeHttpTransport;
     // The one string option where blank means "default" (see resolveUserAgent).
     this.userAgent = resolveUserAgent(options.userAgent);
     this.timeoutMs = intOption("timeoutMs", options.timeoutMs, MAX_TIMEOUT_MS, 30_000);
@@ -369,7 +379,7 @@ export class RequestEngine {
       Number.MAX_SAFE_INTEGER,
       DEFAULT_MAX_RESPONSE_BYTES,
     );
-    this.sleep = options.sleep ?? realSleep;
+    this.sleep = optionalFunction("sleep", options.sleep) ?? realSleep;
   }
 
   /**

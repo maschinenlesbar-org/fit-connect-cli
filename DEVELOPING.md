@@ -94,13 +94,13 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
 
 - `routes({ leikaKey, ags? , ars?, areaId?, offset?, limit? })` → `RouteResult`.
   Requires `leikaKey` and **exactly one** of `ags` / `ars` / `areaId`; both rules
-  are enforced client-side (a `FitConnectError` rejection) before any request.
+  are enforced client-side (a `FitConnectValidationError` rejection) before any request.
   Selectors are trimmed, and a blank one (`""` or whitespace) rejects with a
   `FitConnectValidationError` (`Invalid ags: Value must not be blank.`, the
   `nonBlankProblem` rule the CLI's `--area-id` parser uses too) rather than counting
   as not given; `ags` / `ars` must match `AGS_PATTERN` / `ARS_PATTERN` (the API's lengths).
   On `routes` and `areas`, `offset` must be an integer 0..`MAX_OFFSET` (2147483647)
-  and `limit` 1..`MAX_LIMIT` (500), else a `FitConnectError`.
+  and `limit` 1..`MAX_LIMIT` (500), else a `FitConnectValidationError`.
 - `areas({ search, offset?, limit? })` → `AreaResult`. `search` is a string or
   string array; each term is normalised to NFKC (the API 500s on a decomposed
   umlaut or fullwidth digits) and split into words on whitespace and punctuation
@@ -233,8 +233,14 @@ Lets the whole CLI run in tests with a mocked client and captured output.
 RFC 7807 `application/problem+json` body's `detail`/`title`/`message`, followed by
 its `violations[]` as `(field: message; …)` — a 400 "Constraint Violation" names the
 rejected parameter and rule only there), `FitConnectNetworkError`
-(transport failure/timeout), `FitConnectParseError` (bad JSON), all extending
-`FitConnectError` (also raised for client-side validation).
+(transport failure/timeout), `FitConnectParseError` (bad JSON or a 2xx body without
+the documented shape) and `FitConnectValidationError` (every input the library rejects
+before a request: client options, `apiVersion`, the leikaKey, selectors, search words,
+paging), all extending `FitConnectError`. A `catch (e) { if (e instanceof
+FitConnectValidationError) … }` therefore catches every rejected input, never a raw
+`TypeError`. A server `detail` in a message is cut at 500 characters (`body` keeps it
+all), and an echoed input (`Invalid leikaKey "…"`) is cut at 100 characters and quoted
+with control and bidi characters escaped (`quoteValue`).
 
 **Input validation.** [`validate.ts`](src/client/validate.ts): a rule is a pure
 `<thing>Problem(value)` function that returns why a value is invalid, or `undefined`.

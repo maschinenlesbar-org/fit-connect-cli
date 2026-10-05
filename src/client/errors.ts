@@ -75,6 +75,18 @@ export function redactCredentials(text: string, credentials: readonly string[]):
 }
 
 /**
+ * Longest server text (in characters) an error message shows, like a `detail` the API
+ * sends. A 200 kB detail from a misbehaving upstream would otherwise become one stderr
+ * line. The error's `body` property keeps the full text.
+ */
+export const MAX_MESSAGE_VALUE_LENGTH = 500;
+
+/** `text` cut to MAX_MESSAGE_VALUE_LENGTH characters, ending in "…" when cut. */
+export function cutForMessage(text: string): string {
+  return text.length > MAX_MESSAGE_VALUE_LENGTH ? `${text.slice(0, MAX_MESSAGE_VALUE_LENGTH)}…` : text;
+}
+
+/**
  * The API responded with a non-2xx status code. `detail` holds a human-readable
  * message extracted from the response body when one is present (the Routing API
  * returns RFC 7807 `application/problem+json` error bodies with a `detail` field).
@@ -106,7 +118,7 @@ export class FitConnectApiError extends FitConnectError {
     maxRetryAfterMs?: number;
   }) {
     const parts: string[] = [];
-    if (args.detail) parts.push(args.detail);
+    if (args.detail) parts.push(cutForMessage(args.detail));
     if (args.retryAfterMs !== undefined) {
       // Say why the retries the caller asked for never ran: the server asked for a wait
       // longer than the engine sleeps, and retrying earlier would land inside that window.
