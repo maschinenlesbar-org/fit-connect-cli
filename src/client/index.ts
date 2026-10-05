@@ -38,6 +38,9 @@ export {
   FitConnectNetworkError,
   FitConnectParseError,
   FitConnectValidationError,
+  credentialsIn,
+  redactCredentials,
+  redactUrl,
 } from "./errors.js";
 export { assertValid, headerValueProblem, intRangeProblem, nonBlankProblem } from "./validate.js";
 export type { Problem } from "./validate.js";

@@ -129,6 +129,14 @@ Two non-obvious upstream behaviours the client handles:
 - **`--base-url` is trusted input**: the CLI fetches whatever host you point it
   at; only `http:`/`https:` URLs are accepted, and redirects are **not** followed
   — a `3xx` surfaces as an error rather than being chased to another host.
+- **Credentials in `--base-url` never reach the output.** A `user:password@` in the
+  base URL (a credentialed mirror or proxy) is sent as Basic auth by Node, and is
+  redacted everywhere the CLI prints: `run.ts` (`withRedactedOutput`) takes the exact
+  userinfo of every argument (`credentialsIn`, exported) and replaces it with `***` in
+  every line — commander's usage errors, which echo a rejected `--base-url` value or an
+  unknown command, and the CLI's own messages — so a password with spaces, quotes, `#`,
+  `?` or `/` is caught as well as an ordinary one. `redactUrl` (exported) falls back to
+  the same text-based cut for a value that doesn't parse as a URL.
 - **`destinationSignature` is passed through unverified.** Each route carries a
   JWS (RFC 7515) over its addressing information. This client treats it as an
   **opaque string** — it does no JWS/JWK/crypto validation of any kind (there is
@@ -245,6 +253,9 @@ npm test          # builds, then runs `node --test` over dist/test
 - **`parity.test.ts`** — CLI ↔ library parity: one input through `run()` and through the library (`parity()`), asserting the same outcome.
 - **`cli.test.ts`** — end-to-end command parsing, rendering, error/exit codes and option flow-through — mocked client.
 - **`io.test.ts`** — `handleOutputErrors` (EPIPE on a closed stdout/stderr exits 0) — fake streams.
+- **`conformance-p*.test.ts`** — the workspace's shared conformance checks from the 2026-10-05 review
+  (P1 credential redaction in CLI output, …); copied across the `*-cli` repos, only the adapter
+  block at the top differs.
 
 ## Continuous integration
 
