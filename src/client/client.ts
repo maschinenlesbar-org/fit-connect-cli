@@ -218,11 +218,49 @@ export const MAX_LIMIT = 500;
 export const MAX_AREA_SEARCH_WORDS = 10;
 
 /**
- * One `areaSearchexpression` value as the Routing API's spec allows it
- * (`^(\*?([^\*]{2,})\*?)*$`): at least 2 non-wildcard characters, with a `*`
- * only at the start or end of such a run.
+ * True when `word` is one `areaSearchexpression` value as the Routing API's spec
+ * allows it (`^(\*?([^\*]{2,})\*?)*$`), decided by one linear scan.
+ *
+ * That pattern reads: the word is a sequence of runs of at least 2 non-wildcard
+ * characters (code points), each with an optional `*` before and after it. Taken by
+ * maximal runs, that is: every run of non-wildcard characters has at least 2 of them;
+ * at most one `*` before the first run and at most one after the last; one or two
+ * `*` between two runs. So `Mag*`, `*burg`, `*ab*`, `ab*cd` and `ab**cd` pass, and
+ * `Ma*g`, `**ab`, `ab***cd` and `*` don't. (The empty word matches the pattern too;
+ * it never reaches this check.)
+ *
+ * The spec's pattern is not used as a regex: its nested quantifiers backtrack
+ * exponentially when a long run is followed by a misplaced `*` — a 45-character
+ * `Donaudampfschifffahrtsgesellschaftskapitaen*X` took 57 s in the CLI and blocked a
+ * service's event loop for as long. This scan takes linear time for any input.
  */
-const AREA_WORD_PATTERN = /^(\*?([^*]{2,})\*?)*$/u;
+export function isAreaSearchWord(word: string): boolean {
+  const chars = [...word];
+  const n = chars.length;
+  let i = 0;
+  let stars = 0;
+  while (i < n && chars[i] === "*") {
+    stars += 1;
+    i += 1;
+  }
+  if (i === n) return n === 0;
+  if (stars > 1) return false;
+  for (;;) {
+    let run = 0;
+    while (i < n && chars[i] !== "*") {
+      run += 1;
+      i += 1;
+    }
+    if (run < 2) return false;
+    stars = 0;
+    while (i < n && chars[i] === "*") {
+      stars += 1;
+      i += 1;
+    }
+    if (i === n) return stars <= 1;
+    if (stars > 2) return false;
+  }
+}
 
 /** The words {@link areaSearchWords} sends, and the too-short ones it left out. */
 export interface AreaSearchWords {
@@ -275,7 +313,7 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
       dropped.push(word);
       continue;
     }
-    if (!AREA_WORD_PATTERN.test(word)) {
+    if (!isAreaSearchWord(word)) {
       throw new FitConnectValidationError(
         `Invalid search word ${quoteValue(word)}: the API needs at least 2 characters between wildcards (e.g. "Mag*", "*burg").`,
       );

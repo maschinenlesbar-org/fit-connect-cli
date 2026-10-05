@@ -108,7 +108,12 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   non-wildcard characters are left out and a repeated word is sent once; a search
   with no word left, more than 10 words, or a `*` inside a word part shorter than 2
   characters rejects (the API answers each with a 400). `areaSearchWords(search)`
-  (exported) returns the `words` sent and the `dropped` ones.
+  (exported) returns the `words` sent and the `dropped` ones. The wildcard rule is the
+  spec's `^(\*?([^\*]{2,})\*?)*$`, checked by `isAreaSearchWord` (exported) in one
+  linear scan rather than with that regex, whose nested quantifiers backtrack
+  exponentially (a 45-character word with a misplaced `*` took 57 s);
+  `test/area-word.test.ts` checks it against the pattern on every short word and times
+  the worst cases.
 - `info()` → `Info` (the deployed API's semantic version).
 - `routes()` and `areas()` reject a parameter they don't take (`areaid`, `ARS`, a
   `__proto__` key from JSON) and a value of the wrong type (`areaId: 940`, `ars: ["16"]`,

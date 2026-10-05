@@ -9,6 +9,7 @@ export {
   MAX_LIMIT,
   MAX_OFFSET,
   areaSearchWords,
+  isAreaSearchWord,
 } from "./client.js";
 export type {
   ApiVersion,
