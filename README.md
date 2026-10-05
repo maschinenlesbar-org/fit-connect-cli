@@ -165,7 +165,9 @@ JSON. `--compact` is a **global** option and works **before or after** the comma
   service in that area. This is normal and exits `0`, and it is the usual result:
   routing data is sparse, and many real service keys return no route in large
   cities too. Try a broader area — the Kreis or Land, e.g. `--ars 06435` or
-  `--ars 06` — or re-check the Leistungsschlüssel.
+  `--ars 06` — or re-check the Leistungsschlüssel. A kreisfreie Stadt belongs to no
+  Kreis: for Erfurt, `--ars 16051` answers `No Area was found with given AreaKey`, so
+  the next level up is the Land (`--ars 16`).
 - **`403` / bot-detection** — the Routing API filters on the `User-Agent`. The
   CLI's default UA is accepted, but some UA strings are blocked, so a custom
   `--user-agent` can trigger a `403`. A missing or blank UA is *not* itself

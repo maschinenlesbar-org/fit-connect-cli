@@ -82,7 +82,9 @@ fit-connect --compact routes 99123456760610 --ags 16051000
 ```
 
 An `--ars`/`--ags` the routing service doesn't know exits `1` with `HTTP 400 … No
-Area was found with given AreaKey.` Resolve the place by name instead.
+Area was found with given AreaKey.` Resolve the place by name instead. A kreisfreie
+Stadt belongs to no Kreis, so its Kreis-level key is such a key (Erfurt: `--ars 16051`);
+the next level up is the Land (`--ars 16`).
 
 > **Trap: routing data is sparse.** Most lookups come back empty
 > (`{"count":0,…,"routes":[]}`, exit `0`). On 2026-09-15, 62 lookups for 13 common
@@ -125,8 +127,9 @@ Rules:
   destination is registered for that service in that area in the routing service.
   Say so plainly — e.g. "No FIT-Connect Zustellpunkt is registered for this service
   in <place>" — and that the authority still exists but can't be found through
-  FIT-Connect. A broader area (the Landkreis or Bundesland) or re-checking the
-  Leistungsschlüssel is cheap to try but rarely changes the result. Point the user to
+  FIT-Connect. A broader area (the Landkreis or Bundesland; for a kreisfreie Stadt,
+  the Bundesland) or re-checking the Leistungsschlüssel is cheap to try but rarely
+  changes the result. Point the user to
   the place's own administration website or the federal/state service portal for
   the contact instead.
 - **Multiple routes** — list each authority briefly; don't merge them.
