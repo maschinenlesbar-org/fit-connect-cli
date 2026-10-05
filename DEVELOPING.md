@@ -308,9 +308,13 @@ npm test          # builds, then runs `node --test` over dist/test
 - **`parity.test.ts`** — CLI ↔ library parity: one input through `run()` and through the library (`parity()`), asserting the same outcome.
 - **`cli.test.ts`** — end-to-end command parsing, rendering, error/exit codes and option flow-through — mocked client.
 - **`io.test.ts`** — `handleOutputErrors` (EPIPE on a closed stdout exits 0; on a closed stderr it is ignored, so the run keeps its exit code) — fake streams.
-- **`conformance-p*.test.ts`** — the workspace's shared conformance checks from the 2026-10-05 review
-  (P1 credential redaction in CLI output, …); copied across the `*-cli` repos, only the adapter
-  block at the top differs.
+- **`area-word.test.ts`** — the area search wildcard rule (`isAreaSearchWord`) against the spec's
+  pattern on every short word, and the timing of the worst-case words (each well under 100 ms).
+- **`conformance-p*.test.ts`** — the workspace's shared conformance checks from the 2026-10-05 review:
+  P1 credential redaction in CLI output, P2 in library objects, P4 base-URL validation (P19 skipped:
+  no environment variable), P5 the transport contract, P6 the retry policy, P7 pipes and exit codes
+  (runs the built bin), P8/P9/P13 charset, 2xx shapes and error classes, P10 strict parameters.
+  Copied across the `*-cli` repos; only the adapter block at the top differs.
 
 ## Continuous integration
 
