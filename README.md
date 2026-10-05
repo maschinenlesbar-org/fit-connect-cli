@@ -30,7 +30,7 @@ command-line tool over the open
 npm i -g @maschinenlesbar.org/fit-connect-cli
 ```
 
-This installs the **`fit-connect`** command. Requires **Node.js 20+**.
+This installs the **`fit-connect`** command. Requires **Node.js 22.12+**.
 
 Check it works:
 
