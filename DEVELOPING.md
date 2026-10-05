@@ -278,7 +278,7 @@ npm test          # builds, then runs `node --test` over dist/test
 - **`shared.test.ts`** — option parsing (`parseIntArg`, `parseApiVersion`) and `toClientOptions` mapping.
 - **`parity.test.ts`** — CLI ↔ library parity: one input through `run()` and through the library (`parity()`), asserting the same outcome.
 - **`cli.test.ts`** — end-to-end command parsing, rendering, error/exit codes and option flow-through — mocked client.
-- **`io.test.ts`** — `handleOutputErrors` (EPIPE on a closed stdout/stderr exits 0) — fake streams.
+- **`io.test.ts`** — `handleOutputErrors` (EPIPE on a closed stdout exits 0; on a closed stderr it is ignored, so the run keeps its exit code) — fake streams.
 - **`conformance-p*.test.ts`** — the workspace's shared conformance checks from the 2026-10-05 review
   (P1 credential redaction in CLI output, …); copied across the `*-cli` repos, only the adapter
   block at the top differs.
