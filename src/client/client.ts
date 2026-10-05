@@ -11,7 +11,7 @@
 
 import { RequestEngine, type EngineOptions } from "./engine.js";
 import { FitConnectParseError, FitConnectValidationError } from "./errors.js";
-import { assertValid, nonBlankProblem, quoteValue } from "./validate.js";
+import { areaIdProblem, assertValid, nonBlankProblem, quoteValue } from "./validate.js";
 import type { QueryParams } from "./query.js";
 import type { AreaResult, Info, RouteResult } from "./types.js";
 
@@ -109,6 +109,7 @@ export class FitConnectClient {
     const ags = optionalNonBlank("ags", params.ags);
     const ars = optionalNonBlank("ars", params.ars);
     const areaId = optionalNonBlank("areaId", params.areaId);
+    if (areaId !== undefined) assertValid("areaId", areaId, areaIdProblem);
     const given = { ags, ars, areaId };
     const selectors = (["ags", "ars", "areaId"] as const).filter((k) => given[k] !== undefined);
     if (selectors.length !== 1) {

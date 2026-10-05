@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import type { CliDeps } from "../io.js";
 import { FitConnectValidationError } from "../../client/errors.js";
-import { action, once, parseAgs, parseArs, parseLimit, parseNonEmpty, parseOffset, renderJson } from "../shared.js";
+import { action, once, parseAgs, parseAreaId, parseArs, parseLimit, parseOffset, renderJson } from "../shared.js";
 
 /** Map each selector option (camelCased by commander) to its CLI flag. */
 const SELECTOR_FLAGS = { ags: "--ags", ars: "--ars", areaId: "--area-id" } as const;
@@ -34,7 +34,7 @@ export function registerRoutesCommand(program: Command, deps: CliDeps): void {
     )
     .option("--ags <ags>", "Amtlicher Gemeindeschlüssel: 2, 3, 5 or 8 digits (Land, Regierungsbezirk, Kreis, Gemeinde)", once("--ags", parseAgs))
     .option("--ars <ars>", "Amtlicher Regionalschlüssel: 2, 3, 5, 9 or 12 digits (Land, Regierungsbezirk, Kreis, Gemeindeverband, Gemeinde)", once("--ars", parseArs))
-    .option("--area-id <id>", "Area id (from `fit-connect areas`)", once("--area-id", parseNonEmpty))
+    .option("--area-id <id>", "Area id from `fit-connect areas`: a positive whole number without leading zeros", once("--area-id", parseAreaId))
     .option("--offset <n>", "start offset into the result set, 0..2147483647 with offset + limit at most 2147483647 (default 0)", once("--offset", parseOffset))
     .option("--limit <n>", "page size, 1..500 (default 100)", once("--limit", parseLimit))
     .action(

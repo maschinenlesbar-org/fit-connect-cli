@@ -7,7 +7,7 @@ import type { CliDeps } from "./io.js";
 import { AGS_PATTERN, ARS_PATTERN, MAX_OFFSET } from "../client/client.js";
 import { isBidiControl } from "../client/engine.js";
 import { FitConnectError } from "../client/errors.js";
-import { baseUrlProblem, headerValueProblem, intRangeProblem, nonBlankProblem } from "../client/validate.js";
+import { areaIdProblem, baseUrlProblem, headerValueProblem, intRangeProblem, nonBlankProblem } from "../client/validate.js";
 import type { ApiVersion, FitConnectClientOptions } from "../client/client.js";
 
 /**
@@ -121,6 +121,18 @@ export function parseArs(value: string): string {
  */
 export function parseNonEmpty(value: string): string {
   const problem = nonBlankProblem(value);
+  if (problem !== undefined) throw new InvalidArgumentError(problem);
+  return value.trim();
+}
+
+/**
+ * commander value-parser for `--area-id`: trimmed, then the library's `areaIdProblem`
+ * (a positive whole number without leading zeros, as `areas` lists it). A blank value
+ * is a usage error as before; `0940` or a 20-digit id, which the API answers with HTTP
+ * 500, is one too.
+ */
+export function parseAreaId(value: string): string {
+  const problem = areaIdProblem(value);
   if (problem !== undefined) throw new InvalidArgumentError(problem);
   return value.trim();
 }

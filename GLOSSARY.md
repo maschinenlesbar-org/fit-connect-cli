@@ -63,7 +63,7 @@ for `routes` (`--ars`).
 | --- | --- |
 | `--ags <ags>` | Amtlicher Gemeindeschlüssel, 2/3/5/8 digits (Land/Regierungsbezirk/Kreis/Gemeinde) — area selector (use exactly one) |
 | `--ars <ars>` | Amtlicher Regionalschlüssel, 2/3/5/9/12 digits (Land/Regierungsbezirk/Kreis/Gemeindeverband/Gemeinde) — area selector (use exactly one) |
-| `--area-id <id>` | Area id from `fit-connect areas` — area selector (use exactly one) |
+| `--area-id <id>` | Area id from `fit-connect areas` — area selector (use exactly one); a positive whole number without leading zeros (`940`, not `0940`, which the API answers with HTTP 500) |
 | `--offset <n>` | Start offset into the result set, `0`..`2147483647`; `offset + limit` (the limit defaulting to `100`) must not exceed `2147483647`, as the API adds them in a 32-bit integer (default `0`) |
 | `--limit <n>` | Page size, `1`..`500` (default `100`) |
 

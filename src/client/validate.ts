@@ -123,3 +123,25 @@ export function quoteValue(value: string): string {
     Array.from({ length: ch.length }, (_, i) => `\\u${ch.charCodeAt(i).toString(16).padStart(4, "0")}`).join(""),
   );
 }
+
+/** The largest area id accepted (2^31 - 1): see {@link areaIdProblem}. */
+export const MAX_AREA_ID = 2_147_483_647;
+
+/**
+ * Why `value` is not an area id the Routing API can look up, or undefined when it is: a
+ * positive whole number in ASCII digits, without a leading zero, at most
+ * {@link MAX_AREA_ID} — the form `areas` lists ids in (`"940"`, `"21709"`). The spec
+ * only says `^\d{1,}`, but the live API answers a leading zero (`0940`, the same number
+ * as the documented `940`) and a 20-digit id with HTTP 500 "Calling the third service
+ * 'AreaService' resulted in an exception", which reads like an outage. The upper bound
+ * is an assumption (int32, like `offset`); every id seen is five digits or fewer. Checked
+ * on the trimmed value; a blank one is `nonBlankProblem`'s.
+ */
+export const areaIdProblem: Problem = (value) => {
+  const id = value.trim();
+  if (id === "") return "Value must not be blank.";
+  if (!/^[1-9]\d{0,9}$/.test(id) || Number(id) > MAX_AREA_ID) {
+    return `Expected an area id as \`fit-connect areas\` lists it: a positive whole number without leading zeros, at most ${MAX_AREA_ID}.`;
+  }
+  return undefined;
+};

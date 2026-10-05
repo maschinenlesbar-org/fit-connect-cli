@@ -153,3 +153,28 @@ test("User-Agent: a blank value falls back to the default UA in both", async () 
     assert.equal(lib.requests[0]?.headers?.["User-Agent"], "fit-connect-cli");
   }
 });
+
+test("area id: a leading zero, a 20-digit or a non-numeric id is rejected by both before any request", async () => {
+  for (const areaId of ["0940", "99999999999999999999", "2147483648", "940abc", "９４０", "-1", "0"]) {
+    const { cli, lib } = await parity(
+      ["routes", "99123456760610", "--area-id", areaId],
+      (transport) => new FitConnectClient({ transport }).routes({ leikaKey: "99123456760610", areaId }),
+      () => jsonResponse({ count: 0, offset: 0, totalCount: 0, routes: [] }),
+    );
+    assert.equal(cli.code, 1, areaId);
+    assert.equal(cli.requests.length, 0, areaId);
+    assert.match(cli.err, /positive whole number without leading zeros/, areaId);
+    assert.equal(lib.ok, false, areaId);
+    assert.equal(lib.error?.name, "FitConnectValidationError", areaId);
+    assert.equal(lib.requests.length, 0, areaId);
+  }
+  const { cli, lib } = await parity(
+    ["routes", "99123456760610", "--area-id", " 940 "],
+    (transport) => new FitConnectClient({ transport }).routes({ leikaKey: "99123456760610", areaId: " 940 " }),
+    () => jsonResponse({ count: 0, offset: 0, totalCount: 0, routes: [] }),
+  );
+  assert.equal(cli.code, 0);
+  assert.equal(lib.ok, true);
+  assert.deepEqual(cli.requests.map((r) => r.url), lib.requests.map((r) => r.url));
+  assert.equal(new URL(cli.requests[0]!.url).searchParams.get("areaId"), "940");
+});
