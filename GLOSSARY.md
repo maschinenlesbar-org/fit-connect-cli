@@ -71,7 +71,7 @@ for `routes` (`--ars`).
 
 | Option | Meaning |
 | --- | --- |
-| `<query...>` | One or more search terms (names / postal codes); `*` wildcard supported. Terms are split into words on spaces and punctuation, and every word must match the same area (AND). Each word needs at least 2 letters or digits (shorter ones are left out, with a note; a second note lists the characters other than a space the search was split at); at most 10 words |
+| `<query...>` | One or more search terms (names / postal codes); `*` wildcard supported. Terms are split into words on spaces and punctuation, and every word must match the same area (AND). Each word needs at least 2 letters or digits (shorter ones are left out, with a note; a second note lists the characters other than a space the search was split at); at most 10 words. `ß` and `ss` match alike (`Giessen` finds `Gießen`) |
 | `--offset <n>` | Start offset into the result set, `0`..`2147483647`; `offset + limit` (the limit defaulting to `100`) must not exceed `2147483647`, as the API adds them in a 32-bit integer (default `0`) |
 | `--limit <n>` | Page size, `1`..`500` (default `100`) |
 
