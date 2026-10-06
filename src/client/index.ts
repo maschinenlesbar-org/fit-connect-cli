@@ -23,6 +23,7 @@ export {
   RequestEngine,
   DEFAULT_BASE_URL,
   MAX_RETRIES,
+  cleartextProblem,
   intOption,
   resolveUserAgent,
   MAX_RETRY_AFTER_MS,

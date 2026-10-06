@@ -154,7 +154,12 @@ Two non-obvious upstream behaviours the client handles:
   and other Latin-1 whitespace (U+00A0) fall back.
 - **`--base-url` is trusted input**: the CLI fetches whatever host you point it
   at; only `http:`/`https:` URLs are accepted, and redirects are **not** followed
-  — a `3xx` surfaces as an error rather than being chased to another host.
+  — a `3xx` surfaces as an error rather than being chased to another host. A base URL on
+  plain `http:` to a host other than loopback (`localhost`, `127.0.0.0/8`, `::1`) gets one
+  `warning: <sentence>` line on stderr per run, before the first request (`action()` in
+  `src/cli/shared.ts`); the sentence comes from the exported `cleartextProblem(baseUrl,
+  secrets?)`, names the host and, for a `user:password@`, "the base URL's credentials"
+  (never the value). Help, version and usage errors never warn.
 - **Credentials in `--base-url` never reach the output.** A `user:password@` in the
   base URL (a credentialed mirror or proxy) is sent as Basic auth by Node, and is
   redacted everywhere the CLI prints: `run.ts` (`withRedactedOutput`) takes the exact
@@ -313,7 +318,9 @@ npm test          # builds, then runs `node --test` over dist/test
 - **`conformance-p*.test.ts`** — the workspace's shared conformance checks from the 2026-10-05 review:
   P1 credential redaction in CLI output, P2 in library objects, P4 base-URL validation (P19 skipped:
   no environment variable), P5 the transport contract, P6 the retry policy, P7 pipes and exit codes
-  (runs the built bin), P8/P9/P13 charset, 2xx shapes and error classes, P10 strict parameters.
+  (runs the built bin), P8/P9/P13 charset, 2xx shapes and error classes, P10 strict parameters, P20
+  the stderr warning for a plain-`http:` base URL (follow-up round 2026-10-06; the environment and
+  API-key cases skipped: no variable, no key).
   Copied across the `*-cli` repos; only the adapter block at the top differs.
 
 ## Continuous integration

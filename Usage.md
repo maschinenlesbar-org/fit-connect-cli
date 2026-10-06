@@ -103,6 +103,18 @@ fit-connect --compact info
 # {"version":{"major":2,"minor":0,"patch":0}}
 ```
 
+## A mirror on plain http
+
+```bash
+fit-connect --base-url http://mirror.example info
+# stderr: warning: requests to mirror.example are sent unencrypted (http:, not https:)
+```
+
+A `--base-url` on plain `http:` to a host other than loopback gets this one warning per run,
+before the first request; with a `user:password@` in the URL it says "the base URL's
+credentials are sent unencrypted to …" (the password is never printed). stdout and the exit
+code are unchanged; `--help`, `--version` and usage errors never warn.
+
 ## Scripting patterns
 
 ```bash
