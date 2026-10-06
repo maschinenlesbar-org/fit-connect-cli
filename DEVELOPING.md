@@ -320,7 +320,8 @@ npm test          # builds, then runs `node --test` over dist/test
   no environment variable), P5 the transport contract, P6 the retry policy, P7 pipes and exit codes
   (runs the built bin), P8/P9/P13 charset, 2xx shapes and error classes, P10 strict parameters, P20
   the stderr warning for a plain-`http:` base URL (follow-up round 2026-10-06; the environment and
-  API-key cases skipped: no variable, no key).
+  API-key cases skipped: no variable, no key), P21 README links (a relative link must point at a
+  file `files` ships, since npmjs.com shows the README; anything else is an absolute GitHub URL).
   Copied across the `*-cli` repos; only the adapter block at the top differs.
 
 ## Continuous integration

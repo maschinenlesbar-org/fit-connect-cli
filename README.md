@@ -22,7 +22,7 @@ command-line tool over the open
   (resolve a place to an area id / codes), and `info` (API version).
 
 > Want to use this as a TypeScript library or understand how it's built?
-> See **[DEVELOPING.md](DEVELOPING.md)**.
+> See **[DEVELOPING.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/DEVELOPING.md)**.
 
 ## Install
 
@@ -138,7 +138,7 @@ fit-connect --api-version v1 routes 99123456760610 --area-id 940
 fit-connect --compact routes 99123456760610 --ars 160510000000 | jq '.totalCount'
 ```
 
-See **[Usage.md](Usage.md)** for the full, use-case-driven cookbook.
+See **[Usage.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/Usage.md)** for the full, use-case-driven cookbook.
 
 ## Output & scripting
 
@@ -202,10 +202,10 @@ one wins".
 
 ## Learn more
 
-- **[Usage.md](Usage.md)** — full use-case-driven cookbook.
-- **[GLOSSARY.md](GLOSSARY.md)** — every command, field, and domain term explained.
-- **[DEVELOPING.md](DEVELOPING.md)** — TypeScript library usage, architecture, testing, CI.
-- **[SKILLS.md](SKILLS.md)** — Claude Code Agent Skills bundled with this repo
+- **[Usage.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/Usage.md)** — full use-case-driven cookbook.
+- **[GLOSSARY.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/GLOSSARY.md)** — every command, field, and domain term explained.
+- **[DEVELOPING.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/DEVELOPING.md)** — TypeScript library usage, architecture, testing, CI.
+- **[SKILLS.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/SKILLS.md)** — Claude Code Agent Skills bundled with this repo
   (find authority, area lookup, service briefing), installable as a plugin.
 
 ## Scope: read-only routing only
