@@ -133,6 +133,22 @@ done
 fit-connect --timeout 60000 --compact routes 99123456760610 --area-id 940
 ```
 
+## `jq -r` turns escapes back into raw characters
+
+The CLI's JSON is safe to print: control characters and the bidi formatting characters
+(U+061C, U+200E/U+200F, U+202A–U+202E, U+2066–U+2069) in server text come out as `\uXXXX`
+escapes, so they can't recolour or reorder your terminal. `jq -r` decodes those escapes, so
+the recipes above print such characters raw again. The data is usually clean; when a name goes
+to a terminal and you don't trust it, drop them in the filter (tab and newline are kept):
+
+```bash
+fit-connect --compact routes 99123456760610 --area-id 940 \
+  | jq -r 'def clean: gsub("[\u0001-\u0008\u000b-\u001f\u007f-\u009f؜‎‏‪-‮⁦-⁩]"; "");
+      .routes[].destinationName | clean'
+```
+
+`jq` without `-r` keeps the escapes (and the quotes).
+
 ## Exit codes in scripts
 
 ```bash

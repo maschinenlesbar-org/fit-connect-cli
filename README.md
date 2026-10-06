@@ -138,6 +138,13 @@ fit-connect --api-version v1 routes 99123456760610 --area-id 940
 fit-connect --compact routes 99123456760610 --ars 160510000000 | jq '.totalCount'
 ```
 
+> **`jq -r` undoes the CLI's escaping.** The JSON the CLI prints keeps server text inert: control
+> characters and the bidi formatting characters (U+061C, U+200E/U+200F, U+202A–U+202E,
+> U+2066–U+2069, which reorder the text after them) appear as `\uXXXX` escapes. `jq -r` turns
+> them back into the raw characters, so a hostile or broken name can recolour or reorder what
+> your terminal shows. Print names to a terminal through a filter that drops them — see
+> [Usage.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/Usage.md#jq--r-turns-escapes-back-into-raw-characters) — or use `jq` without `-r`.
+
 See **[Usage.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/Usage.md)** for the full, use-case-driven cookbook.
 
 ## Output & scripting
