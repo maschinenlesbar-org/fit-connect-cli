@@ -101,7 +101,10 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   as not given; `ags` / `ars` must match `AGS_PATTERN` / `ARS_PATTERN` (the API's lengths),
   and `areaId` must be a positive whole number without leading zeros, at most
   `MAX_AREA_ID` (`areaIdProblem`, which `--area-id` uses too): the API answers `0940` or a
-  20-digit id with HTTP 500. The int32 bound is an assumption; ids seen have ≤ 5 digits.
+  20-digit id with HTTP 500. The API has no bound of its own: live (2026-10-06) it answers
+  that 500 for every id it doesn't know — `99999`, `123456789`, `2147483647` and
+  `2147483648` alike — so the int32 cap only keeps the value a plain number; real ids have
+  ≤ 5 digits.
   On `routes` and `areas`, `offset` must be an integer 0..`MAX_OFFSET` (2147483647)
   and `limit` 1..`MAX_LIMIT` (500), and `offset + limit` (the limit defaulting to
   `DEFAULT_LIMIT`, 100) at most `MAX_OFFSET` — the API adds them in a 32-bit integer and

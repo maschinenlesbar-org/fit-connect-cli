@@ -133,9 +133,12 @@ export const MAX_AREA_ID = 2_147_483_647;
  * {@link MAX_AREA_ID} — the form `areas` lists ids in (`"940"`, `"21709"`). The spec
  * only says `^\d{1,}`, but the live API answers a leading zero (`0940`, the same number
  * as the documented `940`) and a 20-digit id with HTTP 500 "Calling the third service
- * 'AreaService' resulted in an exception", which reads like an outage. The upper bound
- * is an assumption (int32, like `offset`); every id seen is five digits or fewer. Checked
- * on the trimmed value; a blank one is `nonBlankProblem`'s.
+ * 'AreaService' resulted in an exception", which reads like an outage. The API has no
+ * upper bound of its own to match: live on 2026-10-06 it answered that same 500 for every
+ * id it doesn't know — 99999, a 9-digit 123456789, 2147483647 and 2147483648 alike — so
+ * the int32 cap (like `offset`) only keeps the value a plain number; every real id seen
+ * has five digits or fewer. Checked on the trimmed value; a blank one is
+ * `nonBlankProblem`'s.
  */
 export const areaIdProblem: Problem = (value) => {
   const id = value.trim();

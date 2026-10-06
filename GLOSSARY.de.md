@@ -61,7 +61,7 @@ ags mit Hierarchie): **12 Ziffern** für eine Gemeinde, **9** für einen Gemeind
 | --- | --- |
 | `--ags <ags>` | Amtlicher Gemeindeschlüssel, 2/3/5/8 Ziffern (Land/Regierungsbezirk/Kreis/Gemeinde) – Gebietsselektor (genau einen angeben) |
 | `--ars <ars>` | Amtlicher Regionalschlüssel, 2/3/5/9/12 Ziffern (Land/Regierungsbezirk/Kreis/Gemeindeverband/Gemeinde) – Gebietsselektor (genau einen angeben) |
-| `--area-id <id>` | Gebiets-ID aus `fit-connect areas` – Gebietsselektor (genau einen angeben); eine positive ganze Zahl ohne führende Nullen (`940`, nicht `0940`, worauf die API mit HTTP 500 antwortet) |
+| `--area-id <id>` | Gebiets-ID aus `fit-connect areas` – Gebietsselektor (genau einen angeben); eine positive ganze Zahl ohne führende Nullen (`940`, nicht `0940`, worauf die API mit HTTP 500 antwortet), höchstens `2147483647`; auf eine ID, die die API nicht kennt, antwortet sie unabhängig von der Größe ebenfalls mit HTTP 500 |
 | `--offset <n>` | Start-Offset in der Ergebnismenge, `0`..`2147483647`; `offset + limit` (das Limit ist ohne Angabe `100`) darf `2147483647` nicht überschreiten, weil die API beide als 32-Bit-Ganzzahl addiert (Standard `0`) |
 | `--limit <n>` | Seitengröße, `1`..`500` (Standard `100`) |
 
