@@ -108,7 +108,27 @@ test("areas notes on stderr which too-short words it left out", async () => {
   assert.deepEqual(new URL(cli.mt.last().url).searchParams.getAll("areaSearchexpression"), ["Frankfurt"]);
   assert.deepEqual(cli.err, [
     'Note: left out search words shorter than 2 characters (the API rejects them): "a", "M".',
+    "Note: split the search at characters the API rejects inside a word, and left them out: .",
   ]);
+});
+
+test("areas lists the separator characters it left out once each, invisible ones as U+XXXX", async () => {
+  const cli = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
+  const code = await run(["--compact", "areas", "Halle (Westf.)", "Bad\u200bOeynhausen\u202e", "Halle-(Saale)"], cli.deps);
+  assert.equal(code, 0);
+  assert.deepEqual(new URL(cli.mt.last().url).searchParams.getAll("areaSearchexpression"), [
+    "Halle",
+    "Westf",
+    "Bad",
+    "Oeynhausen",
+    "Saale",
+  ]);
+  assert.deepEqual(cli.err, [
+    "Note: split the search at characters the API rejects inside a word, and left them out: ( . ) U+200B U+202E -",
+  ]);
+  const plain = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
+  assert.equal(await run(["--compact", "areas", "Frankfurt am Main"], plain.deps), 0);
+  assert.deepEqual(plain.err, [], "a plain space is the ordinary separator, not worth a note");
 });
 
 test("areas sends a quoted official name with parentheses as its bare words", async () => {

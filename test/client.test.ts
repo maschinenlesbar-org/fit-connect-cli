@@ -140,14 +140,16 @@ test("routes() and areas() validate ags/ars and offset/limit before any request"
 });
 
 test("areaSearchWords() drops one-letter words and duplicates, as the API rejects them", () => {
-  assert.deepEqual(areaSearchWords("Frankfurt a. M."), { words: ["Frankfurt"], dropped: ["a", "M"] });
+  assert.deepEqual(areaSearchWords("Frankfurt a. M."), { words: ["Frankfurt"], dropped: ["a", "M"], separators: ["."] });
   assert.deepEqual(areaSearchWords("Horschbach - OT Elzweiler Straße 1"), {
     words: ["Horschbach", "OT", "Elzweiler", "Straße"],
     dropped: ["1"],
+    separators: ["-"],
   });
   assert.deepEqual(areaSearchWords(["OT Sarrod", "ot Rabenstein", "a*"]), {
     words: ["OT", "Sarrod", "Rabenstein"],
     dropped: ["a*"],
+    separators: [],
   });
   assert.deepEqual(areaSearchWords(["Mag*", "*burg", "*ab*", "ab*cd"]).words, ["Mag*", "*burg", "*ab*", "ab*cd"]);
 });

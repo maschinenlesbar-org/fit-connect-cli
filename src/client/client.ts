@@ -293,6 +293,12 @@ export interface AreaSearchWords {
   words: string[];
   /** Words left out because they have fewer than 2 non-wildcard characters. */
   dropped: string[];
+  /**
+   * The characters the search was split at and that were left out (punctuation such as
+   * `(`, `.`, `-`, and whitespace other than a plain space), each once, in the order they
+   * first occur. A plain space, the ordinary word separator, is not listed.
+   */
+  separators: string[];
 }
 
 /**
@@ -307,7 +313,8 @@ export interface AreaSearchWords {
  * The API then rejects the whole search (HTTP 400 "Constraint Violation") for a
  * word with fewer than 2 non-wildcard characters ("Frankfurt a. M." → "a", "M"; a
  * bare "*"), and for more than 10 words. So a too-short word is left out (it is
- * listed in `dropped`), a word repeated in any letter case is sent once, and the
+ * listed in `dropped`, and the characters split at in `separators`), a word repeated
+ * in any letter case is sent once, and the
  * rest throws a `FitConnectValidationError`: no usable word left, more than
  * {@link MAX_AREA_SEARCH_WORDS} words, or a word whose `*` splits it into parts
  * shorter than 2 characters ("a*b").
@@ -336,7 +343,9 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
   // letter at all) gets the same 500, so it is dropped: "Kö̈ln" searches "Köln", and a
   // term of marks alone has no usable word. German place names need no combining
   // mark once composed.
-  for (const word of terms.flatMap((t) => stripMarks(t.normalize("NFKC")).split(/[^\p{L}\p{N}*]+/u))) {
+  const normalised = terms.map((t) => stripMarks(t.normalize("NFKC")));
+  const separators = [...new Set(normalised.join(" ").match(/[^\p{L}\p{N}* ]/gu) ?? [])];
+  for (const word of normalised.flatMap((t) => t.split(/[^\p{L}\p{N}*]+/u))) {
     if (word === "") continue;
     if ([...word.replace(/\*/g, "")].length < 2) {
       dropped.push(word);
@@ -364,7 +373,7 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
         "Leave some out — every word must match the same area, so a few distinctive ones are enough.",
     );
   }
-  return { words, dropped };
+  return { words, dropped, separators };
 }
 
 /** The parameters {@link FitConnectClient.routes} takes. */

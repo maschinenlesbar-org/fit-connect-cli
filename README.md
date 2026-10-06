@@ -110,7 +110,9 @@ searching several places at once. Terms are split into words on spaces and
 punctuation, so an official name like `"Halle (Westf.)"` works quoted. The API
 needs at least 2 letters or digits per word and at most 10 words: shorter words are
 left out with a note on stderr (`"Frankfurt a. M."` searches `Frankfurt`), and more
-than 10 words, or a bare `*`, is an error before any request. Each result
+than 10 words, or a bare `*`, is an error before any request. A second note lists the
+characters other than a plain space the search was split at, each once (`( . )`;
+invisible ones as `U+XXXX`), so you see how the query was changed. Each result
 has an `id` (use as `--area-id`), `name`, and `type`. Supports `--offset` /
 `--limit`.
 

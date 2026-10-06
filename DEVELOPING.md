@@ -114,7 +114,9 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   non-wildcard characters are left out and a repeated word is sent once; a search
   with no word left, more than 10 words, or a `*` inside a word part shorter than 2
   characters rejects (the API answers each with a 400). `areaSearchWords(search)`
-  (exported) returns the `words` sent and the `dropped` ones. The wildcard rule is the
+  (exported) returns the `words` sent, the `dropped` ones and the `separators` the search
+  was split at (distinct characters other than a plain space, in order of first
+  appearance), which the CLI lists in a stderr note — invisible ones as `U+XXXX`. The wildcard rule is the
   spec's `^(\*?([^\*]{2,})\*?)*$`, checked by `isAreaSearchWord` (exported) in one
   linear scan rather than with that regex, whose nested quantifiers backtrack
   exponentially (a 45-character word with a misplaced `*` took 57 s);

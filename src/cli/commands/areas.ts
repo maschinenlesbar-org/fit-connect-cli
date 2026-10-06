@@ -34,12 +34,21 @@ export function registerAreasCommand(program: Command, deps: CliDeps): void {
         const search = (positionals[0] ?? []) as unknown as string[];
         // The client leaves out words the API rejects (fewer than 2 characters);
         // say so, since they widen the search the user typed.
-        const { dropped } = areaSearchWords(search);
+        const { dropped, separators } = areaSearchWords(search);
         if (dropped.length > 0) {
           deps.io.err(
             `Note: left out search words shorter than 2 characters (the API rejects them): ${dropped
               .map((w) => JSON.stringify(w))
               .join(", ")}.`,
+          );
+        }
+        // Likewise the characters the search was split at: "Halle (Saale)" searches
+        // "Halle" + "Saale". Shown compactly, each once, the invisible ones as U+XXXX.
+        if (separators.length > 0) {
+          deps.io.err(
+            `Note: split the search at characters the API rejects inside a word, and left them out: ${separators
+              .map(showChar)
+              .join(" ")}`,
           );
         }
         const result = await client.areas({
@@ -50,4 +59,14 @@ export function registerAreasCommand(program: Command, deps: CliDeps): void {
         renderJson(deps, global, result);
       }),
     );
+}
+
+/**
+ * A character as the separator note shows it: letters, digits, punctuation and symbols
+ * as they are; anything else (spaces, controls, format characters such as bidi
+ * overrides) as `U+XXXX`, so nothing invisible or terminal-active reaches stderr.
+ */
+function showChar(char: string): string {
+  if (/^[\p{L}\p{N}\p{P}\p{S}]$/u.test(char)) return char;
+  return `U+${char.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}`;
 }
