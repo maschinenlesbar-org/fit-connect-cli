@@ -91,6 +91,11 @@ export function cutForMessage(text: string): string {
  * message extracted from the response body when one is present (the Routing API
  * returns RFC 7807 `application/problem+json` error bodies with a `detail` field).
  */
+/** True for the statuses that redirect to a `Location`: 301, 302, 303, 307, 308. */
+export function isRedirectStatus(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+
 export class FitConnectApiError extends FitConnectError {
   readonly status: number;
   readonly detail: string | undefined;
@@ -106,6 +111,13 @@ export class FitConnectApiError extends FitConnectError {
    * retried; else undefined.
    */
   readonly retryAfterMs: number | undefined;
+  /**
+   * For a redirect (301, 302, 303, 307, 308, or a 300 that names one), the `Location`
+   * target: absolute, userinfo redacted, control and bidi characters dropped. The client
+   * does not follow redirects, so this is where the server pointed — usually what to
+   * fix in `baseUrl`. Undefined otherwise.
+   */
+  readonly location: string | undefined;
 
   constructor(args: {
     status: number;
@@ -116,8 +128,16 @@ export class FitConnectApiError extends FitConnectError {
     retries?: number;
     retryAfterMs?: number;
     maxRetryAfterMs?: number;
+    location?: string;
   }) {
     const parts: string[] = [];
+    if (isRedirectStatus(args.status) || (args.status === 300 && args.location)) {
+      parts.push(
+        args.location
+          ? `redirect to ${cutForMessage(args.location)} not followed`
+          : "redirect not followed (no Location header)",
+      );
+    }
     if (args.detail) parts.push(cutForMessage(args.detail));
     if (args.retryAfterMs !== undefined) {
       // Say why the retries the caller asked for never ran: the server asked for a wait
@@ -140,6 +160,7 @@ export class FitConnectApiError extends FitConnectError {
     this.detail = args.detail;
     this.retries = retries;
     this.retryAfterMs = args.retryAfterMs;
+    this.location = args.location;
   }
 
   /** True for statuses the API documents as transient and retry-able. */

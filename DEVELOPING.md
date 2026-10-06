@@ -154,7 +154,11 @@ Two non-obvious upstream behaviours the client handles:
   and other Latin-1 whitespace (U+00A0) fall back.
 - **`--base-url` is trusted input**: the CLI fetches whatever host you point it
   at; only `http:`/`https:` URLs are accepted, and redirects are **not** followed
-  — a `3xx` surfaces as an error rather than being chased to another host. A base URL on
+  — a `3xx` surfaces as an error rather than being chased to another host. The error names
+  the target so the base URL can be fixed: `HTTP 301 for GET <url>: redirect to <target> not
+  followed` (or `redirect not followed (no Location header)`), and
+  `FitConnectApiError.location` holds it — resolved against the request URL, userinfo
+  redacted, control and bidi characters dropped. A base URL on
   plain `http:` to a host other than loopback (`localhost`, `127.0.0.0/8`, `::1`) gets one
   `warning: <sentence>` line on stderr per run, before the first request (`action()` in
   `src/cli/shared.ts`); the sentence comes from the exported `cleartextProblem(baseUrl,

@@ -523,3 +523,38 @@ test("retryDelayMs is bounded at 30000 (P6)", () => {
   assert.throws(() => new RequestEngine({ retryDelayMs: 30_001 }), FitConnectValidationError);
   assert.doesNotThrow(() => new RequestEngine({ retryDelayMs: 30_000 }));
 });
+
+test("a redirect error names the Location target, absolute and redacted; it is not followed", async () => {
+  const redirectError = async (status: number, location: string | undefined, baseUrl = "https://example.test/base") => {
+    const mt = makeMockTransport(() => ({
+      status,
+      headers: { "content-type": "text/html", ...(location === undefined ? {} : { location }) },
+      body: Buffer.from("<html>moved</html>"),
+    }));
+    const e = new RequestEngine({ baseUrl, transport: mt.transport, maxRetries: 0 });
+    try {
+      await e.getJson("v2/info");
+    } catch (err) {
+      assert.equal(mt.calls.length, 1, "the redirect was followed");
+      assert.ok(err instanceof FitConnectApiError);
+      return err;
+    }
+    return assert.fail("expected an error");
+  };
+  const relative = await redirectError(301, "/v3/info");
+  assert.equal(relative.location, "https://example.test/v3/info");
+  assert.equal(relative.message, "HTTP 301 for GET https://example.test/base/v2/info: redirect to https://example.test/v3/info not followed");
+  const userinfo = await redirectError(302, "https://bob:hunter2@elsewhere.example/x");
+  assert.equal(userinfo.location, "https://***@elsewhere.example/x");
+  assert.ok(!userinfo.message.includes("hunter2"));
+  const echoesBaseCredentials = await redirectError(307, "https://other.example/login?next=https://alice:s3cret@example.test/", "https://alice:s3cret@example.test");
+  assert.ok(!`${echoesBaseCredentials.message} ${echoesBaseCredentials.location}`.includes("s3cret"));
+  const bidi = await redirectError(308, "https://evil.example/‮gnp.exe");
+  assert.ok(!/[‪-‮]/.test(bidi.message));
+  const missing = await redirectError(303, undefined);
+  assert.equal(missing.location, undefined);
+  assert.match(missing.message, /: redirect not followed \(no Location header\)$/);
+  const notRedirect = await redirectError(404, "https://example.test/elsewhere");
+  assert.equal(notRedirect.location, undefined);
+  assert.doesNotMatch(notRedirect.message, /redirect/);
+});

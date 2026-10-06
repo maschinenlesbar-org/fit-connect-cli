@@ -20,7 +20,9 @@ import {
   FitConnectParseError,
   FitConnectValidationError,
   credentialsIn,
+  isRedirectStatus,
   redactCredentials,
+  redactUrl,
 } from "./errors.js";
 
 export const DEFAULT_BASE_URL = "https://routing-api-prod.fit-connect.fitko.net";
@@ -576,6 +578,7 @@ export class RequestEngine {
       const contentType = String(responseHeaders["content-type"] ?? "");
       if (status < 200 || status >= 300) {
         throw this.toApiError(method, url, status, body, {
+          location: responseHeaders["location"],
           retries: attempt,
           ...(tooLong ? { retryAfterMs: retryAfter } : {}),
         });
@@ -598,12 +601,29 @@ export class RequestEngine {
     }
   }
 
+  /**
+   * The absolute, printable form of a `Location` header: resolved against the request
+   * URL, userinfo redacted (and the base URL's credentials scrubbed wherever they appear),
+   * control and bidi characters dropped — it is server text bound for stderr. An
+   * unparseable value is shown sanitised as it came; an empty result is undefined.
+   */
+  private redirectTarget(requestUrl: string, location: string): string | undefined {
+    let target: string;
+    try {
+      target = redactUrl(new URL(location, requestUrl).href);
+    } catch {
+      target = redactUrl(location);
+    }
+    const clean = sanitizeServerText(this.scrub(target)).trim();
+    return clean === "" ? undefined : clean;
+  }
+
   private toApiError(
     method: string,
     url: string,
     status: number,
     body: Buffer,
-    retry: { retries: number; retryAfterMs?: number },
+    retry: { retries: number; retryAfterMs?: number; location?: string | string[] | undefined },
   ): FitConnectApiError {
     // The body is kept on the error (`body`) and may echo the request URL: scrub it.
     const text = this.scrub(body.toString("utf8"));
@@ -628,12 +648,18 @@ export class RequestEngine {
     } catch {
       // Non-JSON error body; leave detail undefined.
     }
+    // Redirects are not followed; name the target so the user can fix --base-url.
+    const location =
+      (isRedirectStatus(status) || status === 300) && typeof retry.location === "string"
+        ? this.redirectTarget(url, retry.location)
+        : undefined;
     return new FitConnectApiError({
       status,
       url,
       method,
       body: text,
       detail,
+      ...(location === undefined ? {} : { location }),
       retries: retry.retries,
       ...(retry.retryAfterMs === undefined ? {} : { retryAfterMs: retry.retryAfterMs, maxRetryAfterMs: MAX_RETRY_AFTER_MS }),
     });
