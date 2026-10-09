@@ -62,7 +62,7 @@ for `routes` (`--ars`).
 `--log-format jsonl` as one JSON object per line. The areas: `cli` (usage errors,
 commander's messages, the notes on left-out search words, unexpected errors), `api` (the
 API's answers: an error status, and a malformed answer — bad JSON, the wrong shape, an
-HTML page, an unknown charset), `http` (the connection, the cleartext warning) and
+HTML page, an unknown charset), `http` (the connection, the cleartext warning, and one WARN per retry before it waits) and
 `output` (a failure to write to stdout). A record is always one line; control characters
 in it are escaped.
 
@@ -96,7 +96,7 @@ in it are escaped.
 | `--api-version <version>` | Routing API version, `v1` or `v2` (default `v2`; `v1` is legacy) |
 | `--timeout <ms>` | Time limit per request, reading the whole response included (default `30000`; `0` disables; at most `2147483647`) |
 | `--user-agent <ua>` | `User-Agent` header (blank — spaces and tabs only — falls back to default; Latin-1 only, no control characters except tab, checked first, so a line break or U+3000 is rejected even when blank; the library applies the same rule; some values are blocked by the API's bot detection) |
-| `--max-retries <n>` | Retries for transient `429`/`503` and reset connections (`0`–`10`, default `2`). Each retry backs off linearly (200 ms, 400 ms, …), or waits the server's `Retry-After`, else its `RateLimit-Reset`, when that is longer (up to 30 s; a longer wait is not retried, and the error says so) |
+| `--max-retries <n>` | Retries for transient `429`/`503` and reset connections (`0`–`10`, default `2`). Each retry backs off linearly (200 ms, 400 ms, …), or waits the server's `Retry-After`, else its `RateLimit-Reset`, when that is longer (up to 30 s; a longer wait is not retried, and the error says so). Each retry logs one WARN record of `fit-connect.http` before it waits (`HTTP 503 from host: retry 1 of 3 in 2 s`). |
 | `--max-response-bytes <n>` | Response body size cap in bytes (`0` = unlimited; default 100 MiB) |
 
 ## Response fields — `routes`

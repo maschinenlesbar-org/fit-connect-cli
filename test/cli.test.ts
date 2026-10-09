@@ -482,7 +482,9 @@ test("global options flow through to the client", async () => {
     deps,
   );
   assert.equal(code, 0);
-  assert.deepEqual(seen[0], {
+  const { onRetry, ...passed } = seen[0] as FitConnectClientOptions;
+  assert.equal(typeof onRetry, "function");
+  assert.deepEqual(passed, {
     baseUrl: "https://example.test",
     apiVersion: "v1",
     timeoutMs: 5000,
