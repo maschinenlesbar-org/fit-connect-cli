@@ -6,7 +6,7 @@ import type { CliDeps } from "../src/cli/io.js";
 import type { FitConnectClientOptions } from "../src/client/client.js";
 import type { HttpRequest, HttpResponse } from "../src/client/http.js";
 import { FitConnectNetworkError, FitConnectValidationError } from "../src/client/errors.js";
-import { makeMockTransport, jsonResponse, rawResponse } from "./helpers.js";
+import { makeMockTransport, jsonResponse, rawResponse, untimed } from "./helpers.js";
 
 function makeCli(responder: (req: HttpRequest) => HttpResponse | Promise<HttpResponse>) {
   const out: string[] = [];
@@ -90,14 +90,14 @@ test("an areas search with no usable word is a usage error with help, naming no 
     const code = await run(["areas", query], cli.deps);
     assert.equal(code, 1, query);
     assert.equal(cli.mt.calls.length, 0, query);
-    const err = cli.err.join("\n");
-    assert.match(err, /^error: No usable search word in /, query);
+    const err = untimed(cli.err.join("\n"));
+    assert.match(err, /^ERROR \[fit-connect\.cli\] No usable search word in /, query);
     assert.match(err, /Usage: fit-connect areas/, query);
     assert.doesNotMatch(err, /areas\(\)/, query);
   }
   const cli = makeCli(() => jsonResponse({}));
   assert.equal(await run(["areas", "a1 b2 c3 d4 e5 f6 g7 h8 i9 j0 k1"], cli.deps), 1);
-  assert.match(cli.err.join("\n"), /^error: Too many search words \(11\)/);
+  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.cli\] Too many search words \(11\)/);
   assert.equal(cli.mt.calls.length, 0);
 });
 
@@ -106,9 +106,9 @@ test("areas notes on stderr which too-short words it left out", async () => {
   const code = await run(["--compact", "areas", "Frankfurt a. M."], cli.deps);
   assert.equal(code, 0);
   assert.deepEqual(new URL(cli.mt.last().url).searchParams.getAll("areaSearchexpression"), ["Frankfurt"]);
-  assert.deepEqual(cli.err, [
-    'Note: left out search words shorter than 2 characters (the API rejects them): "a", "M".',
-    "Note: split the search at characters the API rejects inside a word, and left them out: .",
+  assert.deepEqual(cli.err.map(untimed), [
+    'INFO  [fit-connect.cli] left out search words shorter than 2 characters (the API rejects them): "a", "M".',
+    "INFO  [fit-connect.cli] split the search at characters the API rejects inside a word, and left them out: .",
   ]);
 });
 
@@ -123,8 +123,8 @@ test("areas lists the separator characters it left out once each, invisible ones
     "Oeynhausen",
     "Saale",
   ]);
-  assert.deepEqual(cli.err, [
-    "Note: split the search at characters the API rejects inside a word, and left them out: ( . ) U+200B U+202E -",
+  assert.deepEqual(cli.err.map(untimed), [
+    "INFO  [fit-connect.cli] split the search at characters the API rejects inside a word, and left them out: ( . ) U+200B U+202E -",
   ]);
   const plain = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
   assert.equal(await run(["--compact", "areas", "Frankfurt am Main"], plain.deps), 0);
@@ -165,14 +165,14 @@ test("a deeply nested response fails pretty-printing cleanly and still prints wi
   const pretty = makeCli(deep);
   assert.equal(await run(["areas", "Halle"], pretty.deps), 1);
   assert.deepEqual(pretty.out, []);
-  assert.equal(pretty.err.join("\n"), "Error: The response is nested too deeply to pretty-print; try --compact.");
+  assert.equal(untimed(pretty.err.join("\n")), "ERROR [fit-connect.cli] The response is nested too deeply to pretty-print; try --compact.");
 
   // Compact serialisation goes much deeper (it prints this one on current Node);
   // should a runtime's stack still be too small, it must fail just as cleanly.
   const compact = makeCli(deep);
   const code = await run(["--compact", "areas", "Halle"], compact.deps);
   if (code === 0) assert.equal(compact.out.join(""), deepJson);
-  else assert.equal(compact.err.join("\n"), "Error: The response is nested too deeply to print.");
+  else assert.equal(untimed(compact.err.join("\n")), "ERROR [fit-connect.cli] The response is nested too deeply to print.");
 });
 
 test("bidi formatting characters in server data are escaped in the JSON output", async () => {
@@ -211,7 +211,7 @@ test("a 400 from the API maps to exit code 1", async () => {
   const cli = makeCli(() => jsonResponse({ title: "Bad Request", detail: "bad leikaKey" }, 400));
   const code = await run(["routes", "99123456760610", "--ars", "064350014014"], cli.deps);
   assert.equal(code, 1);
-  assert.match(cli.err.join("\n"), /Error: HTTP 400/);
+  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.api\] HTTP 400/);
 });
 
 test("a 404 from the API maps to exit code 4", async () => {
@@ -233,14 +233,14 @@ test("a network error maps to exit code 1", async () => {
   });
   const code = await run(["info"], cli.deps);
   assert.equal(code, 1);
-  assert.match(cli.err.join("\n"), /Error: connect ECONNREFUSED/);
+  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.http\] connect ECONNREFUSED/);
 });
 
 test("a parse error (non-JSON body) maps to exit code 1", async () => {
   const cli = makeCli(() => rawResponse("<html>not json</html>", "text/html"));
   const code = await run(["info"], cli.deps);
   assert.equal(code, 1);
-  assert.match(cli.err.join("\n"), /Error: Failed to parse JSON/);
+  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.cli\] Failed to parse JSON/);
 });
 
 test("whatever a transport throws is reported as a network error, exit 1", async () => {
@@ -249,7 +249,7 @@ test("whatever a transport throws is reported as a network error, exit 1", async
   });
   const code = await run(["info"], cli.deps);
   assert.equal(code, 1);
-  assert.match(cli.err.join("\n"), /^Error: kaboom$/m);
+  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.http\] kaboom$/m);
 });
 
 test("an unexpected (non-FitConnect) error maps to exit code 1", async () => {
@@ -259,7 +259,7 @@ test("an unexpected (non-FitConnect) error maps to exit code 1", async () => {
   };
   const code = await run(["info"], cli.deps);
   assert.equal(code, 1);
-  assert.match(cli.err.join("\n"), /Unexpected error: kaboom/);
+  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.cli\] Unexpected error: kaboom/);
 });
 
 test("--help exits 0", async () => {
@@ -507,7 +507,7 @@ test("--area-id is trimmed before it is sent", async () => {
   assert.equal(new URL(cli.mt.last().url).searchParams.get("areaId"), "1024");
 });
 
-test("a FitConnectValidationError raised in an action is a usage error: exit 1, 'Error: <message>'", async () => {
+test("a FitConnectValidationError raised in an action is a usage error: exit 1, an ERROR record", async () => {
   const out: string[] = [];
   const err: string[] = [];
   const client = new FitConnectClient({ transport: makeMockTransport(() => jsonResponse({})).transport });
@@ -520,7 +520,7 @@ test("a FitConnectValidationError raised in an action is a usage error: exit 1, 
   });
   assert.equal(code, 1);
   assert.deepEqual(out, []);
-  assert.deepEqual(err, ["Error: Invalid areaId: Value must not be blank."]);
+  assert.deepEqual(err.map(untimed), ["ERROR [fit-connect.cli] Invalid areaId: Value must not be blank."]);
 });
 
 test("--base-url with surrounding whitespace is a usage error before any request (P4)", async () => {

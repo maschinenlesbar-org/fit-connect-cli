@@ -4,10 +4,12 @@
 
 import { CommanderError, type Command } from "commander";
 import { buildProgram, defaultDeps } from "./program.js";
-import type { CliDeps } from "./io.js";
+import { logOf, type CliDeps } from "./io.js";
+import { createLogger, logFormatFromArgv } from "./log.js";
 import {
   FitConnectApiError,
   FitConnectError,
+  FitConnectNetworkError,
   FitConnectValidationError,
   credentialsIn,
   redactCredentials,
@@ -25,7 +27,15 @@ function configureTree(command: Command, deps: CliDeps): void {
   command.showHelpAfterError();
   command.configureOutput({
     writeOut: (str) => deps.io.out(str.replace(/\n$/, "")),
-    writeErr: (str) => deps.io.err(str.replace(/\n$/, "")),
+    // commander's own messages are log records too: its "error: …" an ERROR, the help it
+    // shows after one an INFO. The blank line showHelpAfterError writes between the two
+    // is no record.
+    writeErr: (str) => {
+      const text = str.replace(/\n$/, "");
+      if (text === "") return;
+      if (text.startsWith("error: ")) logOf(deps).error("cli", text.slice("error: ".length));
+      else logOf(deps).info("cli", text);
+    },
   });
   for (const child of command.commands) configureTree(child, deps);
 }
@@ -68,6 +78,13 @@ export function withRedactedOutput(deps: CliDeps, argv: readonly string[]): CliD
 
 export async function run(argv: string[], deps: CliDeps = defaultDeps): Promise<number> {
   deps = withRedactedOutput(deps, argv);
+  // Every record goes through the redacted `io.err`, so a secret is kept out of the
+  // log in either format.
+  const redacted = deps;
+  deps = {
+    ...deps,
+    log: createLogger({ format: logFormatFromArgv(argv), write: (line) => redacted.io.err(line), ...(deps.now === undefined ? {} : { now: deps.now }) }),
+  };
   const program = buildProgram(deps);
   configureTree(program, deps);
 
@@ -86,8 +103,9 @@ export async function run(argv: string[], deps: CliDeps = defaultDeps): Promise<
       // Help/version requests exit 0; genuine parse errors carry their own code.
       return err.exitCode;
     }
+    const log = logOf(deps);
     if (err instanceof FitConnectApiError) {
-      deps.io.err(`Error: ${err.message}`);
+      log.error("api", err.message);
       // Map a few notable statuses to distinct exit codes for scripting.
       if (err.status === 404) return 4;
       return 1;
@@ -95,14 +113,14 @@ export async function run(argv: string[], deps: CliDeps = defaultDeps): Promise<
     if (err instanceof FitConnectValidationError) {
       // An input the library rejected before any request: a usage error, which
       // exits 1 here like commander's own parse errors.
-      deps.io.err(`Error: ${err.message}`);
+      log.error("cli", err.message);
       return 1;
     }
     if (err instanceof FitConnectError) {
-      deps.io.err(`Error: ${err.message}`);
+      log.error(err instanceof FitConnectNetworkError ? "http" : "cli", err.message);
       return 1;
     }
-    deps.io.err(`Unexpected error: ${err instanceof Error ? err.message : String(err)}`);
+    log.error("cli", `Unexpected error: ${err instanceof Error ? err.message : String(err)}`);
     return 1;
   }
 }

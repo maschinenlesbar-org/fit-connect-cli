@@ -107,7 +107,7 @@ fit-connect --compact info
 
 ```bash
 fit-connect --base-url http://mirror.example info
-# stderr: warning: requests to mirror.example are sent unencrypted (http:, not https:)
+# stderr: 2026-10-09T14:03:12.481Z WARN  [fit-connect.http] requests to mirror.example are sent unencrypted (http:, not https:)
 ```
 
 A `--base-url` on plain `http:` to a host other than loopback gets this one warning per run,

@@ -82,6 +82,7 @@ for `routes` (`--ars`).
 | `-v, --version` | Print the CLI version |
 | `-h, --help` | Show help |
 | `--compact` | Single-line JSON instead of pretty-printed |
+| `--log-format <format>` | How errors, warnings and notes are written to stderr: `text` (default; log4j style: time, level, `[fit-connect.<area>]`, message) or `jsonl` (one JSON object per line: `ts`, `level`, `topic`, `msg`) |
 | `--base-url <url>` | API base URL, http(s), a path prefix allowed but no `?query`, `#fragment` or surrounding whitespace; a literal `%` in a password is written `%25` (default `https://routing-api-prod.fit-connect.fitko.net`) |
 | `--api-version <version>` | Routing API version, `v1` or `v2` (default `v2`; `v1` is legacy) |
 | `--timeout <ms>` | Time limit per request, reading the whole response included (default `30000`; `0` disables; at most `2147483647`) |

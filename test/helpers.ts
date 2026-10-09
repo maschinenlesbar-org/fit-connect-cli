@@ -63,6 +63,18 @@ export function constantJson(body: unknown, status = 200): MockTransport {
   return makeMockTransport(() => jsonResponse(body, status));
 }
 
+// ---- the log on stderr -------------------------------------------------------
+
+/**
+ * stderr with each text record's timestamp taken off: `ERROR [fit-connect.api] HTTP 404 …`.
+ * The format itself — timestamp, level, topic — is the conformance test's
+ * (conformance-p23-log-format); the other tests check what was said, at which level
+ * and under which topic.
+ */
+export function untimed(text: string): string {
+  return text.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z /gm, "");
+}
+
 /** What the CLI did with one input: exit code, captured output, requests sent. */
 export interface CliOutcome {
   code: number;
@@ -99,7 +111,7 @@ export async function parity(
     io: { out: (s) => out.push(s), err: (s) => err.push(s) },
     createClient: (options) => new FitConnectClient({ ...options, transport: cliTransport.transport }),
   });
-  const cli: CliOutcome = { code, out: out.join("\n"), err: err.join("\n"), requests: cliTransport.calls };
+  const cli: CliOutcome = { code, out: out.join("\n"), err: untimed(err.join("\n")), requests: cliTransport.calls };
 
   const libTransport = makeMockTransport(responder);
   let lib: LibOutcome;

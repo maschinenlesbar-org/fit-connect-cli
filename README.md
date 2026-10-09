@@ -157,6 +157,21 @@ Every command prints **pretty JSON to stdout**; errors and diagnostics go to
 stderr, so piping stdout into `jq` stays clean. Use `--compact` for single-line
 JSON. `--compact` is a **global** option and works **before or after** the command.
 
+Each line on stderr is a **log record**: a timestamp (UTC), a level (`ERROR`, `WARN`,
+`INFO`) and a topic, the program and the area it comes from (`fit-connect.cli` for usage
+errors and notes on the search words, `fit-connect.api` for the API's answers,
+`fit-connect.http` for the connection). By default it is written log4j style;
+`--log-format jsonl` writes one JSON object per line instead:
+
+```text
+2026-10-09T14:03:12.481Z WARN  [fit-connect.http] requests to mirror.example are sent unencrypted (http:, not https:)
+2026-10-09T14:03:12.902Z ERROR [fit-connect.api] HTTP 404 for GET https://routing-api-prod.fit-connect.fitko.net/v2/routes?…: …
+```
+
+```bash
+fit-connect --log-format jsonl routes 99123456760610 --area-id 1 2>log.jsonl   # {"ts":"…","level":"ERROR","topic":"fit-connect.api","msg":"HTTP 404 …"}
+```
+
 **Exit codes:**
 
 | Code | Meaning |
@@ -204,7 +219,8 @@ one wins".
 | `-v, --version` | Print the version number |
 | `-h, --help` | Show help for the program or a command |
 | `--compact` | Print JSON on a single line instead of pretty-printed |
-| `--base-url <url>` | API base URL, http(s), a path prefix allowed but no `?query`, `#fragment` or surrounding whitespace; a literal `%` in a password is written `%25` (default `https://routing-api-prod.fit-connect.fitko.net`). Plain `http:` to a host other than loopback (`localhost`, `127.0.0.0/8`, `::1`) prints one `warning: … sent unencrypted to <host> (http:, not https:)` line on stderr per run, naming a `user:password@` as "the base URL's credentials" (never its value); stdout and the exit code are unchanged |
+| `--log-format <format>` | How errors, warnings and notes are written to stderr: `text` (default; log4j style, `2026-10-09T14:03:12.481Z WARN  [fit-connect.http] …`) or `jsonl` (one JSON object per line: `ts`, `level`, `topic`, `msg`). stdout is not affected |
+| `--base-url <url>` | API base URL, http(s), a path prefix allowed but no `?query`, `#fragment` or surrounding whitespace; a literal `%` in a password is written `%25` (default `https://routing-api-prod.fit-connect.fitko.net`). Plain `http:` to a host other than loopback (`localhost`, `127.0.0.0/8`, `::1`) prints one warning record (`WARN  [fit-connect.http] … sent unencrypted to <host> (http:, not https:)`) on stderr per run, naming a `user:password@` as "the base URL's credentials" (never its value); stdout and the exit code are unchanged |
 | `--api-version <version>` | Routing API version, `v1` or `v2` (default `v2`; `v1` is legacy) |
 | `--timeout <ms>` | Time limit per request in ms, reading the whole response included (default `30000`; `0` disables; at most `2147483647`) |
 | `--user-agent <ua>` | `User-Agent` header value (blank falls back to default; Latin-1 only, no control characters except tab; some values are blocked by the API's bot detection) |

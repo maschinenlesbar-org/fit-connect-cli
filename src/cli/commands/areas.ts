@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import type { CliDeps } from "../io.js";
+import { logOf, type CliDeps } from "../io.js";
 import { areaSearchWords } from "../../client/client.js";
 import { FitConnectError } from "../../client/errors.js";
 import { action, once, parseLimit, parseOffset, renderJson } from "../shared.js";
@@ -36,8 +36,9 @@ export function registerAreasCommand(program: Command, deps: CliDeps): void {
         // say so, since they widen the search the user typed.
         const { dropped, separators } = areaSearchWords(search);
         if (dropped.length > 0) {
-          deps.io.err(
-            `Note: left out search words shorter than 2 characters (the API rejects them): ${dropped
+          logOf(deps).info(
+            "cli",
+            `left out search words shorter than 2 characters (the API rejects them): ${dropped
               .map((w) => JSON.stringify(w))
               .join(", ")}.`,
           );
@@ -45,8 +46,9 @@ export function registerAreasCommand(program: Command, deps: CliDeps): void {
         // Likewise the characters the search was split at: "Halle (Saale)" searches
         // "Halle" + "Saale". Shown compactly, each once, the invisible ones as U+XXXX.
         if (separators.length > 0) {
-          deps.io.err(
-            `Note: split the search at characters the API rejects inside a word, and left them out: ${separators
+          logOf(deps).info(
+            "cli",
+            `split the search at characters the API rejects inside a word, and left them out: ${separators
               .map(showChar)
               .join(" ")}`,
           );

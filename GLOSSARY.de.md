@@ -80,6 +80,7 @@ ags mit Hierarchie): **12 Ziffern** für eine Gemeinde, **9** für einen Gemeind
 | `-v, --version` | Gibt die Version der CLI aus |
 | `-h, --help` | Zeigt die Hilfe an |
 | `--compact` | JSON in einer Zeile statt formatiert |
+| `--log-format <format>` | Wie Fehler, Warnungen und Hinweise auf stderr geschrieben werden: `text` (Standard; im Stil von log4j: Zeit, Level, `[fit-connect.<bereich>]`, Meldung) oder `jsonl` (ein JSON-Objekt pro Zeile: `ts`, `level`, `topic`, `msg`) |
 | `--base-url <url>` | Basis-URL der API, http(s), Pfad-Präfix erlaubt, aber keine `?query`, kein `#fragment` und kein Leerraum am Anfang oder Ende; ein `%` im Passwort wird als `%25` geschrieben (Standard `https://routing-api-prod.fit-connect.fitko.net`) |
 | `--api-version <version>` | Version der Routing-API, `v1` oder `v2` (Standard `v2`; `v1` ist veraltet) |
 | `--timeout <ms>` | Zeitlimit pro Anfrage, einschließlich des Lesens der gesamten Antwort (Standard `30000`; `0` deaktiviert es; höchstens `2147483647`) |
