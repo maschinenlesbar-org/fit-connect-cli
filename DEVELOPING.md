@@ -183,14 +183,18 @@ Two non-obvious upstream behaviours the client handles:
   stderr the log replaces them in each record's message, before the record is cut and
   escaped (`createLogger({ redact })`), so a password holding DEL, C1 or bidi characters
   is found in its raw form, and the record's frame (time, level, topic) is never touched;
-  `io.out` (stdout) is redacted as a whole. `redactUrl` (exported) falls back to
+  `io.out` (stdout) is redacted as a whole. The forms a server echoes a userinfo back in
+  are replaced too: the `Basic` value and the decoded `user:password` on stdout and
+  stderr, the password alone (4 characters or more) on stderr only, since it may well
+  occur in the data. `redactUrl` (exported) falls back to
   the same text-based cut for a value that doesn't parse as a URL.
 - **The library keeps them out of what a service logs.** The engine holds the base URL
   in a real `#private` field, so `console.log(client)`, `util.inspect` and
   `JSON.stringify` never show it; `FitConnectApiError.url` carries the request URL with
   its userinfo redacted (`https://***@host/…`); and the userinfo (raw and
-  percent-decoded) is scrubbed from error bodies, transport error text and the `cause`
-  chain. Whatever a custom transport throws reaches the caller as a
+  percent-decoded), and the forms a server echoes it back in (the `Basic` value, the
+  decoded `user:password`, the password alone from 4 characters: `echoedCredentialForms`),
+  are scrubbed from error bodies, transport error text and the `cause` chain. Whatever a custom transport throws reaches the caller as a
   `FitConnectNetworkError` (the original, scrubbed, as `cause`).
 - **`destinationSignature` is passed through unverified.** Each route carries a
   JWS (RFC 7515) over its addressing information. This client treats it as an

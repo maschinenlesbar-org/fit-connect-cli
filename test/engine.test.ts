@@ -588,3 +588,20 @@ test("an unknown response charset is quoted at most 500 characters long (L3)", a
   const engine = new RequestEngine({ transport: async () => rawResponse("{}", `application/json; charset=${charset}`), maxRetries: 0 });
   await assert.rejects(engine.getJson("/v2/info"), (e: unknown) => e instanceof FitConnectParseError && e.message.length < 700 && /charset "xy+…"/.test(e.message));
 });
+
+test("credentials a server echoes are scrubbed from the error: Basic, user:password, password (L13)", async () => {
+  // Node sends the pair UTF-8 encoded (the Authorization header it builds from the URL), so that is the form a server echoes.
+  const basic = Buffer.from("alice:pa ss-pw", "utf8").toString("base64");
+  const engine = new RequestEngine({
+    baseUrl: "https://alice:pa%20ss-pw@mirror.example",
+    maxRetries: 0,
+    transport: makeMockTransport(() => jsonResponse({ detail: `no: Basic ${basic} / alice:pa ss-pw / pa ss-pw` }, 401)).transport,
+  });
+  await assert.rejects(engine.getJson("/v2/info"), (err: unknown) => {
+    assert.ok(err instanceof FitConnectApiError);
+    for (const form of [basic, "alice:pa ss-pw", "pa ss-pw"]) assert.ok(!err.message.includes(form), err.message);
+    assert.match(err.message, /no: Basic \*\*\* \/ \*\*\* \/ \*\*\*/);
+    for (const form of [basic, "alice:pa ss-pw", "pa ss-pw"]) assert.ok(!err.body.includes(form), err.body);
+    return true;
+  });
+});
