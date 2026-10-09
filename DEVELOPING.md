@@ -423,7 +423,10 @@ it shows after one an INFO record per line, and a run with global options but no
 before that help, so every failed run has an ERROR record (`writeCommanderErr`). The log
 is built with the run's redaction, which replaces a secret in the message before the
 record is formatted, so a secret is kept out of the log in either format and the frame
-is never touched. `CliDeps.now` makes the timestamps testable. stdout carries data only. A
+is never touched. Node's own process warnings (`NODE_TLS_REJECT_UNAUTHORIZED=0`) are WARN
+records of `fit-connect.cli` too: the bin shim installs `installWarningLog`, which removes
+Node's default `warning` listener and logs `(node) <name>: <message>` through
+`processLogger(argv)`. `CliDeps.now` makes the timestamps testable. stdout carries data only. A
 stdout write error other than a closed pipe (EBADF, EIO) is an ERROR record of
 `fit-connect.output` too, `Could not write to stdout: …` (`handleOutputErrors`, which the
 bin shim installs outside any run with `processLogger(argv)`: the format argv asks for,
