@@ -409,7 +409,9 @@ and a message longer than `MAX_RECORD_MESSAGE` (4000 characters, exported) is cu
 code point and ends in `… (N more characters)`. The areas are `cli` (usage errors, commander's messages and the help it shows
 after one, the notes on left-out search words, unexpected errors), `api` (the API's
 answers), `http` (the connection, the cleartext warning) and `output` (a stdout write
-error). Code logs through
+error). A malformed answer (a `FitConnectParseError`: bad JSON, the wrong shape, an HTML
+page answered with 200, an unknown charset) is an `api` record too, as the API's answer
+it is. Code logs through
 `logOf(deps)` and never writes diagnostics with `io.err` directly. `run()` builds the
 logger from argv before commander parses it (`logFormatFromArgv`, used only for the
 records of a parse error: the first `--log-format` counts, and the value of an option

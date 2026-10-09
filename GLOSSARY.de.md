@@ -55,6 +55,16 @@ ags mit Hierarchie): **12 Ziffern** für eine Gemeinde, **9** für einen Gemeind
 **Gebiets-ID.** Die `id`, die `fit-connect areas` zurückgibt. Der dritte Gebietsselektor für
 `routes` (`--area-id`).
 
+**Log-Eintrag (log record).** Jede Diagnosezeile, die die CLI nach stderr schreibt: ein
+Zeitstempel, eine Stufe (`ERROR`, `WARN`, `INFO`) und ein Thema `fit-connect.<Bereich>`, als
+Text (im Stil von log4j) oder mit `--log-format jsonl` als ein JSON-Objekt pro Zeile. Die
+Bereiche: `cli` (Bedienfehler, Meldungen von commander, die Hinweise auf weggelassene
+Suchwörter, unerwartete Fehler), `api` (die Antworten der API: ein Fehlerstatus und eine
+fehlerhafte Antwort — ungültiges JSON, die falsche Form, eine HTML-Seite, ein unbekannter
+Zeichensatz), `http` (die Verbindung, die Klartext-Warnung) und `output` (ein Fehler beim
+Schreiben nach stdout). Ein Eintrag ist immer eine Zeile; Steuerzeichen darin werden
+maskiert.
+
 ## Optionen von `routes`
 
 | Option | Bedeutung |

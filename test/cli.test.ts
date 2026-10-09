@@ -262,11 +262,11 @@ test("a network error maps to exit code 1", async () => {
   assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.http\] connect ECONNREFUSED/);
 });
 
-test("a parse error (non-JSON body) maps to exit code 1", async () => {
+test("a parse error (non-JSON body) maps to exit code 1, an ERROR record of fit-connect.api", async () => {
   const cli = makeCli(() => rawResponse("<html>not json</html>", "text/html"));
   const code = await run(["info"], cli.deps);
   assert.equal(code, 1);
-  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.cli\] Failed to parse JSON/);
+  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.api\] Failed to parse JSON/);
 });
 
 test("whatever a transport throws is reported as a network error, exit 1", async () => {

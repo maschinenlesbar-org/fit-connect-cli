@@ -57,6 +57,15 @@ for `routes` (`--ars`).
 **area id.** The `id` returned by `fit-connect areas`. The third area selector for
 `routes` (`--area-id`).
 
+**Log record.** Every diagnostic line the CLI writes to stderr: a timestamp, a level
+(`ERROR`, `WARN`, `INFO`) and a topic `fit-connect.<area>`, as text (log4j style) or with
+`--log-format jsonl` as one JSON object per line. The areas: `cli` (usage errors,
+commander's messages, the notes on left-out search words, unexpected errors), `api` (the
+API's answers: an error status, and a malformed answer — bad JSON, the wrong shape, an
+HTML page, an unknown charset), `http` (the connection, the cleartext warning) and
+`output` (a failure to write to stdout). A record is always one line; control characters
+in it are escaped.
+
 ## `routes` options
 
 | Option | Meaning |
