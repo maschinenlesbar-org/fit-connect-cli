@@ -176,10 +176,13 @@ Two non-obvious upstream behaviours the client handles:
 - **Credentials in `--base-url` never reach the output.** A `user:password@` in the
   base URL (a credentialed mirror or proxy) is sent as Basic auth by Node, and is
   redacted everywhere the CLI prints: `run.ts` (`redactionFor`, used by
-  `withRedactedOutput`) takes the exact userinfo of every argument (`credentialsIn`,
+  `withRedactedOutput`) takes the exact userinfo of every URL argument (`credentialsIn`,
   exported) and replaces it with `***` — in commander's usage errors, which echo a
   rejected `--base-url` value or an unknown command, and in the CLI's own messages — so a
-  password with spaces, quotes, `#`, `?` or `/` is caught as well as an ordinary one. On
+  password with spaces, quotes, `#`, `?` or `/` is caught as well as an ordinary one. Only
+  a value that starts with a scheme counts (a bare `a:b@c` is a search text or a
+  User-Agent as often as a credential, and stays as it is), except as the `--base-url`
+  value, where a `user:password@host` typed without its scheme is still a credential. On
   stderr the log replaces them in each record's message, before the record is cut and
   escaped (`createLogger({ redact })`), so a password holding DEL, C1 or bidi characters
   is found in its raw form, and the record's frame (time, level, topic) is never touched;

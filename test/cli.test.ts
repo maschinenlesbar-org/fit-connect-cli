@@ -5,7 +5,7 @@ import { FitConnectClient } from "../src/client/client.js";
 import type { CliDeps } from "../src/cli/io.js";
 import type { FitConnectClientOptions } from "../src/client/client.js";
 import type { HttpRequest, HttpResponse } from "../src/client/http.js";
-import { FitConnectNetworkError, FitConnectValidationError } from "../src/client/errors.js";
+import { FitConnectNetworkError, FitConnectValidationError, credentialsIn } from "../src/client/errors.js";
 import { makeMockTransport, jsonResponse, rawResponse, untimed } from "./helpers.js";
 
 function makeCli(responder: (req: HttpRequest) => HttpResponse | Promise<HttpResponse>) {
@@ -558,4 +558,16 @@ test("--base-url with surrounding whitespace is a usage error before any request
     assert.match(cli.err.join("\n"), /surrounding whitespace/, bad);
     assert.doesNotMatch(cli.err.join("\n"), /s3cret/, bad);
   }
+});
+
+test("an a:b@c argument (here a search word) is neither a credential in the log nor rewritten in the JSON on stdout (L14)", async () => {
+  const cli = makeCli(() =>
+    jsonResponse({ count: 1, offset: 0, totalCount: 1, areas: [{ id: "1", name: "run:2026-10-09@x", type: "Gemeinde" }] }),
+  );
+  assert.equal(await run(["areas", "Hanau", "run:2026-10-09@x"], cli.deps), 0);
+  assert.match(cli.out.join("\n"), /"name": "run:2026-10-09@x"/);
+  assert.ok(cli.err.some((line) => line.includes(":")), cli.err.join("\n"));
+  assert.ok(cli.err.every((line) => !line.includes("***")), cli.err.join("\n"));
+  assert.deepEqual(credentialsIn("run:2026-10-09@x"), []);
+  assert.deepEqual(credentialsIn("https://alice:pw@host"), ["alice:pw"]);
 });
