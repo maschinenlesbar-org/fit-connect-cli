@@ -119,7 +119,9 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   characters rejects (the API answers each with a 400). `areaSearchWords(search)`
   (exported) returns the `words` sent, the `dropped` ones and the `separators` the search
   was split at (distinct characters other than a plain space, in order of first
-  appearance), which the CLI lists in a stderr note — invisible ones as `U+XXXX`. The client
+  appearance), which the CLI lists in two stderr notes — invisible separators as `U+XXXX`,
+  dropped words each once and at most 10 of them (`quoteValues`, which also bounds the
+  typed terms a "No usable search word" error quotes). The client
   does not fold `ß` to `ss` itself: the API matches them alike (live, 2026-10-06: `Giessen` and
   `Gießen` each return the same 45 areas). The wildcard rule is the
   spec's `^(\*?([^\*]{2,})\*?)*$`, checked by `isAreaSearchWord` (exported) in one

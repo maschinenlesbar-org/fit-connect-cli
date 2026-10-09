@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { logOf, type CliDeps } from "../io.js";
 import { areaSearchWords } from "../../client/client.js";
 import { FitConnectError } from "../../client/errors.js";
+import { quoteValues } from "../../client/validate.js";
 import { action, once, parseLimit, parseOffset, renderJson } from "../shared.js";
 
 export function registerAreasCommand(program: Command, deps: CliDeps): void {
@@ -36,12 +37,9 @@ export function registerAreasCommand(program: Command, deps: CliDeps): void {
         // say so, since they widen the search the user typed.
         const { dropped, separators } = areaSearchWords(search);
         if (dropped.length > 0) {
-          logOf(deps).info(
-            "cli",
-            `left out search words shorter than 2 characters (the API rejects them): ${dropped
-              .map((w) => JSON.stringify(w))
-              .join(", ")}.`,
-          );
+          // Each word once, at most 10, each cut at 100 characters: 2000 one-letter words
+          // used to make one 10 kB record listing "q" 2000 times.
+          logOf(deps).info("cli", `left out search words shorter than 2 characters (the API rejects them): ${quoteValues(dropped)}.`);
         }
         // Likewise the characters the search was split at: "Halle (Saale)" searches
         // "Halle" + "Saale". Shown compactly, each once, the invisible ones as U+XXXX.

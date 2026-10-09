@@ -112,6 +112,32 @@ test("areas notes on stderr which too-short words it left out", async () => {
   ]);
 });
 
+test("the left-out-words note names each word once, at most 10 of them, each cut at 100 characters (B02-1)", async () => {
+  const many = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
+  assert.equal(await run(["--compact", "areas", "Hanau", ...Array.from({ length: 2000 }, () => "q")], many.deps), 0);
+  assert.deepEqual(many.err.map(untimed), [
+    'INFO  [fit-connect.cli] left out search words shorter than 2 characters (the API rejects them): "q".',
+  ]);
+  const letters = "abcdefghijklmnopqrstuvwxyz".split("");
+  const distinct = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
+  assert.equal(await run(["--compact", "areas", "Hanau", ...letters, `x${"*".repeat(5000)}`], distinct.deps), 0);
+  assert.equal(distinct.err.length, 1, distinct.err.join("\n"));
+  const note = untimed(distinct.err[0] as string);
+  assert.match(note, /: "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", … \(17 more\)\.$/);
+  assert.ok(note.length < 300, `${note.length}`);
+});
+
+test("a search with no usable word names each typed term once, at most 10 of them (B02-1)", async () => {
+  const cli = makeCli(() => jsonResponse({}));
+  assert.equal(await run(["areas", ...Array.from({ length: 2000 }, (_, i) => String.fromCharCode(0x4e00 + i))], cli.deps), 1);
+  const first = untimed(cli.err[0] as string);
+  assert.match(first, /^ERROR \[fit-connect\.cli\] No usable search word in "一" "丁" .* … \(1990 more\): every word needs/);
+  assert.ok(first.length < 400, `${first.length}`);
+  const same = makeCli(() => jsonResponse({}));
+  assert.equal(await run(["areas", ...Array.from({ length: 2000 }, () => "q")], same.deps), 1);
+  assert.match(untimed(same.err[0] as string), /^ERROR \[fit-connect\.cli\] No usable search word in "q": /);
+});
+
 test("areas lists the separator characters it left out once each, invisible ones as U+XXXX", async () => {
   const cli = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
   const code = await run(["--compact", "areas", "Halle (Westf.)", "Bad\u200bOeynhausen\u202e", "Halle-(Saale)"], cli.deps);

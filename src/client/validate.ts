@@ -125,6 +125,22 @@ export function quoteValue(value: string): string {
   );
 }
 
+/** The most values {@link quoteValues} lists; the rest are counted. */
+export const MAX_QUOTED_VALUES = 10;
+
+/**
+ * `values` for a message: each distinct value once, quoted with {@link quoteValue}, at most
+ * {@link MAX_QUOTED_VALUES} of them joined with `separator`, then `… (N more)` for the
+ * rest. A search of 2000 one-letter words lists `"q"` once, not 2000 times, and no list of
+ * values makes a message longer than about 1 kB.
+ */
+export function quoteValues(values: readonly string[], separator = ", "): string {
+  const distinct = [...new Set(values)];
+  const shown = distinct.slice(0, MAX_QUOTED_VALUES).map(quoteValue).join(separator);
+  const more = distinct.length - MAX_QUOTED_VALUES;
+  return more > 0 ? `${shown}${separator}… (${more} more)` : shown;
+}
+
 /** The largest area id accepted (2^31 - 1): see {@link areaIdProblem}. */
 export const MAX_AREA_ID = 2_147_483_647;
 

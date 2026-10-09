@@ -11,7 +11,7 @@
 
 import { RequestEngine, type EngineOptions } from "./engine.js";
 import { FitConnectParseError, FitConnectValidationError, cutText } from "./errors.js";
-import { areaIdProblem, assertValid, nonBlankProblem, quoteValue } from "./validate.js";
+import { areaIdProblem, assertValid, nonBlankProblem, quoteValue, quoteValues } from "./validate.js";
 import type { QueryParams } from "./query.js";
 import type { AreaResult, Info, RouteResult } from "./types.js";
 
@@ -363,7 +363,7 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
   }
   if (words.length === 0) {
     throw new FitConnectValidationError(
-      `No usable search word in ${terms.map(quoteValue).join(" ") || "the search"}: ` +
+      `No usable search word in ${quoteValues(terms, " ") || "the search"}: ` +
         `every word needs at least 2 letters or digits (a "*" does not count).`,
     );
   }
