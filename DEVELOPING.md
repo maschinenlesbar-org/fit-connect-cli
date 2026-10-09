@@ -410,8 +410,11 @@ code point and ends in `… (N more characters)`. The areas are `cli` (usage err
 after one, the notes on left-out search words, unexpected errors), `api` (the API's
 answers) and `http` (the connection, the cleartext warning). Code logs through
 `logOf(deps)` and never writes diagnostics with `io.err` directly. `run()` builds the
-logger from argv before commander parses it, so commander's own usage errors are records
-too: its `error: …` an ERROR of `cli` (a `(Did you mean …?)` line joined to it), the help
+logger from argv before commander parses it (`logFormatFromArgv`, used only for the
+records of a parse error: the first `--log-format` counts, and the value of an option
+that takes one is skipped, as commander reads it; a `preAction` hook then sets the format
+commander parsed, so `--user-agent --log-format=jsonl` logs text), so commander's own
+usage errors are records too: its `error: …` an ERROR of `cli` (a `(Did you mean …?)` line joined to it), the help
 it shows after one an INFO record per line, and a run with global options but no command
 (or `help` with an unknown topic) an ERROR "missing command: `fit-connect <subcommand>`"
 before that help, so every failed run has an ERROR record (`writeCommanderErr`). The log

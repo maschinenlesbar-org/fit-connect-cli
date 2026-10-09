@@ -585,3 +585,32 @@ test("a run without a command, and an unknown help topic, log an ERROR before th
     assert.ok(records.slice(1).every((line) => line.startsWith("INFO  [fit-connect.cli] ") && !line.includes("\\n")), records.join("\n"));
   }
 });
+
+test("a repeated --log-format is reported in the format commander kept, the first (K5, L6)", async () => {
+  for (const [argv, jsonl] of [
+    [["--log-format", "jsonl", "--log-format", "text", "info"], true],
+    [["--log-format", "text", "--log-format", "jsonl", "info"], false],
+    [["--log-format", "jsonl", "--log-format=xml", "info"], true],
+  ] as const) {
+    const cli = makeCli(() => jsonResponse({}));
+    assert.equal(await run([...argv], cli.deps), 1, JSON.stringify(argv));
+    const first = cli.err[0] ?? "";
+    if (jsonl) assert.equal((JSON.parse(first) as Record<string, unknown>)["level"], "ERROR", first);
+    else assert.match(untimed(first), /^ERROR \[fit-connect\.cli\] /);
+    assert.match(first, /was given more than once/);
+  }
+});
+
+test("an option's value that looks like --log-format sets no format, in a parse error too (K5, L6)", async () => {
+  // commander takes "--log-format" as the User-Agent (or the timeout) and then fails on the command "jsonl".
+  for (const argv of [["--user-agent", "--log-format", "jsonl", "info"]]) {
+    const cli = makeCli(() => jsonResponse({}));
+    assert.equal(await run(argv, cli.deps), 1, JSON.stringify(argv));
+    assert.match(untimed(cli.err[0] ?? ""), /^ERROR \[fit-connect\.cli\] unknown command 'jsonl'/, cli.err.join("\n"));
+  }
+  // commander takes "--log-format=jsonl" as the User-Agent and sends it: the log stays text.
+  const ua = makeCli(() => jsonResponse({ detail: "boom" }, 404));
+  assert.equal(await run(["--user-agent", "--log-format=jsonl", "info"], ua.deps), 4);
+  assert.equal(ua.mt.last().headers?.["User-Agent"], "--log-format=jsonl");
+  assert.match(untimed(ua.err[0] ?? ""), /^ERROR \[fit-connect\.api\] /);
+});
