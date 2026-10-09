@@ -325,6 +325,8 @@ npm test          # builds, then runs `node --test` over dist/test
 - **`parity.test.ts`** — CLI ↔ library parity: one input through `run()` and through the library (`parity()`), asserting the same outcome.
 - **`cli.test.ts`** — end-to-end command parsing, rendering, error/exit codes and option flow-through — mocked client.
 - **`io.test.ts`** — `handleOutputErrors` (EPIPE on a closed stdout exits 0; on a closed stderr it is ignored, so the run keeps its exit code) — fake streams.
+- **`log.test.ts`** — the record helpers of `src/cli/log.ts` on their own
+  (`escapeForRecord`, `formatLogRecord`); the CLI-level checks are P23's.
 - **`area-word.test.ts`** — the area search wildcard rule (`isAreaSearchWord`) against the spec's
   pattern on every short word, and the timing of the worst-case words (each well under 100 ms).
 - **`conformance-p*.test.ts`** — the workspace's shared conformance checks from the 2026-10-05 review:
@@ -382,7 +384,11 @@ Every diagnostic line on stderr is a log record (`src/cli/log.ts`): a timestamp,
 (`ERROR`, `WARN`, `INFO`) and a topic, `fit-connect.<area>`. `--log-format text` (the
 default) writes it log4j style, `<ISO 8601 UTC> <LEVEL padded to 5> [<topic>] <message>`;
 `--log-format jsonl` writes one JSON object per line with exactly `ts`, `level`, `topic`
-and `msg`. The areas are `cli` (usage errors, commander's messages and the help it shows
+and `msg`. A record is always one line: `formatLogRecord` runs `escapeForRecord` over
+the message (text) or the whole JSON object (jsonl), which writes CR and LF as `\r`/`\n`,
+every other C0 control but TAB, DEL and C1 as `\u00XX`, and U+2028, U+2029 and the bidi
+controls as `\uXXXX`, so no text that reaches a record, by whatever path, can split it,
+forge another one or steer the terminal. The areas are `cli` (usage errors, commander's messages and the help it shows
 after one, the notes on left-out search words, unexpected errors), `api` (the API's
 answers) and `http` (the connection, the cleartext warning). Code logs through
 `logOf(deps)` and never writes diagnostics with `io.err` directly. `run()` builds the
