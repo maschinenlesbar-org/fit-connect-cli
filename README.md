@@ -187,6 +187,7 @@ fit-connect --log-format jsonl routes 99123456760610 --area-id 1 2>log.jsonl
 | --- | --- |
 | `0` | Success (also `--help` / `--version`; includes an empty `routes: []`) |
 | `4` | Not found — the API returned `404` |
+| `2` | A run without its command (`fit-connect --compact`) or `help` for an unknown command: an ERROR record, then the help |
 | `1` | Any other API, network, parse, validation, or usage error — including a `2xx` answer that isn't the documented shape (`null`, `{}`, an HTML page from a proxy): `Unexpected response from /v2/routes: …` |
 
 ## Troubleshooting

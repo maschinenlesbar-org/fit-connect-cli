@@ -18,6 +18,9 @@ import {
   redactSecrets,
 } from "../client/errors.js";
 
+/** Exit code of a run without its command, and of `help` for an unknown command. */
+const USAGE_EXIT = 2;
+
 /**
  * Apply exitOverride + output redirection to every command in the tree.
  * commander does not propagate these to subcommands, so a parse error on a
@@ -32,6 +35,7 @@ function configureTree(command: Command, deps: CliDeps, state: { errorLogged: bo
     writeOut: (str) => deps.io.out(str.replace(/\n$/, "")),
     writeErr: (str) => writeCommanderErr(command, deps, state, str),
   });
+  if (command.commands.length > 0) addHelpCommand(command);
   for (const child of command.commands) configureTree(child, deps, state);
 }
 
@@ -65,6 +69,45 @@ function writeCommanderErr(command: Command, deps: CliDeps, state: { errorLogged
     log.error("cli", `missing command: \`${commandPath(command)} <subcommand>\``);
   }
   for (const line of text.split("\n")) if (line.trim() !== "") log.info("cli", line.trimEnd());
+}
+
+/**
+ * Replace commander's built-in `help [command]` with one that resolves every name it
+ * is given. The built-in one looked at the first name only: `fit-connect help nope` printed
+ * the root help with no word about "nope", and `fit-connect help routes nope`
+ * printed the routes help with exit 0. Now `help a b …` shows the help of `a b`, and
+ * an unknown name is reported exactly as `fit-connect a nope` reports it (`error: unknown
+ * command 'nope'`, redacted like all output, the usage exit code): the remaining names
+ * are parsed by the command they were meant for, which raises commander's own error.
+ * Added here rather than in `buildProgram`, so the command tree the website documents
+ * stays as commander builds it.
+ */
+function addHelpCommand(command: Command): void {
+  command.helpCommand(false);
+  command
+    .command("help [command...]")
+    .description("display help for command")
+    .action(async (names: string[]) => {
+      let target = command;
+      for (const [i, name] of names.entries()) {
+        const sub = target.commands.find((c) => c.name() === name || c.aliases().includes(name));
+        if (sub === undefined) {
+          // A command without subcommands would run its action on the rest of the names.
+          if (target.commands.length === 0) target.error(`error: unknown command '${name}'`, { exitCode: USAGE_EXIT, code: "commander.unknownCommand" });
+          try {
+            await target.parseAsync(names.slice(i), { from: "user" });
+          } catch (err) {
+            // The same error as `fit-connect a nope`, but a help request that names a
+            // command that is not there ends with the usage exit code.
+            if (err instanceof CommanderError && err.exitCode !== 0) throw new CommanderError(USAGE_EXIT, err.code, err.message);
+            throw err;
+          }
+          return;
+        }
+        target = sub;
+      }
+      target.help();
+    });
 }
 
 /**
@@ -236,7 +279,10 @@ export async function run(argv: string[], deps: CliDeps = defaultDeps): Promise<
   } catch (err) {
     if (err instanceof CommanderError) {
       // Help/version requests exit 0; genuine parse errors carry their own code.
-      return err.exitCode;
+      // A group or the program run without its command is a usage error too, whose
+      // exit code is 2 (`help nope` is rewrapped in addHelpCommand); commander's own
+      // parse errors keep their code, 1.
+      return err.code === "commander.help" && err.exitCode !== 0 ? USAGE_EXIT : err.exitCode;
     }
     const log = logOf(deps);
     if (err instanceof FitConnectApiError) {

@@ -419,8 +419,12 @@ program's own value options is skipped, as commander reads it; a `preAction` hoo
 commander parsed, so `--user-agent --log-format=jsonl` logs text), so commander's own
 usage errors are records too: its `error: …` an ERROR of `cli` (a `(Did you mean …?)` line joined to it), the help
 it shows after one an INFO record per line, and a run with global options but no command
-(or `help` with an unknown topic) an ERROR "missing command: `fit-connect <subcommand>`"
-before that help, so every failed run has an ERROR record (`writeCommanderErr`). The log
+an ERROR "missing command: `fit-connect <subcommand>`" before that help, so every failed run
+has an ERROR record (`writeCommanderErr`); that run exits 2, the only usage error that does.
+`run.ts` replaces commander's built-in `help [command]` with its own `help [command...]`
+(`addHelpCommand`, in `configureTree`, so the tree the website documents is unchanged): it
+walks every name, and an unknown one is reported like `fit-connect nope` (`error: unknown
+command 'nope'`) but exits 2, where the built-in one showed the root help and said nothing. The log
 is built with the run's redaction, which replaces a secret in the message before the
 record is formatted, so a secret is kept out of the log in either format and the frame
 is never touched. Node's own process warnings (`NODE_TLS_REJECT_UNAUTHORIZED=0`) are WARN

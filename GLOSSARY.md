@@ -150,4 +150,5 @@ Envelope: `{ count, offset, totalCount, areas: Area[] }`.
 | --- | --- |
 | `0` | Success (also `--help` / `--version`; includes an empty `routes`/`areas` list) |
 | `4` | Not found (`404`) |
+| `2` | A run without its command (global options only) or `help` for an unknown command |
 | `1` | Any other API, network, parse, validation, or usage error |

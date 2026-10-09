@@ -150,4 +150,5 @@ Antwortstruktur: `{ count, offset, totalCount, areas: Area[] }`.
 | --- | --- |
 | `0` | Erfolg (auch bei `--help` / `--version`; auch bei leerer `routes`/`areas`-Liste) |
 | `4` | Nicht gefunden (`404`) |
+| `2` | Aufruf ohne Befehl (nur globale Optionen) oder `help` für einen unbekannten Befehl |
 | `1` | Jeder andere API-, Netzwerk-, Parse-, Validierungs- oder Aufruffehler |
