@@ -267,7 +267,8 @@ before a request: client options, `apiVersion`, the leikaKey, selectors, search 
 paging), all extending `FitConnectError`. A `catch (e) { if (e instanceof
 FitConnectValidationError) … }` therefore catches every rejected input, never a raw
 `TypeError`. A server `detail` in a message is cut at 500 characters (`body` keeps it
-all), and an echoed input (`Invalid leikaKey "…"`) is cut at 100 characters and quoted
+all; `cutForMessage`, `MAX_MESSAGE_VALUE_LENGTH`, also for a redirect target and an
+unknown response charset), and an echoed input (`Invalid leikaKey "…"`) is cut at 100 characters and quoted
 with control and bidi characters escaped (`quoteValue`). No cut lands inside a surrogate
 pair (`cutText`), so a message stays well-formed.
 
@@ -390,8 +391,9 @@ the message (text) or the whole JSON object (jsonl), which writes CR and LF as `
 every other C0 control but TAB, DEL and C1 as `\u00XX`, and U+2028, U+2029 and the bidi
 controls as `\uXXXX`, so no text that reaches a record, by whatever path, can split it,
 forge another one or steer the terminal. Before that a lone surrogate (half a
-character, which jq rejects, stopping the whole stream) becomes U+FFFD (`toWellFormed`).
-The areas are `cli` (usage errors, commander's messages and the help it shows
+character, which jq rejects, stopping the whole stream) becomes U+FFFD (`toWellFormed`),
+and a message longer than `MAX_RECORD_MESSAGE` (4000 characters, exported) is cut at a
+code point and ends in `… (N more characters)`. The areas are `cli` (usage errors, commander's messages and the help it shows
 after one, the notes on left-out search words, unexpected errors), `api` (the API's
 answers) and `http` (the connection, the cleartext warning). Code logs through
 `logOf(deps)` and never writes diagnostics with `io.err` directly. `run()` builds the

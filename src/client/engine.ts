@@ -20,6 +20,7 @@ import {
   FitConnectParseError,
   FitConnectValidationError,
   credentialsIn,
+  cutForMessage,
   isRedirectStatus,
   redactCredentials,
   redactUrl,
@@ -244,7 +245,7 @@ function decodeBody(body: Buffer, contentType: string, path: string): string {
   try {
     decoder = new TextDecoder(charset);
   } catch {
-    throw new FitConnectParseError(`Unsupported response charset "${sanitizeServerText(charset)}" from ${path}.`);
+    throw new FitConnectParseError(`Unsupported response charset "${cutForMessage(sanitizeServerText(charset))}" from ${path}.`);
   }
   return decoder.decode(body);
 }

@@ -582,3 +582,9 @@ test("a server detail cut at 500 characters keeps the message well-formed", asyn
     });
   }
 });
+
+test("an unknown response charset is quoted at most 500 characters long (L3)", async () => {
+  const charset = `x${"y".repeat(10_000)}`;
+  const engine = new RequestEngine({ transport: async () => rawResponse("{}", `application/json; charset=${charset}`), maxRetries: 0 });
+  await assert.rejects(engine.getJson("/v2/info"), (e: unknown) => e instanceof FitConnectParseError && e.message.length < 700 && /charset "xy+…"/.test(e.message));
+});
