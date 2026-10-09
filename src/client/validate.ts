@@ -4,7 +4,7 @@
 // any request; the CLI's commander parsers call the same function and turn its reason
 // into a usage error, so one input gets one outcome on both sides.
 
-import { FitConnectValidationError } from "./errors.js";
+import { FitConnectValidationError, cutText } from "./errors.js";
 
 /** Why `value` is invalid (for example `"Expected a non-empty value."`), or undefined when it is valid. */
 export type Problem<T = string> = (value: T) => string | undefined;
@@ -111,14 +111,15 @@ export function baseUrlProblem(value: string): string | undefined {
 export const MAX_ECHO_LENGTH = 100;
 
 /**
- * `value` quoted for a validation message: cut to MAX_ECHO_LENGTH characters, then
+ * `value` quoted for a validation message: cut to MAX_ECHO_LENGTH characters (never inside
+ * a surrogate pair), then
  * JSON-quoted (C0 controls such as ESC become `\u001b`), with DEL, C1 controls and Unicode
  * format characters (bidi overrides, zero-width characters) escaped as well. A library
  * user who logs the message of a rejected form field gets no raw terminal escapes, and a
  * 20 000-character value doesn't become a 20 KB line.
  */
 export function quoteValue(value: string): string {
-  const cut = value.length > MAX_ECHO_LENGTH ? `${value.slice(0, MAX_ECHO_LENGTH)}…` : value;
+  const cut = value.length > MAX_ECHO_LENGTH ? `${cutText(value, MAX_ECHO_LENGTH)}…` : value;
   return JSON.stringify(cut).replace(/[\u007f-\u009f]|\p{Cf}/gu, (ch) =>
     Array.from({ length: ch.length }, (_, i) => `\\u${ch.charCodeAt(i).toString(16).padStart(4, "0")}`).join(""),
   );

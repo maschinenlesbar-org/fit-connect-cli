@@ -10,7 +10,7 @@
 // implement the FIT-Connect Submission/Destination (write) path.
 
 import { RequestEngine, type EngineOptions } from "./engine.js";
-import { FitConnectParseError, FitConnectValidationError } from "./errors.js";
+import { FitConnectParseError, FitConnectValidationError, cutText } from "./errors.js";
 import { areaIdProblem, assertValid, nonBlankProblem, quoteValue } from "./validate.js";
 import type { QueryParams } from "./query.js";
 import type { AreaResult, Info, RouteResult } from "./types.js";
@@ -390,7 +390,7 @@ const AREA_PARAMS = ["search", "offset", "limit"] as const;
 export function describeValue(value: unknown): string {
   if (value === null || value === undefined) return String(value);
   if (Array.isArray(value)) return "an array";
-  if (typeof value === "string") return `the string ${JSON.stringify(value.length > 50 ? `${value.slice(0, 50)}…` : value)}`;
+  if (typeof value === "string") return `the string ${JSON.stringify(value.length > 50 ? `${cutText(value, 50)}…` : value)}`;
   if (typeof value === "number") return Number.isNaN(value) ? "NaN" : String(value);
   return typeof value === "object" ? "an object" : `a ${typeof value}`;
 }

@@ -12,6 +12,9 @@ import {
   FitConnectError,
   FitConnectParseError,
   FitConnectValidationError,
+  cutForMessage,
+  cutText,
+  toWellFormed,
 } from "../src/client/errors.js";
 import type { HttpResponse } from "../src/client/http.js";
 import { makeMockTransport, jsonResponse, rawResponse } from "./helpers.js";
@@ -557,4 +560,25 @@ test("a redirect error names the Location target, absolute and redacted; it is n
   const notRedirect = await redirectError(404, "https://example.test/elsewhere");
   assert.equal(notRedirect.location, undefined);
   assert.doesNotMatch(notRedirect.message, /redirect/);
+});
+
+test("cutText never cuts inside a surrogate pair; toWellFormed replaces half a character", () => {
+  assert.equal(cutText("ab\u{1f600}cd", 3), "ab");
+  assert.equal(cutText("ab\u{1f600}cd", 4), "ab\u{1f600}");
+  assert.equal(cutText("short", 10), "short");
+  assert.equal(toWellFormed("a\ud83d b\ude00 \u{1f600}"), "a\ufffd b\ufffd \u{1f600}");
+  // cutForMessage (500) uses it too.
+  assert.equal(toWellFormed(cutForMessage("a" + "\u{1f600}".repeat(400))), cutForMessage("a" + "\u{1f600}".repeat(400)));
+});
+
+test("a server detail cut at 500 characters keeps the message well-formed", async () => {
+  for (const detail of ["\u{1f600}".repeat(400), "a" + "\u{1f600}".repeat(400)]) {
+    const engine = new RequestEngine({ transport: async () => jsonResponse({ detail }, 500), maxRetries: 0 });
+    await assert.rejects(engine.getJson("/v2/info"), (e: unknown) => {
+      assert.ok(e instanceof FitConnectApiError);
+      assert.equal(toWellFormed(e.message), e.message);
+      assert.match(e.message, /…$/);
+      return true;
+    });
+  }
 });
