@@ -170,11 +170,15 @@ characters is cut and ends in `… (N more characters)`:
 
 ```text
 2026-10-09T14:03:12.481Z WARN  [fit-connect.http] requests to mirror.example are sent unencrypted (http:, not https:)
-2026-10-09T14:03:12.902Z ERROR [fit-connect.api] HTTP 404 for GET https://routing-api-prod.fit-connect.fitko.net/v2/routes?…: …
+2026-10-09T14:03:12.902Z ERROR [fit-connect.api] HTTP 400 for GET https://routing-api-prod.fit-connect.fitko.net/v2/routes?leikaKey=99123456760610&ars=16051: No Area was found with given AreaKey.
 ```
 
+An area id the API doesn't know gets HTTP 500 (exit `1`), and in jsonl its record reads
+(live, 2026-10-09):
+
 ```bash
-fit-connect --log-format jsonl routes 99123456760610 --area-id 1 2>log.jsonl   # {"ts":"…","level":"ERROR","topic":"fit-connect.api","msg":"HTTP 404 …"}
+fit-connect --log-format jsonl routes 99123456760610 --area-id 1 2>log.jsonl
+# {"ts":"…","level":"ERROR","topic":"fit-connect.api","msg":"HTTP 500 for GET https://routing-api-prod.fit-connect.fitko.net/v2/routes?leikaKey=99123456760610&areaId=1: Calling the third service 'AreaService' resulted in an exception. Details: (No detailed information available.)"}
 ```
 
 **Exit codes:**
