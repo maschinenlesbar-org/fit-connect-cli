@@ -175,11 +175,15 @@ Two non-obvious upstream behaviours the client handles:
   (never the value). Help, version and usage errors never warn.
 - **Credentials in `--base-url` never reach the output.** A `user:password@` in the
   base URL (a credentialed mirror or proxy) is sent as Basic auth by Node, and is
-  redacted everywhere the CLI prints: `run.ts` (`withRedactedOutput`) takes the exact
-  userinfo of every argument (`credentialsIn`, exported) and replaces it with `***` in
-  every line — commander's usage errors, which echo a rejected `--base-url` value or an
-  unknown command, and the CLI's own messages — so a password with spaces, quotes, `#`,
-  `?` or `/` is caught as well as an ordinary one. `redactUrl` (exported) falls back to
+  redacted everywhere the CLI prints: `run.ts` (`redactionFor`, used by
+  `withRedactedOutput`) takes the exact userinfo of every argument (`credentialsIn`,
+  exported) and replaces it with `***` — in commander's usage errors, which echo a
+  rejected `--base-url` value or an unknown command, and in the CLI's own messages — so a
+  password with spaces, quotes, `#`, `?` or `/` is caught as well as an ordinary one. On
+  stderr the log replaces them in each record's message, before the record is cut and
+  escaped (`createLogger({ redact })`), so a password holding DEL, C1 or bidi characters
+  is found in its raw form, and the record's frame (time, level, topic) is never touched;
+  `io.out` (stdout) is redacted as a whole. `redactUrl` (exported) falls back to
   the same text-based cut for a value that doesn't parse as a URL.
 - **The library keeps them out of what a service logs.** The engine holds the base URL
   in a real `#private` field, so `console.log(client)`, `util.inspect` and
@@ -400,8 +404,9 @@ after one, the notes on left-out search words, unexpected errors), `api` (the AP
 answers) and `http` (the connection, the cleartext warning). Code logs through
 `logOf(deps)` and never writes diagnostics with `io.err` directly. `run()` builds the
 logger from argv before commander parses it, so commander's own usage errors are records
-too, and on top of the redacted `io.err`, so a secret is kept out of the log in either
-format. `CliDeps.now` makes the timestamps testable. stdout carries data only. The one
+too, and with the run's redaction, which replaces a secret in the message before the
+record is formatted, so a secret is kept out of the log in either format and the frame
+is never touched. `CliDeps.now` makes the timestamps testable. stdout carries data only. The one
 line that is not a record is `Output error: …`, which `handleOutputErrors` writes straight
 to `process.stderr` when stdout itself fails, outside any run. Conformance test P23 checks
 all of this, and its body is shared across the *-cli repos.
