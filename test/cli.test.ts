@@ -571,3 +571,17 @@ test("an a:b@c argument (here a search word) is neither a credential in the log 
   assert.deepEqual(credentialsIn("run:2026-10-09@x"), []);
   assert.deepEqual(credentialsIn("https://alice:pw@host"), ["alice:pw"]);
 });
+
+test("a run without a command, and an unknown help topic, log an ERROR before the help (L5)", async () => {
+  for (const [argv, error] of [
+    [["--compact"], /^ERROR \[fit-connect\.cli\] missing command: `fit-connect <subcommand>`$/],
+    [["help", "nope"], /^ERROR \[fit-connect\.cli\] missing command: `fit-connect <subcommand>`$/],
+  ] as const) {
+    const cli = makeCli(() => jsonResponse({}));
+    assert.equal(await run([...argv], cli.deps), 1, JSON.stringify(argv));
+    const records = cli.err.map(untimed);
+    assert.match(records[0] ?? "", error, records.join("\n"));
+    assert.ok(records.length > 2, records.join("\n"));
+    assert.ok(records.slice(1).every((line) => line.startsWith("INFO  [fit-connect.cli] ") && !line.includes("\\n")), records.join("\n"));
+  }
+});
