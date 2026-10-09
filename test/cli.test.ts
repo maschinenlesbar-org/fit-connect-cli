@@ -572,9 +572,9 @@ test("an a:b@c argument (here a search word) is neither a credential in the log 
   assert.deepEqual(credentialsIn("https://alice:pw@host"), ["alice:pw"]);
 });
 
-test("a run without a command logs an ERROR before the help, exit 2 (L5)", async () => {
+test("a run without a command logs an ERROR before the help, exit 1 (L5)", async () => {
   const cli = makeCli(() => jsonResponse({}));
-  assert.equal(await run(["--compact"], cli.deps), 2);
+  assert.equal(await run(["--compact"], cli.deps), 1);
   const records = cli.err.map(untimed);
   assert.match(records[0] ?? "", /^ERROR \[fit-connect\.cli\] missing command: `fit-connect <subcommand>`$/, records.join("\n"));
   assert.ok(records.length > 2, records.join("\n"));
@@ -582,14 +582,14 @@ test("a run without a command logs an ERROR before the help, exit 2 (L5)", async
   assert.deepEqual(cli.out, []);
 });
 
-test("help for an unknown command reports it like the command itself, exit 2, at every level", async () => {
+test("help for an unknown command reports it like the command itself, exit 1, at every level", async () => {
   for (const [helpArgv, plainArgv] of [
     [["help", "nope"], ["nope"]],
     [["help", "https://alice:s3cret@x.test"], ["https://alice:s3cret@x.test"]],
   ] as const) {
     const viaHelp = makeCli(() => jsonResponse({}));
     const plain = makeCli(() => jsonResponse({}));
-    assert.equal(await run([...helpArgv], viaHelp.deps), 2, helpArgv.join(" "));
+    assert.equal(await run([...helpArgv], viaHelp.deps), 1, helpArgv.join(" "));
     await run([...plainArgv], plain.deps);
     assert.match(untimed(viaHelp.err[0] ?? ""), /^ERROR \[fit-connect\.cli\] (unknown command|too many arguments)/, viaHelp.err.join("\n"));
     assert.equal(untimed(viaHelp.err[0] ?? ""), untimed(plain.err[0] ?? ""), helpArgv.join(" "));
@@ -601,7 +601,7 @@ test("help for an unknown command reports it like the command itself, exit 2, at
 
 test("help <command> <unknown> on a command without subcommands is an error, not a run of that command", async () => {
   const cli = makeCli(() => jsonResponse({}));
-  assert.equal(await run(["help", "areas", "nope"], cli.deps), 2);
+  assert.equal(await run(["help", "areas", "nope"], cli.deps), 1);
   assert.match(untimed(cli.err[0] ?? ""), /^ERROR \[fit-connect\.cli\] unknown command 'nope'$/);
   assert.equal(cli.mt.calls.length, 0);
 });

@@ -19,7 +19,7 @@ import {
 } from "../client/errors.js";
 
 /** Exit code of a run without its command, and of `help` for an unknown command. */
-const USAGE_EXIT = 2;
+const USAGE_EXIT = 1;
 
 /**
  * Apply exitOverride + output redirection to every command in the tree.
@@ -280,7 +280,7 @@ export async function run(argv: string[], deps: CliDeps = defaultDeps): Promise<
     if (err instanceof CommanderError) {
       // Help/version requests exit 0; genuine parse errors carry their own code.
       // A group or the program run without its command is a usage error too, whose
-      // exit code is 2 (`help nope` is rewrapped in addHelpCommand); commander's own
+      // exit code is 1 (`help nope` is rewrapped in addHelpCommand); commander's own
       // parse errors keep their code, 1.
       return err.code === "commander.help" && err.exitCode !== 0 ? USAGE_EXIT : err.exitCode;
     }
