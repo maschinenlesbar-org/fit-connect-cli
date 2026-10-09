@@ -408,7 +408,8 @@ character, which jq rejects, stopping the whole stream) becomes U+FFFD (`toWellF
 and a message longer than `MAX_RECORD_MESSAGE` (4000 characters, exported) is cut at a
 code point and ends in `… (N more characters)`. The areas are `cli` (usage errors, commander's messages and the help it shows
 after one, the notes on left-out search words, unexpected errors), `api` (the API's
-answers) and `http` (the connection, the cleartext warning). Code logs through
+answers), `http` (the connection, the cleartext warning) and `output` (a stdout write
+error). Code logs through
 `logOf(deps)` and never writes diagnostics with `io.err` directly. `run()` builds the
 logger from argv before commander parses it (`logFormatFromArgv`, used only for the
 records of a parse error: the first `--log-format` counts, and the value of an option
@@ -420,7 +421,10 @@ it shows after one an INFO record per line, and a run with global options but no
 before that help, so every failed run has an ERROR record (`writeCommanderErr`). The log
 is built with the run's redaction, which replaces a secret in the message before the
 record is formatted, so a secret is kept out of the log in either format and the frame
-is never touched. `CliDeps.now` makes the timestamps testable. stdout carries data only. The one
-line that is not a record is `Output error: …`, which `handleOutputErrors` writes straight
-to `process.stderr` when stdout itself fails, outside any run. Conformance test P23 checks
-all of this, and its body is shared across the *-cli repos.
+is never touched. `CliDeps.now` makes the timestamps testable. stdout carries data only. A
+stdout write error other than a closed pipe (EBADF, EIO) is an ERROR record of
+`fit-connect.output` too, `Could not write to stdout: …` (`handleOutputErrors`, which the
+bin shim installs outside any run with `processLogger(argv)`: the format argv asks for,
+the run's redaction), and exits 1; a reader that stops early (EPIPE, ENOTCONN) exits 0
+quietly. Conformance test P23 checks all of this, and its body is shared across the
+*-cli repos.
