@@ -22,14 +22,14 @@ The package ships both a CLI (`fit-connect`) and a typed API client
 
 ```bash
 npm install
-npm run build        # compiles TypeScript to dist/
+npm run build        # compiles every workspace (tsc -b) to its dist/
 ```
 
 Run the locally built CLI without a global install:
 
 ```bash
-node dist/src/cli/index.js --help
-# or, after `npm link`:
+node apps/cli/dist/src/cli/index.js --help    # or: npm start -- --help
+# or, after `npm link --workspace apps/cli`:
 fit-connect --help
 ```
 
@@ -127,7 +127,7 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   spec's `^(\*?([^\*]{2,})\*?)*$`, checked by `isAreaSearchWord` (exported) in one
   linear scan rather than with that regex, whose nested quantifiers backtrack
   exponentially (a 45-character word with a misplaced `*` took 57 s);
-  `test/area-word.test.ts` checks it against the pattern on every short word and times
+  `packages/client/test/area-word.test.ts` checks it against the pattern on every short word and times
   the worst cases.
 - `info()` → `Info` (the deployed API's semantic version).
 - `routes()` and `areas()` reject a parameter they don't take (`areaid`, `ARS`, a
@@ -170,7 +170,7 @@ Two non-obvious upstream behaviours the client handles:
   redacted, control and bidi characters dropped. A base URL on
   plain `http:` to a host other than loopback (`localhost`, `127.0.0.0/8`, `::1`) gets one
   `WARN` record of `fit-connect.http` on stderr per run, before the first request (`action()` in
-  `src/cli/shared.ts`); the sentence comes from the exported `cleartextProblem(baseUrl,
+  `apps/cli/src/cli/shared.ts`); the sentence comes from the exported `cleartextProblem(baseUrl,
   secrets?)`, names the host and, for a `user:password@`, "the base URL's credentials"
   (never the value). Help, version and usage errors never warn.
 - **Credentials in `--base-url` never reach the output.** A `user:password@` in the
@@ -210,9 +210,47 @@ Two non-obvious upstream behaviours the client handles:
 
 ## Architecture
 
+The repository is an **npm workspace** with two folders: `apps/` holds the programs it
+publishes, `packages/` the libraries they are built from.
+
 ```
-src/
-  client/
+package.json         # private workspace manifest: no version, never packed
+apps/cli/            # @maschinenlesbar.org/fit-connect-cli — the published package
+  package.json       # its version, bin, files, bundleDependencies
+  src/index.ts       # library entry: re-exports @maschinenlesbar.org/fit-connect-client
+  src/cli/           # the CLI (below)
+  test/              # CLI tests and every conformance-*.test.ts
+packages/client/     # @maschinenlesbar.org/fit-connect-client — private, bundled into the CLI
+  src/               # the API client (below)
+  test/              # tests that only touch the client, + the transport helpers
+tools/pack/          # prepack/postpack: bundle the client and commander into the tarball
+tools/bump.mjs       # version bump + commit + tag (npm run bump)
+tsconfig.docs.json   # TypeDoc only: the package entry, with the client read from its sources
+routing-api.yaml     # the Routing API's OpenAPI spec, for reference (not shipped)
+```
+
+- **The client is its own package** so a later MCP app can share it with the CLI. It is
+  never published on its own: `apps/cli`'s `prepack` copies it (and commander) into the
+  app's `node_modules`, and `bundleDependencies` ships it inside the tarball. The library
+  entry re-exports the client's `"."`, so `import { FitConnectClient } from
+  "@maschinenlesbar.org/fit-connect-cli"` is unchanged.
+- **The client's exports:** `"."` is the public library surface (`src/index.ts`);
+  `"./internal/*"` maps to any module (`…/fit-connect-client/internal/engine`) for what the
+  CLI needs beyond that; `"./test/*"` reaches the client's test helpers from the CLI's
+  tests (not bundled). Only `"."` is part of the library.
+- **Dependencies point one way:** the app depends on the client, the client on nothing
+  in the workspace.
+- **The version lives in `apps/cli/package.json`.** The root has none; a plain
+  `npm version` at the root is refused. Release with `npm run bump -- <patch|minor|major>`,
+  which bumps the app, commits (the bare version as the message) and tags `vX.Y.Z`.
+- **TypeScript:** `tsconfig.base.json` holds the compiler options; every workspace has a
+  `tsconfig.json` (`src/`) and a `tsconfig.test.json` (`test/`), and the root
+  `tsconfig.json`/`tsconfig.test.json` reference them, built with `tsc -b`.
+
+The client (`packages/client/src/`) and the CLI (`apps/cli/src/`):
+
+```
+packages/client/src/
     types.ts     # response interfaces (Route, RouteResult, Area, AreaResult, Info, ...)
     query.ts     # dependency-free query-string builder (repeats keys for arrays)
     http.ts      # the Transport interface + default node:http/https transport
@@ -220,7 +258,8 @@ src/
     errors.ts    # FitConnectError / …ApiError / …NetworkError / …ParseError / …ValidationError
     validate.ts  # the Problem type + assertValid(): input rules shared by library and CLI
     client.ts    # FitConnectClient — routes() / areas() / info() over the engine
-  cli/
+    index.ts     # the client's public surface (the library entry re-exports it)
+apps/cli/src/cli/
     io.ts        # injectable I/O seam (stdout/stderr) + client factory, the logger and the clock
     log.ts       # the stderr log: records with ts, level, topic; --log-format text|jsonl
     shared.ts    # option parsers, global-option resolver, JSON renderer
@@ -243,19 +282,19 @@ src/
 
 ### Library / technical terms
 
-**API client.** [`FitConnectClient`](src/client/client.ts) — the typed wrapper
+**API client.** [`FitConnectClient`](packages/client/src/client.ts) — the typed wrapper
 over the Routing API. Usable as a library independently of the CLI; defaults to
 the production routing service and API `v2`.
 
 **Transport.** A single function `(HttpRequest) => Promise<HttpResponse>`
-([`http.ts`](src/client/http.ts)). The default uses Node's built-in `http`/`https`;
+([`http.ts`](packages/client/src/http.ts)). The default uses Node's built-in `http`/`https`;
 tests inject a mock. This is the only HTTP seam.
 
-**Request engine.** [`RequestEngine`](src/client/engine.ts) — builds URLs,
+**Request engine.** [`RequestEngine`](packages/client/src/engine.ts) — builds URLs,
 serialises queries, applies retry/backoff, decodes JSON responses and maps
 errors. Sits between the client's methods and the transport.
 
-**Query-string builder.** [`query.ts`](src/client/query.ts) — a dependency-free
+**Query-string builder.** [`query.ts`](packages/client/src/query.ts) — a dependency-free
 serialiser: omits `undefined`/`null`, **repeats keys for arrays** (used for the
 multi-valued `areaSearchexpression`), and encodes spaces as `%20`. Note the API
 **ANDs** repeated `areaSearchexpression` values (every term must match the same
@@ -266,10 +305,10 @@ punctuation into separate values, keeping letters, digits and `*`. The spec
 non-wildcard characters, so `areaSearchWords` drops shorter words and rejects the rest.
 
 **CliDeps / CliIO.** The dependency-injection seam for the CLI
-([`io.ts`](src/cli/io.ts)): a client factory plus an I/O object (`out`/`err`).
+([`io.ts`](apps/cli/src/cli/io.ts)): a client factory plus an I/O object (`out`/`err`).
 Lets the whole CLI run in tests with a mocked client and captured output.
 
-**Error types.** [`errors.ts`](src/client/errors.ts): `FitConnectApiError`
+**Error types.** [`errors.ts`](packages/client/src/errors.ts): `FitConnectApiError`
 (non-2xx; carries `status`/`detail`/`url`/`body`; `detail` is read from the
 RFC 7807 `application/problem+json` body's `detail`/`title`/`message`, followed by
 its `violations[]` as `(field: message; …)` — a 400 "Constraint Violation" names the
@@ -285,7 +324,7 @@ unknown response charset), and an echoed input (`Invalid leikaKey "…"`) is cut
 with control and bidi characters escaped (`quoteValue`). No cut lands inside a surrogate
 pair (`cutText`), so a message stays well-formed.
 
-**Input validation.** [`validate.ts`](src/client/validate.ts): a rule is a pure
+**Input validation.** [`validate.ts`](packages/client/src/validate.ts): a rule is a pure
 `<thing>Problem(value)` function that returns why a value is invalid, or `undefined`.
 The library enforces it with `assertValid(name, value, problem)` before any request,
 which throws `FitConnectValidationError` (extends `FitConnectError`, exported) with the
@@ -318,7 +357,7 @@ Each retry is announced: the engine option `onRetry(event: RetryEvent)` (exporte
 redacted) `}`) is called once per retry right before the sleep, never when there is none, and
 a throw in it is swallowed. The CLI's `action()` sets it to log one `WARN` record of
 `fit-connect.http`, `HTTP 503 from <host>: retry 1 of 3 in 2 s` (`retryMessage`; host only, whole
-seconds, ms under 1 s). Tests: `test/retry-log.test.ts`.
+seconds, ms under 1 s). Tests: `apps/cli/test/retry-log.test.ts`.
 
 **Custom transports.** The engine, not the transport, enforces the documented limits:
 every call runs under the `timeoutMs` deadline (the request carries an `AbortSignal`
@@ -335,19 +374,24 @@ on content type — it parses any JSON body — so this is handled transparently
 ## Testing
 
 ```bash
-npm test          # builds, then runs `node --test` over dist/test
+npm test          # builds, then runs `node --test` over each workspace's dist/test
+npm run coverage  # the same tests in one run, with a coverage report
+node --test apps/cli/dist/test/cli.test.js   # one file, after a build
 ```
+
+The client's tests are in `packages/client/test/` (`query`, `http`, `engine`, `client`,
+`area-word`), everything that drives the CLI is in `apps/cli/test/`.
 
 - **`query.test.ts`** — query-string serialisation (array repetition, wildcards, spaces).
 - **`http.test.ts`** — the default transport against a real loopback `http.createServer`.
 - **`engine.test.ts`** — URL building, JSON decoding, error mapping, 429/503 retry, UA fallback — mocked transport.
 - **`client.test.ts`** — path/version building, query params, area-selector validation — mocked transport.
-- **`validate.test.ts`** — `assertValid` and the `parity()` helper (`test/helpers.ts`), which sends one input through `run()` and through the library, each on a recording mock transport, so a test can assert both give the same outcome.
+- **`validate.test.ts`** — `assertValid` and the `parity()` helper (`apps/cli/test/helpers.ts`), which sends one input through `run()` and through the library, each on a recording mock transport, so a test can assert both give the same outcome.
 - **`shared.test.ts`** — option parsing (`parseIntArg`, `parseApiVersion`) and `toClientOptions` mapping.
 - **`parity.test.ts`** — CLI ↔ library parity: one input through `run()` and through the library (`parity()`), asserting the same outcome.
 - **`cli.test.ts`** — end-to-end command parsing, rendering, error/exit codes and option flow-through — mocked client.
 - **`io.test.ts`** — `handleOutputErrors` (EPIPE on a closed stdout exits 0; on a closed stderr it is ignored, so the run keeps its exit code) — fake streams.
-- **`log.test.ts`** — the record helpers of `src/cli/log.ts` on their own
+- **`log.test.ts`** — the record helpers of `apps/cli/src/cli/log.ts` on their own
   (`escapeForRecord`, `formatLogRecord`); the CLI-level checks are P23's.
 - **`area-word.test.ts`** — the area search wildcard rule (`isAreaSearchWord`) against the spec's
   pattern on every short word, and the timing of the worst-case words (each well under 100 ms).
@@ -365,9 +409,13 @@ npm test          # builds, then runs `node --test` over dist/test
 
 GitHub Actions workflows under `.github/workflows/`:
 
-- **ci.yml** — type-check, build and test on Node 22/24 for every push and PR.
-- **release.yml** — on a `v*` tag: verify the tag matches `package.json`, test, `npm pack`, generate CycloneDX SBOMs, and create a GitHub Release.
-- **publish.yml** — manual dispatch from the release tag (`gh workflow run publish.yml --ref vX.Y.Z`; the version is the tag's): publish to npm via OIDC **Trusted Publishing** (no stored `NPM_TOKEN`) with provenance.
+- **ci.yml** — type-check, build and test on Node 22/24 for every push and PR; then pack the
+  real tarball, check the pack left nothing behind, install it globally with the registry out
+  of reach and run the bin.
+- **release.yml** — on a `v*` tag (made by `npm run bump`): verify the tag matches
+  `apps/cli/package.json`, test, generate the CycloneDX SBOMs (scoped to the `apps/cli`
+  workspace), then `npm pack --workspace apps/cli`, and create a GitHub Release.
+- **publish.yml** — manual dispatch from the release tag (`gh workflow run publish.yml --ref vX.Y.Z`; the version is the tag's): `npm publish --workspace apps/cli` via OIDC **Trusted Publishing** (no stored `NPM_TOKEN`) with provenance.
 - **docs.yml** — build the project website (`site/`, English and German) with the TypeDoc API docs
   under `/api/`, and deploy both to GitHub Pages on each `v*` tag.
   TypeDoc runs from the isolated, lockfile-pinned `tools/docs/` toolchain because it
@@ -383,7 +431,9 @@ and [Fylgja](https://fylgja.dev/) CSS, and deployed by `docs.yml` together with 
 reference under `/api/`. Its content comes from this repository: the README intro and quick
 start, the command tree of the built CLI (`site/scripts/cli-reference.mjs`), `Usage.md`,
 `GLOSSARY.md` and its German version `GLOSSARY.de.md`, the skills, and the skill examples in
-`EXAMPLE.md` and `EXAMPLE.de.md`. The only repo-specific files are `site/_config.yml` and
+`EXAMPLE.md` and `EXAMPLE.de.md`. The only repo-specific files are `site/_config.yml` (which
+also says where the published manifest and the built program are: `manifest:
+apps/cli/package.json`, `program: apps/cli/dist/src/cli/program.js`) and
 `site/_data/project.yml` (the German intro and the access requirements); the rest of `site/` is
 identical in every maschinenlesbar.org CLI, so change it in all of them together. When the
 README intro changes, update the German intro in `site/_data/project.yml`.
@@ -402,7 +452,7 @@ contributions; see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## The log on stderr
 
-Every diagnostic line on stderr is a log record (`src/cli/log.ts`): a timestamp, a level
+Every diagnostic line on stderr is a log record (`apps/cli/src/cli/log.ts`): a timestamp, a level
 (`ERROR`, `WARN`, `INFO`) and a topic, `fit-connect.<area>`. `--log-format text` (the
 default) writes it log4j style, `<ISO 8601 UTC> <LEVEL padded to 5> [<topic>] <message>`;
 `--log-format jsonl` writes one JSON object per line with exactly `ts`, `level`, `topic`
