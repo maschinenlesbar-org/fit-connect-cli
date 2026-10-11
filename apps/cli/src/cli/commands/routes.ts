@@ -1,0 +1,54 @@
+import type { Command } from "commander";
+import type { CliDeps } from "../io.js";
+import { FitConnectValidationError } from "@maschinenlesbar.org/fit-connect-client/internal/errors";
+import { action, once, parseAgs, parseAreaId, parseArs, parseLimit, parseOffset, renderJson } from "../shared.js";
+
+/** Map each selector option (camelCased by commander) to its CLI flag. */
+const SELECTOR_FLAGS = { ags: "--ags", ars: "--ars", areaId: "--area-id" } as const;
+
+/**
+ * Validate "exactly one area selector" at the CLI layer, in terms of CLI flags.
+ * The client enforces the same rule, but its message names the library method and
+ * params (`routes()`, `ags/ars/areaId`); pre-checking here lets the user see the
+ * actual flags (`--ags`, `--ars`, `--area-id`).
+ */
+function requireExactlyOneSelector(opts: Record<string, unknown>): void {
+  const provided = (Object.keys(SELECTOR_FLAGS) as (keyof typeof SELECTOR_FLAGS)[]).filter(
+    (k) => opts[k] !== undefined && String(opts[k]).trim() !== "",
+  );
+  if (provided.length !== 1) {
+    throw new FitConnectValidationError(
+      `Provide exactly one area selector: --ags, --ars or --area-id (got ${
+        provided.length === 0 ? "none" : provided.map((k) => SELECTOR_FLAGS[k]).join(", ")
+      }).`,
+    );
+  }
+}
+
+export function registerRoutesCommand(program: Command, deps: CliDeps): void {
+  program
+    .command("routes <leikaKey>")
+    .description(
+      "Find the responsible authority (Zustellpunkt) for a public service in an area. " +
+        "Provide exactly one area selector: --ags, --ars or --area-id.",
+    )
+    .option("--ags <ags>", "Amtlicher Gemeindeschlüssel: 2, 3, 5 or 8 digits (Land, Regierungsbezirk, Kreis, Gemeinde)", once("--ags", parseAgs))
+    .option("--ars <ars>", "Amtlicher Regionalschlüssel: 2, 3, 5, 9 or 12 digits (Land, Regierungsbezirk, Kreis, Gemeindeverband, Gemeinde)", once("--ars", parseArs))
+    .option("--area-id <id>", "Area id from `fit-connect areas`: a positive whole number without leading zeros", once("--area-id", parseAreaId))
+    .option("--offset <n>", "start offset into the result set, 0..2147483647 with offset + limit at most 2147483647 (default 0)", once("--offset", parseOffset))
+    .option("--limit <n>", "page size, 1..500 (default 100)", once("--limit", parseLimit))
+    .action(
+      action(deps, async ({ client, global, opts }, [leikaKey]) => {
+        requireExactlyOneSelector(opts);
+        const result = await client.routes({
+          leikaKey: leikaKey!,
+          ags: opts["ags"] as string | undefined,
+          ars: opts["ars"] as string | undefined,
+          areaId: opts["areaId"] as string | undefined,
+          offset: opts["offset"] as number | undefined,
+          limit: opts["limit"] as number | undefined,
+        });
+        renderJson(deps, global, result);
+      }),
+    );
+}
