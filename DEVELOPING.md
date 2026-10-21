@@ -150,7 +150,9 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   answer with a number `JSON.parse` cannot carry exactly (`Unexpected response from
   /v2/routes: the number 12345678901234567890 cannot be represented exactly.`): one out of
   a double's range (`1e400`), one past 2^53 in any written form (`9007199254740993e0`,
-  `9007199254740992.5`), or a non-zero one too small (`1e-400`), rather than a changed
+  `9007199254740992.5`), a non-zero one too small (`1e-400`), or a subnormal one (below
+  2.2250738585072014e-308, where a double has fewer digits) that doesn't print as written
+  (`3e-324` prints as `5e-324`; `5e-324` and `1e-310` pass), rather than a changed
   value. Past 2^53 the number as written is compared with the number as printed
   (`String(value)`), not with the double's exact binary value: `12345678901234567890` prints
   as `12345678901234567000` and is refused, while `1E23` or `1.7976931348623157E308` (a
