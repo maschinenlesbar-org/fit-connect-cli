@@ -428,7 +428,12 @@ The client's tests are in `packages/client/test/` (`query`, `http`, `engine`, `c
   the stderr warning for a plain-`http:` base URL (follow-up round 2026-10-06; the environment and
   API-key cases skipped: no variable, no key), P21 README links (a relative link must point at a
   file `files` ships, since npmjs.com shows the README; anything else is an absolute GitHub URL),
-  P23 the log on stderr (records with timestamp, level and topic; `--log-format text|jsonl`).
+  P23 the log on stderr (records with timestamp, level and topic; `--log-format text|jsonl`),
+  P24 the input corpus (kit rollout 2026-10-21: every corpus value through the area search, on
+  the CLI and in the library, is refused before any request or sent trimmed in NFKC; no id goes
+  into a path here, so its id cases have nothing to run), P25 the response corpus (a number a
+  double can't carry exactly, and an empty answer, are parse errors). P26 (`-o` integrity) is
+  not here: the CLI has no `-o`.
   Copied across the `*-cli` repos; only the adapter block at the top differs.
 
 ## Continuous integration
