@@ -119,7 +119,11 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
 - `areas({ search, offset?, limit? })` → `AreaResult`. `search` is a string or
   string array; each term is normalised to NFKC (the API 500s on a decomposed
   umlaut or fullwidth digits), and combining marks NFKC leaves over are dropped (the
-  API 500s on those too: `"Kö\u0308ln"` searches `Köln`); the result is split into
+  API 500s on those too: `"Kö\u0308ln"` searches `Köln`); digits of another script are
+  written as ASCII digits by value (`٦٠٣١١` → `60311`), and any other letter, digit or symbol
+  than A–Z, a–z, Ä, Ö, Ü, ä, ö, ü, ß and 0–9 (`É`, Cyrillic, `Ł`, `+`, an emoji) rejects with
+  a `FitConnectValidationError` naming it (`UNSEARCHABLE`; the API answered each with HTTP 500
+  live, 2026-10-21); the result is split into
   words on whitespace and punctuation (`"Halle (Westf.)"` → `Halle`, `Westf`; `*` is kept). Words with fewer than 2
   non-wildcard characters are left out and a repeated word is sent once; a search
   with no word left, more than 10 words, or a `*` inside a word part shorter than 2

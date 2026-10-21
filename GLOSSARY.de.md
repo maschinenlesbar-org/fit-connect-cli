@@ -83,7 +83,7 @@ Zeichen (einzelne Surrogate) werden durch U+FFFD ersetzt und in einem `WARN`-Ein
 
 | Option | Bedeutung |
 | --- | --- |
-| `<query...>` | Ein oder mehrere Suchbegriffe (Namen / Postleitzahlen); Platzhalter `*` wird unterstützt. Die Begriffe werden an Leerzeichen und Satzzeichen in Wörter zerlegt, und jedes Wort muss auf dasselbe Gebiet passen (UND). Jedes Wort braucht mindestens 2 Buchstaben oder Ziffern (kürzere werden mit einem Hinweis weggelassen; ein zweiter Hinweis nennt die Zeichen außer dem Leerzeichen, an denen die Suche zerlegt wurde); höchstens 10 Wörter. `ß` und `ss` gelten als gleich (`Giessen` findet `Gießen`) |
+| `<query...>` | Ein oder mehrere Suchbegriffe (Namen / Postleitzahlen); Platzhalter `*` wird unterstützt. Die Begriffe werden an Leerzeichen und Satzzeichen in Wörter zerlegt, und jedes Wort muss auf dasselbe Gebiet passen (UND). Jedes Wort braucht mindestens 2 Buchstaben oder Ziffern (kürzere werden mit einem Hinweis weggelassen; ein zweiter Hinweis nennt die Zeichen außer dem Leerzeichen, an denen die Suche zerlegt wurde); höchstens 10 Wörter. Andere Buchstaben als A–Z, Ä, Ö, Ü und ß sowie Symbole werden abgelehnt (die API antwortet darauf mit HTTP 500); Ziffern einer anderen Schrift zählen nach ihrem Wert. `ß` und `ss` gelten als gleich (`Giessen` findet `Gießen`) |
 | `--offset <n>` | Start-Offset in der Ergebnismenge, `0`..`2147483647`; `offset + limit` (das Limit ist ohne Angabe `100`) darf `2147483647` nicht überschreiten, weil die API beide als 32-Bit-Ganzzahl addiert (Standard `0`) |
 | `--limit <n>` | Seitengröße, `1`..`500` (Standard `100`) |
 

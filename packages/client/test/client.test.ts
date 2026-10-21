@@ -287,3 +287,20 @@ test("a value a message quotes shows its invisible characters escaped, never raw
     await assert.rejects(client.routes({ leikaKey: "99123456760610", ars: "16", limit: `5${ch}` } as never), (err: Error) => err.message.includes(escape) && !err.message.includes(ch));
   }
 });
+
+test("areaSearchWords() refuses a letter, digit or symbol the API can't take, and reads other scripts' digits by value (Bug 2)", () => {
+  // Live, each of these was sent as typed and answered HTTP 500 ("Calling the third service
+  // 'AreaService' resulted in an exception"), which reads like an outage.
+  assert.throws(() => areaSearchWords("\u00c9ttal"), (err: unknown) =>
+    err instanceof FitConnectValidationError &&
+    err.message === 'Invalid search "\u00c9ttal": the API can\'t search for "\u00c9" (U+00C9; it answers HTTP 500): it takes the letters A-Z, \u00c4, \u00d6, \u00dc and \u00df and the digits 0-9 (write "\u00c9" as "E").');
+  assert.throws(() => areaSearchWords("\u041c\u044e\u043d\u0445\u0435\u043d"), /Invalid search "\u041c\u044e\u043d\u0445\u0435\u043d": the API can't search for "\u041c" \(U\+041C; it answers HTTP 500\): it takes the letters A-Z/);
+  assert.throws(() => areaSearchWords("\u0141\u00f3d\u017a"), /can't search for "\u0141" \(U\+0141/);
+  assert.throws(() => areaSearchWords(["Hanau", "\u{1f600} smile"]), /can't search for "\u{1f600}" \(U\+1F600/u);
+  assert.throws(() => areaSearchWords("Frankfurt + Oder"), /can't search for "\+" \(U\+002B/);
+  // Digits of another script are digits: Arabic-Indic, Devanagari.
+  assert.deepEqual(areaSearchWords("\u0666\u0660\u0663\u0661\u0661").words, ["60311"]);
+  assert.deepEqual(areaSearchWords("\u096c\u0966\u0969\u0967\u0967").words, ["60311"]);
+  // The German letters, upper case too, pass.
+  assert.deepEqual(areaSearchWords(["\u00dcberlingen", "Gie\u00dfen", "\u00d6hringen", "K\u00f6ln"]).words, ["\u00dcberlingen", "Gie\u00dfen", "\u00d6hringen", "K\u00f6ln"]);
+});

@@ -112,7 +112,11 @@ needs at least 2 letters or digits per word and at most 10 words: shorter words 
 left out with a note on stderr (`"Frankfurt a. M."` searches `Frankfurt`), and more
 than 10 words, or a bare `*`, is an error before any request. A second note lists the
 characters other than a plain space the search was split at, each once (`( . )`;
-invisible ones as `U+XXXX`), so you see how the query was changed. The API's matching
+invisible ones as `U+XXXX`), so you see how the query was changed. The API answers
+HTTP 500 for any letter other than A–Z, `Ä`, `Ö`, `Ü` and `ß` (`É`, Cyrillic, `Ł`) and for a
+symbol (`+`, `€`, an emoji), so such a search is refused before any request, naming the
+character (`write "É" as "E"`); digits of another script are read by value (`٦٠٣١١` searches
+`60311`). The API's matching
 treats `ß` and `ss` alike: `areas Giessen` finds the same 45 areas as `areas Gießen`
 (checked live on 2026-10-06), so either spelling works. Each result
 has an `id` (use as `--area-id`), `name`, and `type`. Supports `--offset` /

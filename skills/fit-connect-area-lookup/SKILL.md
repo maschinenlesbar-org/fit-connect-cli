@@ -54,6 +54,10 @@ Notes on the search expression:
   (0.0.5 and earlier) sent punctuation along, and the API answered `HTTP 500`
   ("AreaService resulted in an exception", exit `1`). If you see that error, retry
   with the bare words (`areas Halle Westf`) or the postal code (`areas 33790`).
+- The API takes only the letters A–Z, Ä, Ö, Ü and ß (and digits). The CLI refuses any other
+  letter or a symbol before the request, naming it (`Invalid search "Éttal": the API can't
+  search for "É" …`, exit `1`): retype the name with plain letters (`areas Ettal`) or use the
+  postal code. Digits of another script are read as digits.
 
 The response is `{ count, offset, totalCount, areas: [{ id, name, type }] }`. Use
 `--limit` / `--offset` to page when `totalCount` exceeds the page (default 100,

@@ -345,7 +345,13 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
   // letter at all) gets the same 500, so it is dropped: "Kö̈ln" searches "Köln", and a
   // term of marks alone has no usable word. German place names need no combining
   // mark once composed.
-  const normalised = terms.map((t) => stripMarks(t.normalize("NFKC")));
+  const normalised = terms.map((t) => asciiDigits(stripMarks(t.normalize("NFKC"))));
+  // The API answers HTTP 500 for any other letter, digit or symbol (live: "É", Cyrillic,
+  // "Łódź"): refuse it, naming the character, rather than send it and report an "outage".
+  for (const [i, term] of normalised.entries()) {
+    const odd = UNSEARCHABLE.exec(term)?.[0];
+    if (odd !== undefined) throw new FitConnectValidationError(unsearchableMessage(terms[i]!, odd));
+  }
   const separators = [...new Set(normalised.join(" ").match(/[^\p{L}\p{N}* ]/gu) ?? [])];
   for (const word of normalised.flatMap((t) => t.split(/[^\p{L}\p{N}*]+/u))) {
     if (word === "") continue;
@@ -414,6 +420,40 @@ function checkParams(method: string, params: unknown, allowed: readonly string[]
       );
     }
   }
+}
+
+/**
+ * A letter, digit or symbol the Routing API can't search for: anything in `\p{L}`, `\p{N}` or
+ * `\p{S}` other than A–Z, a–z, Ä, Ö, Ü, ä, ö, ü, ß and 0–9. Live (2026-10-21) the API answered
+ * HTTP 500 for `É`, Cyrillic and Arabic-Indic digits, as earlier for `Łódź`; the German letters,
+ * upper case too (`Überlingen`), are found. Punctuation and whitespace split a search instead.
+ */
+const UNSEARCHABLE = /(?![A-Za-z0-9\u00c4\u00d6\u00dc\u00e4\u00f6\u00fc\u00df])[\p{L}\p{N}\p{S}]/u;
+
+/** The refusal of `term` for its character `char`, with the plain letter to write instead where there is one. */
+function unsearchableMessage(term: string, char: string): string {
+  const code = `U+${char.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}`;
+  const base = stripMarks(char.normalize("NFD"));
+  const instead = /^[A-Za-z]$/.test(base) ? ` (write ${quoteValue(char)} as ${quoteValue(base)})` : "";
+  return (
+    `Invalid search ${quoteValue(term)}: the API can't search for ${quoteValue(char)} (${code}; it answers HTTP 500): ` +
+    `it takes the letters A-Z, \u00c4, \u00d6, \u00dc and \u00df and the digits 0-9${instead}.`
+  );
+}
+
+/**
+ * `text` with every decimal digit of another script (`\p{Nd}`: Arabic-Indic `٦٠٣١١`, Devanagari)
+ * written as its ASCII digit, by its value: a postal code typed in another script is the same
+ * code. Unicode lays out each script's digits as a run of ten from zero, so the value is the
+ * distance from the start of the run (modulo 10, for runs that follow each other).
+ */
+function asciiDigits(text: string): string {
+  return text.replace(/(?![0-9])\p{Nd}/gu, (digit) => {
+    const code = digit.codePointAt(0)!;
+    let zero = code;
+    while (/^\p{Nd}$/u.test(String.fromCodePoint(zero - 1))) zero -= 1;
+    return String((code - zero) % 10);
+  });
 }
 
 /** `text` without combining marks (`\p{M}`), as left over after NFKC composition. */

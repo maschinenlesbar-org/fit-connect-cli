@@ -129,9 +129,11 @@ test("the left-out-words note names each word once, at most 10 of them, each cut
 
 test("a search with no usable word names each typed term once, at most 10 of them (B02-1)", async () => {
   const cli = makeCli(() => jsonResponse({}));
-  assert.equal(await run(["areas", ...Array.from({ length: 2000 }, (_, i) => String.fromCharCode(0x4e00 + i))], cli.deps), 1);
+  // 2000 one-character terms, 62 of them distinct (a letter the API can't search for is refused on its own).
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  assert.equal(await run(["areas", ...Array.from({ length: 2000 }, (_, i) => chars[i % chars.length]!)], cli.deps), 1);
   const first = untimed(cli.err[0] as string);
-  assert.match(first, /^ERROR \[fit-connect\.cli\] No usable search word in "一" "丁" .* … \(1990 more\): every word needs/);
+  assert.match(first, /^ERROR \[fit-connect\.cli\] No usable search word in "a" "b" .* … \(52 more\): every word needs/);
   assert.ok(first.length < 400, `${first.length}`);
   const same = makeCli(() => jsonResponse({}));
   assert.equal(await run(["areas", ...Array.from({ length: 2000 }, () => "q")], same.deps), 1);
@@ -679,4 +681,14 @@ test("a refused value is shown with its invisible and control characters escaped
     assert.ok(err.includes(escape), `${escape}: ${err}`);
     assert.ok(!err.includes(ch), `${escape} raw: ${err}`);
   }
+});
+
+test("areas refuses a letter the API answers HTTP 500 for, before any request (Bug 2)", async () => {
+  const cli = makeCli(() => jsonResponse(AREA_BODY));
+  assert.equal(await run(["--compact", "areas", "\u00c9ttal"], cli.deps), 1);
+  assert.equal(cli.mt.calls.length, 0);
+  assert.match(untimed(cli.err[0] ?? ""), /^ERROR \[fit-connect\.cli\] Invalid search "\\u00c9ttal"|^ERROR \[fit-connect\.cli\] Invalid search "\u00c9ttal"/);
+  const digits = makeCli(() => jsonResponse(AREA_BODY));
+  assert.equal(await run(["--compact", "areas", "\u0666\u0660\u0663\u0661\u0661"], digits.deps), 0);
+  assert.deepEqual(new URL(digits.mt.last().url).searchParams.getAll("areaSearchexpression"), ["60311"]);
 });
