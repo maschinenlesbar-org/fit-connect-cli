@@ -72,10 +72,15 @@ fit-connect --compact areas "Hanau" \
 
 ## Page through a large area result
 
+`areas Frankfurt` matches 105 areas (live, 2026-10-21), more than a page of 50:
+
 ```bash
-fit-connect --compact areas "Berlin" --limit 25 --offset 0
-fit-connect --compact areas "Berlin" --limit 25 --offset 25
+fit-connect --compact areas "Frankfurt" --limit 50 --offset 0     # totalCount 105, count 50
+fit-connect --compact areas "Frankfurt" --limit 50 --offset 50    # the next 50
+fit-connect --compact areas "Frankfurt" --limit 50 --offset 100   # the last 5
 ```
+
+Stop once `offset` reaches `totalCount`; a page past the end is `count: 0`, not an error.
 
 ## Count registered destinations for a service in an area
 
