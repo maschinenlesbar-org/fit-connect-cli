@@ -456,8 +456,12 @@ The client's tests are in `packages/client/test/` (`query`, `http`, `engine`, `c
   P24 the input corpus (kit rollout 2026-10-21: every corpus value through the area search, on
   the CLI and in the library, is refused before any request or sent trimmed in NFKC; no id goes
   into a path here, so its id cases have nothing to run), P25 the response corpus (a number a
-  double can't carry exactly, and an empty answer, are parse errors). P26 (`-o` integrity) is
-  not here: the CLI has no `-o`.
+  double can't carry exactly, a subnormal that prints changed, and an empty answer, are parse
+  errors naming the request), P26 output integrity (the CLI has no `-o`, so only its stdout
+  case runs, `HAS_OUTPUT_OPTION = false`: stdout redirected to a file and cut short by a
+  file-size limit exits 1 with an ERROR record of `fit-connect.output`), P27 big and odd answers
+  (a large flat answer and 20 MB of DEL print within a small heap, 90 MB of DEL is a clean
+  ERROR record, a lone surrogate or invalid bytes become U+FFFD with a WARN).
   Copied across the `*-cli` repos; only the adapter block at the top differs.
 
 ## Continuous integration
@@ -552,8 +556,10 @@ Node's default `warning` listener and logs `(node) <name>: <message>` through
 is held while stdout has a backlog and written, in order, once it is gone, so with
 `2>&1 |` and a slow reader it never lands inside the data. `CliDeps.now` makes the
 timestamps testable. stdout carries data only. A
-stdout write error other than a closed pipe (EBADF, EIO) is an ERROR record of
-`fit-connect.output` too, `Could not write to stdout: …` (`handleOutputErrors`, which the
+stdout write error other than a closed pipe (EBADF, EIO; and when stdout is a regular file,
+`> out.json`, a write cut short by a file-size limit or a full disk, EFBIG or ENOSPC:
+`stdoutWriter` writes every byte with `writeSync` in a loop, where Node's stream ignored a short
+count and exited 0) is an ERROR record of `fit-connect.output` too, `Could not write to stdout: …` (`handleOutputErrors`, which the
 bin shim installs outside any run with `processLogger(argv)`: the format argv asks for,
 the run's redaction), and exits 1; a reader that stops early (EPIPE, ENOTCONN) exits 0
 quietly. Conformance test P23 checks all of this, and its body is shared across the
