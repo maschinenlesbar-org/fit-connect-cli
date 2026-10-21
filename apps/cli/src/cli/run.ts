@@ -5,6 +5,7 @@
 import { CommanderError, type Command } from "commander";
 import { buildProgram, defaultDeps } from "./program.js";
 import { logOf, type CliDeps } from "./io.js";
+import { OutputError } from "./shared.js";
 import { DEFAULT_LOG_FORMAT, createLogger, logFormatFromArgv, type LogFormat, type Logger } from "./log.js";
 import {
   FitConnectApiError,
@@ -240,9 +241,10 @@ export function processLogger(argv: readonly string[]): Logger {
  * The log area of a `FitConnectError` that is neither an API error nor a usage error: the
  * connection (`http`), a malformed answer (`api`: bad JSON, the wrong shape, an HTML page
  * answered with 200, an unknown charset — the API's answer as much as an error status
- * is), else `cli`.
+ * is), printing the answer (`output`: too deeply nested or too large), else `cli`.
  */
 function areaOf(err: FitConnectError): string {
+  if (err instanceof OutputError) return "output";
   if (err instanceof FitConnectNetworkError) return "http";
   if (err instanceof FitConnectParseError) return "api";
   return "cli";

@@ -183,22 +183,31 @@ test("--compact prints single-line JSON", async () => {
   assert.equal(cli.out.join("\n"), JSON.stringify(AREA_BODY));
 });
 
-test("a deeply nested response fails pretty-printing cleanly and still prints with --compact", async () => {
+test("an answer nested too deeply is a clean error of fit-connect.output; it suggests --compact only where --compact prints it (D7)", async () => {
+  // A hostile or broken answer: JSON.parse reads it, the pretty printer's recursion can't. Whether
+  // the compact printer can depends on the Node version (iterative from Node 26) and the stack:
+  // probed here, never assumed.
   const depth = 200_000;
   const head = '{"count":1,"offset":0,"totalCount":1,"areas":[{"id":"1","name":"Halle","type":"Stadt","x":';
   const deepJson = head + "[".repeat(depth) + "]".repeat(depth) + "}]}";
+  let compactPrints = true;
+  try {
+    JSON.stringify(JSON.parse(deepJson));
+  } catch {
+    compactPrints = false;
+  }
   const deep = () => rawResponse(deepJson, "application/json");
   const pretty = makeCli(deep);
   assert.equal(await run(["areas", "Halle"], pretty.deps), 1);
   assert.deepEqual(pretty.out, []);
-  assert.equal(untimed(pretty.err.join("\n")), "ERROR [fit-connect.cli] The response is nested too deeply to pretty-print; try --compact.");
-
-  // Compact serialisation goes much deeper (it prints this one on current Node);
-  // should a runtime's stack still be too small, it must fail just as cleanly.
+  assert.equal(
+    untimed(pretty.err.join("\n")),
+    `ERROR [fit-connect.output] The answer is nested too deeply to pretty-print${compactPrints ? "; try --compact" : ""}.`,
+  );
   const compact = makeCli(deep);
-  const code = await run(["--compact", "areas", "Halle"], compact.deps);
-  if (code === 0) assert.equal(compact.out.join(""), deepJson);
-  else assert.equal(untimed(compact.err.join("\n")), "ERROR [fit-connect.cli] The response is nested too deeply to print.");
+  assert.equal(await run(["--compact", "areas", "Halle"], compact.deps), compactPrints ? 0 : 1);
+  if (compactPrints) assert.equal(compact.out.join(""), deepJson);
+  else assert.equal(untimed(compact.err.join("\n")), "ERROR [fit-connect.output] The answer is nested too deeply to print.");
 });
 
 test("bidi formatting characters in server data are escaped in the JSON output", async () => {

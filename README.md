@@ -161,7 +161,7 @@ Each line on stderr is a **log record**: a timestamp (UTC), a level (`ERROR`, `W
 `INFO`) and a topic, the program and the area it comes from (`fit-connect.cli` for usage
 errors and notes on the search words, `fit-connect.api` for the API's answers, a malformed one included,
 `fit-connect.http` for the connection, naming the request: `GET <url> failed: <reason>`, `fit-connect.output` when stdout itself can't be
-written). An error about an answer names the request too (`GET <url>: the answer is not valid
+written or the answer is too deeply nested or too large to print). An error about an answer names the request too (`GET <url>: the answer is not valid
 JSON`). Text in an answer is never changed silently: bytes that are not valid in its charset
 and half characters (lone surrogates) are replaced with U+FFFD, so the output stays readable
 for `jq`, and a `WARN` record of `fit-connect.api` says how many. By default it is written log4j style;

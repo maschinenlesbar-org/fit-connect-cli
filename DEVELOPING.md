@@ -305,8 +305,13 @@ apps/cli/src/cli/
 - The CLI is built around injectable `CliDeps` (client factory + I/O), so the whole
   program can be driven in-process by tests with a mocked client and captured
   output — no subprocesses.
-- **Rendering** (`renderJson` in `shared.ts`): an answer nested too deeply to pretty-print is a
-  clean error that suggests `--compact`. `--compact` takes V8's fast `JSON.stringify` path,
+- **Rendering** (`renderJson` in `shared.ts`): an answer that can't be printed is an
+  `OutputError`, an ERROR record of `fit-connect.output` naming the real cause: `The answer is
+  nested too deeply to pretty-print.` (a stack overflow) or `The answer is too large (more than
+  536870888 characters of JSON) to pretty-print.` (V8's longest string). `; try --compact` is
+  added only when the compact form of that very answer prints (probed, not assumed from the Node
+  version). `holdsHugeString` walks the answer iteratively, without an allocation per value
+  (`Object.entries` made a pair per element: 7 GB and a crash on 48M numbers). `--compact` takes V8's fast `JSON.stringify` path,
   which on Node 26 is the only one that prints very deep nesting, unless the answer holds a
   string or key of 64 Mi characters or more (`holdsHugeString`): there the fast path aborts
   the process on Node 26, so such an answer goes through the gap path (an empty gap, the
@@ -518,7 +523,7 @@ code point and ends in `… (N more characters)`. The areas are `cli` (usage err
 after one, the notes on left-out search words, unexpected errors), `api` (the API's
 answers, and a WARN through the engine's `onWarning` when invalid text in one was replaced
 with U+FFFD), `http` (the connection, the cleartext warning) and `output` (a stdout write
-error). A malformed answer (a `FitConnectParseError`: bad JSON, the wrong shape, an HTML
+error, an answer too deeply nested or too large to print). A malformed answer (a `FitConnectParseError`: bad JSON, the wrong shape, an HTML
 page answered with 200, an unknown charset) is an `api` record too, as the API's answer
 it is. Code logs through
 `logOf(deps)` and never writes diagnostics with `io.err` directly. `run()` builds the

@@ -63,7 +63,7 @@ for `routes` (`--ars`).
 commander's messages, the notes on left-out search words, unexpected errors), `api` (the
 API's answers: an error status, and a malformed answer — bad JSON, the wrong shape, an
 HTML page, an unknown charset), `http` (the connection, the cleartext warning, and one WARN per retry before it waits) and
-`output` (a failure to write to stdout). A record is always one line; control characters
+`output` (a failure to write to stdout, an answer too deeply nested or too large to print). A record is always one line; control characters
 in it are escaped.
 
 **Replaced text.** Bytes of an answer that are not valid in its charset, and half characters
