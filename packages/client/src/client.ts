@@ -34,7 +34,7 @@ export const ARS_PATTERN = /^(\d{2}|\d{3}|\d{5}|\d{9}|\d{12})$/;
 
 export interface FitConnectClientOptions extends EngineOptions {
   /** Routing API major version to target (path prefix). Defaults to "v2". */
-  apiVersion?: ApiVersion;
+  apiVersion?: ApiVersion | undefined;
 }
 
 /** Parameters for {@link FitConnectClient.routes}. */
@@ -42,15 +42,15 @@ export interface RouteQuery {
   /** Leistungsschlüssel (formerly LeiKa key) of the public service. Required. */
   leikaKey: string;
   /** Amtlicher Gemeindeschlüssel, 2/3/5/8 digits ({@link AGS_PATTERN}) — provide exactly one area selector. */
-  ags?: string;
+  ags?: string | undefined;
   /** Amtlicher Regionalschlüssel, 2/3/5/9/12 digits ({@link ARS_PATTERN}) — provide exactly one area selector. */
-  ars?: string;
+  ars?: string | undefined;
   /** Area id from {@link FitConnectClient.areas} — provide exactly one area selector. */
-  areaId?: string;
+  areaId?: string | undefined;
   /** Start offset into the result set (0..2147483647, default 0). */
-  offset?: number;
+  offset?: number | undefined;
   /** Page size (1..500, default 100). */
-  limit?: number;
+  limit?: number | undefined;
 }
 
 /** Parameters for {@link FitConnectClient.areas}. */
@@ -64,9 +64,9 @@ export interface AreaQuery {
    */
   search: string | string[];
   /** Start offset into the result set (default 0). */
-  offset?: number;
+  offset?: number | undefined;
   /** Page size (1..500, default 100). */
-  limit?: number;
+  limit?: number | undefined;
 }
 
 export class FitConnectClient {

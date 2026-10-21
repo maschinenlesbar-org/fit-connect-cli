@@ -73,6 +73,11 @@ new FitConnectClient({
 });
 ```
 
+Every optional field of the option and parameter types (`FitConnectClientOptions`,
+`EngineOptions`, `RouteQuery`, `AreaQuery`) is typed `?: T | undefined`, and an option given
+as `undefined` means what an omitted one means, so `{ baseUrl: process.env.X }` compiles under
+`exactOptionalPropertyTypes` too.
+
 Only an omitted (`undefined`) `baseUrl` selects the production default; an empty
 or blank one, a non-http(s) URL, one with a `?query` or `#fragment`, surrounding
 whitespace or a control character, and one whose user name or password has a `%`
@@ -389,7 +394,7 @@ node --test apps/cli/dist/test/cli.test.js   # one file, after a build
 ```
 
 The client's tests are in `packages/client/test/` (`query`, `http`, `engine`, `client`,
-`area-word`), everything that drives the CLI is in `apps/cli/test/`.
+`area-word`, `types`), everything that drives the CLI is in `apps/cli/test/`.
 
 - **`query.test.ts`** — query-string serialisation (array repetition, wildcards, spaces).
 - **`http.test.ts`** — the default transport against a real loopback `http.createServer`.
@@ -402,6 +407,9 @@ The client's tests are in `packages/client/test/` (`query`, `http`, `engine`, `c
 - **`io.test.ts`** — `handleOutputErrors` (EPIPE on a closed stdout exits 0; on a closed stderr it is ignored, so the run keeps its exit code) — fake streams.
 - **`log.test.ts`** — the record helpers of `apps/cli/src/cli/log.ts` on their own
   (`escapeForRecord`, `formatLogRecord`); the CLI-level checks are P23's.
+- **`types.test.ts`** — a consumer file compiled by `tsc` with `exactOptionalPropertyTypes`
+  passes `undefined` for every option (starts a process: 30 s), and every option given as
+  `undefined` means its default at run time.
 - **`area-word.test.ts`** — the area search wildcard rule (`isAreaSearchWord`) against the spec's
   pattern on every short word, and the timing of the worst-case words (each well under 100 ms).
 - **`conformance-p*.test.ts`** — the workspace's shared conformance checks from the 2026-10-05 review:
