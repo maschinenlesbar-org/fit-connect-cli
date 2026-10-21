@@ -327,7 +327,10 @@ Lets the whole CLI run in tests with a mocked client and captured output.
 RFC 7807 `application/problem+json` body's `detail`/`title`/`message`, followed by
 its `violations[]` as `(field: message; …)` — a 400 "Constraint Violation" names the
 rejected parameter and rule only there), `FitConnectNetworkError`
-(transport failure/timeout), `FitConnectParseError` (bad JSON or a 2xx body without
+(transport failure/timeout; its message names the request, `GET <url> failed: <reason>` with
+the userinfo redacted and ` (after N retries)` for a reset that was retried, the original
+error as `cause`: a timeout, the size cap, a refused connection, a DNS failure and a reset
+alike), `FitConnectParseError` (bad JSON or a 2xx body without
 the documented shape) and `FitConnectValidationError` (every input the library rejects
 before a request: client options, `apiVersion`, the leikaKey, selectors, search words,
 paging), all extending `FitConnectError`. A `catch (e) { if (e instanceof

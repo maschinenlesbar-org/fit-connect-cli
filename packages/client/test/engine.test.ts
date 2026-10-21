@@ -10,6 +10,7 @@ import {
 import {
   FitConnectApiError,
   FitConnectError,
+  FitConnectNetworkError,
   FitConnectParseError,
   FitConnectValidationError,
   cutForMessage,
@@ -633,4 +634,35 @@ test("a number JSON.parse cannot carry exactly is a FitConnectParseError, never 
     const e = new RequestEngine({ transport: makeMockTransport(() => rawResponse(body(n), "application/json")).transport });
     assert.equal((await e.getJson<{ totalCount: number }>("/v2/routes")).totalCount, value, n);
   }
+});
+
+test("a timeout, the size cap, a refused connection and a DNS failure name the request (K3)", async () => {
+  const base = "https://user:secret@example.test";
+  const url = "https://***@example.test/v2/routes?leikaKey=99123456760610&ars=16";
+  const query = { leikaKey: "99123456760610", ars: "16" };
+  const fails = async (options: ConstructorParameters<typeof RequestEngine>[0], expected: string, cause?: unknown) => {
+    await assert.rejects(new RequestEngine({ baseUrl: base, maxRetries: 0, ...options }).getJson("/v2/routes", query), (err) => {
+      assert.ok(err instanceof FitConnectNetworkError, String(err));
+      assert.equal(err.message, `GET ${url} failed: ${expected}`);
+      if (cause !== undefined) assert.equal((err.cause as Error).message, (cause as Error).message);
+      return true;
+    });
+  };
+  const refused = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:1"), { code: "ECONNREFUSED" });
+  await fails({ transport: async () => { throw refused; } }, "connect ECONNREFUSED 127.0.0.1:1", refused);
+  const dns = Object.assign(new Error("getaddrinfo ENOTFOUND example.test"), { code: "ENOTFOUND" });
+  await fails({ transport: async () => { throw dns; } }, "getaddrinfo ENOTFOUND example.test", dns);
+  await fails({ timeoutMs: 20, transport: () => new Promise<HttpResponse>(() => {}) }, "Request timed out after 20ms");
+  await fails(
+    { maxResponseBytes: 4, transport: async () => rawResponse("{\"a\":1}", "application/json") },
+    "Response exceeded the size limit of 4 bytes (maxResponseBytes; --max-response-bytes on the CLI)",
+  );
+  // The default transport's own size-cap error is named the same way.
+  await fails(
+    { transport: async () => { throw new FitConnectNetworkError("Response exceeded the size limit of 4 bytes (maxResponseBytes; --max-response-bytes on the CLI)"); } },
+    "Response exceeded the size limit of 4 bytes (maxResponseBytes; --max-response-bytes on the CLI)",
+  );
+  // A reset, after its retries, says so.
+  const reset = Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+  await fails({ maxRetries: 1, sleep: async () => {}, transport: async () => { throw reset; } }, "socket hang up (after 1 retry)");
 });

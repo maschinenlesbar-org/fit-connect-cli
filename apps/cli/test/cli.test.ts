@@ -259,7 +259,7 @@ test("a network error maps to exit code 1", async () => {
   });
   const code = await run(["info"], cli.deps);
   assert.equal(code, 1);
-  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.http\] connect ECONNREFUSED/);
+  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.http\] GET https:\/\/routing-api-prod\.fit-connect\.fitko\.net\/v2\/info failed: connect ECONNREFUSED$/);
 });
 
 test("a parse error (non-JSON body) maps to exit code 1, an ERROR record of fit-connect.api", async () => {
@@ -275,7 +275,7 @@ test("whatever a transport throws is reported as a network error, exit 1", async
   });
   const code = await run(["info"], cli.deps);
   assert.equal(code, 1);
-  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.http\] kaboom$/m);
+  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.http\] GET https:\/\/routing-api-prod\.fit-connect\.fitko\.net\/v2\/info failed: kaboom$/m);
 });
 
 test("an unexpected (non-FitConnect) error maps to exit code 1", async () => {

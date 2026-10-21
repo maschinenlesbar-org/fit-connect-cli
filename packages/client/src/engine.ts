@@ -506,17 +506,24 @@ export class RequestEngine {
    * What the transport threw, as the error the engine raises. The default transport
    * rejects with `FitConnectNetworkError` only; an injected one may throw anything (a
    * string, a `TypeError` from fetch). Every failure becomes a `FitConnectNetworkError`
-   * — a `FitConnectError` a caller and the CLI can rely on — with the base URL's
-   * credentials scrubbed from its message and cause chain; any other `FitConnectError`
-   * passes through, and a clean `FitConnectNetworkError` stays as it is.
+   * — a `FitConnectError` a caller and the CLI can rely on — that names the request,
+   * `<METHOD> <url> failed: <reason>` (userinfo redacted; Node's own text, "connect
+   * ECONNREFUSED 127.0.0.1:443", says nothing about which call failed), with the base
+   * URL's credentials scrubbed from the reason and the original, scrubbed, as `cause`.
+   * Any other `FitConnectError` passes through.
    */
-  private transportError(cause: unknown): FitConnectError {
+  private transportError(cause: unknown, method: string, url: string, retries: number): FitConnectError {
     if (cause instanceof FitConnectError && !(cause instanceof FitConnectNetworkError)) return cause;
     const reason = cause instanceof Error ? cause.message : String(cause);
-    const message = sanitizeServerText(this.scrub(reason));
-    const scrubbed = this.scrubCause(cause);
-    if (cause instanceof FitConnectNetworkError && message === cause.message && scrubbed === cause) return cause;
-    return new FitConnectNetworkError(message, { cause: scrubbed });
+    const retried = retries > 0 ? ` (after ${retries} ${retries === 1 ? "retry" : "retries"})` : "";
+    return new FitConnectNetworkError(this.failed(method, url, `${sanitizeServerText(this.scrub(reason))}${retried}`), {
+      cause: this.scrubCause(cause),
+    });
+  }
+
+  /** `<METHOD> <url> failed: <reason>`, the URL with its userinfo redacted and cut for a message. */
+  private failed(method: string, url: string, reason: string): string {
+    return `${method} ${cutForMessage(sanitizeServerText(this.scrub(redactUrl(url))))} failed: ${reason}`;
   }
 
   /**
@@ -589,14 +596,14 @@ export class RequestEngine {
           await this.backOff(attempt, this.retryDelayMs * attempt, url);
           continue;
         }
-        throw this.transportError(cause);
+        throw this.transportError(cause, method, url, attempt);
       }
 
       // An injected transport may resolve with anything; a malformed HttpResponse would
       // otherwise surface below as a raw TypeError, outside the FitConnectError contract.
       const invalid = responseProblem(response);
       if (invalid !== undefined) {
-        throw new FitConnectNetworkError(`The transport returned an invalid response (${invalid}).`);
+        throw new FitConnectNetworkError(this.failed(method, url, `the transport returned an invalid response (${invalid}).`));
       }
       const status = response.status;
       const responseHeaders = plainHeaders(response.headers);
@@ -605,7 +612,7 @@ export class RequestEngine {
       // The size cap holds whatever the transport did: the default one aborts early, a custom
       // one may have read everything.
       if (this.maxResponseBytes > 0 && body.byteLength > this.maxResponseBytes) {
-        throw new FitConnectNetworkError(sizeLimitMessage(this.maxResponseBytes));
+        throw new FitConnectNetworkError(this.failed(method, url, sizeLimitMessage(this.maxResponseBytes)));
       }
       const retryable = status === 429 || status === 503;
       // Honour Retry-After, else the RateLimit-Reset the Routing API documents for a 429.
