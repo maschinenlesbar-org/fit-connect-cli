@@ -70,6 +70,7 @@ new FitConnectClient({
   maxResponseBytes: 100 << 20,// abort responses larger than 100 MiB (0 = unlimited)
   userAgent: "my-app/1.0",    // default is accepted; some UA strings are blocked by bot detection
   transport: customTransport, // inject your own HTTP transport (the engine enforces timeoutMs / maxResponseBytes)
+  bigIntegerKeys: new Set(["id"]), // members whose numbers may pass 2^53: delivered as their exact literal, a string (default none)
 });
 ```
 
