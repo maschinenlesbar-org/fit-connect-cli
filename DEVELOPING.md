@@ -311,7 +311,11 @@ apps/cli/src/cli/
   536870888 characters of JSON) to pretty-print.` (V8's longest string). `; try --compact` is
   added only when the compact form of that very answer prints (probed, not assumed from the Node
   version). `holdsHugeString` walks the answer iteratively, without an allocation per value
-  (`Object.entries` made a pair per element: 7 GB and a crash on 48M numbers). `--compact` takes V8's fast `JSON.stringify` path,
+  (`Object.entries` made a pair per element: 7 GB and a crash on 48M numbers).
+  `escapeControlChars` (DEL, C1 and the bidi controls as `\uXXXX`) counts first and refuses an
+  output past V8's longest string (`The answer is too large to print (N characters once its
+  control characters are escaped).`), then builds the text in 64 Ki chunks: one `+=` per
+  character crashed the heap on 95 MiB of DEL. `--compact` takes V8's fast `JSON.stringify` path,
   which on Node 26 is the only one that prints very deep nesting, unless the answer holds a
   string or key of 64 Mi characters or more (`holdsHugeString`): there the fast path aborts
   the process on Node 26, so such an answer goes through the gap path (an empty gap, the
