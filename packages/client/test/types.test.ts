@@ -78,6 +78,7 @@ test("an option given as undefined means its default, as an omitted one does", a
     sleep: undefined,
     onRetry: undefined,
     bigIntegerKeys: undefined,
+    onWarning: undefined,
     transport: mt.transport,
   });
   await client.routes({ leikaKey: "99123456760610", ags: undefined, ars: "16", areaId: undefined, offset: undefined, limit: undefined });

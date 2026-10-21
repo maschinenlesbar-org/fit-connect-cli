@@ -70,6 +70,7 @@ new FitConnectClient({
   maxResponseBytes: 100 << 20,// abort responses larger than 100 MiB (0 = unlimited)
   userAgent: "my-app/1.0",    // default is accepted; some UA strings are blocked by bot detection
   transport: customTransport, // inject your own HTTP transport (the engine enforces timeoutMs / maxResponseBytes)
+  onWarning: (message) => log.warn(message), // an answer delivered changed: invalid text replaced with U+FFFD (else silent)
   bigIntegerKeys: new Set(["id"]), // members whose numbers may pass 2^53: delivered as their exact literal, a string (default none)
 });
 ```
@@ -511,7 +512,8 @@ character, which jq rejects, stopping the whole stream) becomes U+FFFD (`toWellF
 and a message longer than `MAX_RECORD_MESSAGE` (4000 characters, exported) is cut at a
 code point and ends in `… (N more characters)`. The areas are `cli` (usage errors, commander's messages and the help it shows
 after one, the notes on left-out search words, unexpected errors), `api` (the API's
-answers), `http` (the connection, the cleartext warning) and `output` (a stdout write
+answers, and a WARN through the engine's `onWarning` when invalid text in one was replaced
+with U+FFFD), `http` (the connection, the cleartext warning) and `output` (a stdout write
 error). A malformed answer (a `FitConnectParseError`: bad JSON, the wrong shape, an HTML
 page answered with 200, an unknown charset) is an `api` record too, as the API's answer
 it is. Code logs through

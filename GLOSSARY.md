@@ -66,6 +66,10 @@ HTML page, an unknown charset), `http` (the connection, the cleartext warning, a
 `output` (a failure to write to stdout). A record is always one line; control characters
 in it are escaped.
 
+**Replaced text.** Bytes of an answer that are not valid in its charset, and half characters
+(lone surrogates), are replaced with U+FFFD and reported in one `WARN` record of
+`fit-connect.api` with the count and the request; the run still succeeds.
+
 ## `routes` options
 
 | Option | Meaning |

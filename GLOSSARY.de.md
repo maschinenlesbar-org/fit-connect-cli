@@ -65,6 +65,10 @@ Zeichensatz), `http` (die Verbindung, die Klartext-Warnung und je Wiederholung e
 Schreiben nach stdout). Ein Eintrag ist immer eine Zeile; Steuerzeichen darin werden
 maskiert.
 
+**Ersetzter Text.** Bytes einer Antwort, die in ihrem Zeichensatz ungültig sind, und halbe
+Zeichen (einzelne Surrogate) werden durch U+FFFD ersetzt und in einem `WARN`-Eintrag von
+`fit-connect.api` mit Anzahl und Anfrage gemeldet; der Lauf gelingt trotzdem.
+
 ## Optionen von `routes`
 
 | Option | Bedeutung |
