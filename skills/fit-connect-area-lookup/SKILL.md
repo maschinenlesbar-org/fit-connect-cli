@@ -57,7 +57,9 @@ Notes on the search expression:
 - The API takes only the letters A–Z, Ä, Ö, Ü and ß (and digits). The CLI refuses any other
   letter or a symbol before the request, naming it (`Invalid search "Éttal": the API can't
   search for "É" …`, exit `1`): retype the name with plain letters (`areas Ettal`) or use the
-  postal code. Digits of another script are read as digits.
+  postal code. Digits of another script are read as digits. An invisible character inside a
+  name (a soft hyphen copied from a web page, shown as `\u00ad` in the error) is refused the
+  same way: retype the name.
 
 The response is `{ count, offset, totalCount, areas: [{ id, name, type }] }`. Use
 `--limit` / `--offset` to page when `totalCount` exceeds the page (default 100,

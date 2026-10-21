@@ -142,7 +142,7 @@ test("a search with no usable word names each typed term once, at most 10 of the
 
 test("areas lists the separator characters it left out once each, invisible ones as U+XXXX", async () => {
   const cli = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
-  const code = await run(["--compact", "areas", "Halle (Westf.)", "Bad\u200bOeynhausen\u202e", "Halle-(Saale)"], cli.deps);
+  const code = await run(["--compact", "areas", "Halle (Westf.)", "Bad\u3000Oeynhausen\u00a0", "Halle-(Saale)"], cli.deps);
   assert.equal(code, 0);
   assert.deepEqual(new URL(cli.mt.last().url).searchParams.getAll("areaSearchexpression"), [
     "Halle",
@@ -151,9 +151,13 @@ test("areas lists the separator characters it left out once each, invisible ones
     "Oeynhausen",
     "Saale",
   ]);
+  // NFKC makes U+3000 and U+00A0 plain spaces; the rest are shown as they are.
   assert.deepEqual(cli.err.map(untimed), [
-    "INFO  [fit-connect.cli] split the search at characters the API rejects inside a word, and left them out: ( . ) U+200B U+202E -",
+    "INFO  [fit-connect.cli] split the search at characters the API rejects inside a word, and left them out: ( . ) -",
   ]);
+  const tab = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
+  assert.equal(await run(["--compact", "areas", "Bad\tOeynhausen"], tab.deps), 0);
+  assert.deepEqual(tab.err.map(untimed), ["INFO  [fit-connect.cli] split the search at characters the API rejects inside a word, and left them out: U+0009"]);
   const plain = makeCli(() => jsonResponse({ count: 0, offset: 0, totalCount: 0, areas: [] }));
   assert.equal(await run(["--compact", "areas", "Frankfurt am Main"], plain.deps), 0);
   assert.deepEqual(plain.err, [], "a plain space is the ordinary separator, not worth a note");
@@ -691,4 +695,15 @@ test("areas refuses a letter the API answers HTTP 500 for, before any request (B
   const digits = makeCli(() => jsonResponse(AREA_BODY));
   assert.equal(await run(["--compact", "areas", "\u0666\u0660\u0663\u0661\u0661"], digits.deps), 0);
   assert.deepEqual(new URL(digits.mt.last().url).searchParams.getAll("areaSearchexpression"), ["60311"]);
+});
+
+test("a soft hyphen, ZWSP or ZWJ inside a place name is refused, naming it; never a split search that finds nothing (Bug 1)", async () => {
+  // Live, "Frank<SHY>furt" was sent as Frank + furt: count 0, exit 0, where Frankfurt finds 105.
+  for (const [ch, code] of [["\u00ad", "U+00AD"], ["\u200b", "U+200B"], ["\u200d", "U+200D"], ["\u200c", "U+200C"], ["\u202e", "U+202E"]] as const) {
+    const cli = makeCli(() => jsonResponse(AREA_BODY));
+    assert.equal(await run(["--compact", "areas", `Frank${ch}furt`], cli.deps), 1);
+    assert.equal(cli.mt.calls.length, 0, code);
+    const err = untimed(cli.err[0] ?? "");
+    assert.ok(err.startsWith(`ERROR [fit-connect.cli] Invalid search: "Frank\\u${code.slice(2).toLowerCase()}furt" contains an invisible character (${code}).`), err);
+  }
 });

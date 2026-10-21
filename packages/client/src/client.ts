@@ -11,7 +11,7 @@
 
 import { RequestEngine, type EngineOptions } from "./engine.js";
 import { FitConnectParseError, FitConnectValidationError, cutText } from "./errors.js";
-import { areaIdProblem, assertValid, nonBlankProblem, quoteValue, quoteValues } from "./validate.js";
+import { areaIdProblem, assertValid, isBlank, nonBlankProblem, normalizeToken, quoteValue, quoteValues, textProblem, tokenProblem } from "./validate.js";
 import type { QueryParams } from "./query.js";
 import type { AreaResult, Info, RouteResult } from "./types.js";
 
@@ -335,6 +335,13 @@ export function areaSearchWords(search: string | string[]): AreaSearchWords {
     }
   }
   const terms = given as string[];
+  // An invisible or control character inside a term (a soft hyphen copied from a hyphenated web
+  // page, a zero-width space) used to split it: "Frank<SHY>furt" searched Frank + furt and found
+  // nothing, exit 0. It is refused, naming it. A blank term adds no word.
+  for (const term of terms) {
+    if (isBlank(term)) continue;
+    assertValid("search", term, textProblem);
+  }
   const words: string[] = [];
   const dropped: string[] = [];
   const seen = new Set<string>();
@@ -472,7 +479,8 @@ function optionalNonBlank(name: string, value: unknown): string | undefined {
   if (typeof value !== "string") {
     throw new FitConnectValidationError(`Invalid ${name}: expected a string, got ${describeValue(value)}.`);
   }
-  return assertValid(name, value, nonBlankProblem).trim();
+  assertValid(name, value, nonBlankProblem);
+  return normalizeToken(assertValid(name, value, tokenProblem));
 }
 
 /**
@@ -497,5 +505,5 @@ function requireNonEmpty(name: string, value: unknown): string {
   if (value.trim() === "") {
     throw new FitConnectValidationError(`Invalid ${name}: must be a non-empty string`);
   }
-  return value.trim();
+  return normalizeToken(assertValid(name, value, tokenProblem));
 }

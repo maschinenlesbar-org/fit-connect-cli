@@ -45,7 +45,18 @@ export {
   redactCredentials,
   redactUrl,
 } from "./errors.js";
-export { MAX_AREA_ID, areaIdProblem, assertValid, baseUrlProblem, headerValueProblem, intRangeProblem, nonBlankProblem } from "./validate.js";
+export {
+  MAX_AREA_ID,
+  areaIdProblem,
+  assertValid,
+  baseUrlProblem,
+  headerValueProblem,
+  intRangeProblem,
+  nonBlankProblem,
+  normalizeToken,
+  textProblem,
+  tokenProblem,
+} from "./validate.js";
 export type { Problem } from "./validate.js";
 
 export * from "./types.js";

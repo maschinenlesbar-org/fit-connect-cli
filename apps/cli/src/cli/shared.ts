@@ -8,7 +8,7 @@ import { logOf, type CliDeps } from "./io.js";
 import { AGS_PATTERN, ARS_PATTERN, MAX_OFFSET } from "@maschinenlesbar.org/fit-connect-client/internal/client";
 import { DEFAULT_BASE_URL, cleartextProblem, isBidiControl } from "@maschinenlesbar.org/fit-connect-client/internal/engine";
 import { FitConnectError } from "@maschinenlesbar.org/fit-connect-client/internal/errors";
-import { areaIdProblem, baseUrlProblem, headerValueProblem, intRangeProblem, nonBlankProblem } from "@maschinenlesbar.org/fit-connect-client/internal/validate";
+import { areaIdProblem, baseUrlProblem, headerValueProblem, intRangeProblem, nonBlankProblem, tokenProblem } from "@maschinenlesbar.org/fit-connect-client/internal/validate";
 import type { ApiVersion, FitConnectClientOptions } from "@maschinenlesbar.org/fit-connect-client/internal/client";
 import type { RetryEvent } from "@maschinenlesbar.org/fit-connect-client/internal/engine";
 
@@ -86,11 +86,14 @@ export function parseLimit(value: string): number {
  * commander value-parser for `--ags` (Amtlicher Gemeindeschlüssel): 2, 3, 5 or 8
  * digits — the Land, Regierungsbezirk, Kreis and Gemeinde levels, exactly the
  * lengths the Routing API accepts (`routing-api.yaml`, `^(\d{2}|\d{3}|\d{5}|\d{8})$`).
- * Trims first, then validates, so surrounding whitespace, a length the API rejects,
+ * Checks the library's `tokenProblem` first (an invisible or control character is refused,
+ * shown escaped), then trims and validates, so surrounding whitespace, a length the API rejects,
  * or a whitespace-only value is a clear usage error rather than an opaque API 400 or
  * a misleading "got no selector" error.
  */
 export function parseAgs(value: string): string {
+  const problem = tokenProblem(value);
+  if (problem !== undefined) throw new InvalidArgumentError(problem);
   const trimmed = value.trim();
   if (!AGS_PATTERN.test(trimmed)) {
     throw new InvalidArgumentError(
@@ -107,6 +110,8 @@ export function parseAgs(value: string): string {
  * validates — see {@link parseAgs}.
  */
 export function parseArs(value: string): string {
+  const problem = tokenProblem(value);
+  if (problem !== undefined) throw new InvalidArgumentError(problem);
   const trimmed = value.trim();
   if (!ARS_PATTERN.test(trimmed)) {
     throw new InvalidArgumentError(

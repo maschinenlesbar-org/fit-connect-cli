@@ -27,7 +27,85 @@ export function assertValid<T>(name: string, value: T, problem: Problem<T>): T {
  * parameter.
  */
 export const nonBlankProblem: Problem = (value) =>
-  value.trim() === "" ? "Value must not be blank." : undefined;
+  value.trim() === "" ? BLANK : undefined;
+
+/** The reason for a blank value, whatever made it blank. */
+const BLANK = "Value must not be blank.";
+
+/** Characters that never make a value non-blank: whitespace, controls, format characters, combining marks. */
+const INVISIBLE = /[\s\p{Cc}\p{Cf}\p{M}]/gu;
+
+/** A lone surrogate: half of a character, which URLSearchParams would send as U+FFFD. */
+const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
+
+/**
+ * True when nothing in `value` would match anything: it holds only whitespace, control and
+ * format characters (a zero-width space, a soft hyphen) and combining marks.
+ */
+export function isBlank(value: string): boolean {
+  return value.replace(INVISIBLE, "") === "";
+}
+
+/** `U+200B` for the first character of `text` that `pattern` matches. */
+function codePointOf(text: string, pattern: RegExp): string {
+  const ch = pattern.exec(text)?.[0] ?? "";
+  return `U+${(ch.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, "0")}`;
+}
+
+/** A control character inside a search text: C0 and C1, but not TAB, LF or CR (whitespace in a pasted phrase). */
+const TEXT_CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
+
+/** A format character: a zero-width space, a soft hyphen, ZWJ/ZWNJ, a bidi control, U+FEFF. */
+const TEXT_FORMAT = /\p{Cf}/u;
+
+/**
+ * Why `value` cannot be sent as search text (a term of the area search), or undefined when it
+ * can. Refused, before any request:
+ * - a value that is blank, or holds only invisible characters and combining marks (`isBlank`);
+ * - a lone surrogate (half of a character, sent as U+FFFD);
+ * - a control character (but TAB, LF and CR) or a format character (a zero-width space, a soft
+ *   hyphen, ZWJ, a bidi control): pasted along from a hyphenated web page, a soft hyphen used to
+ *   split "Frankfurt" into "Frank" and "furt", which found nothing.
+ * Unlike the kit's text rule this refuses ZWJ and ZWNJ too: the API takes only A–Z, the umlauts
+ * and ß, so no name it can find needs a joiner. The reason quotes the value with every invisible
+ * character escaped (`quoteValue`).
+ */
+export function textProblem(value: string): string | undefined {
+  if (typeof value !== "string") return "Expected a string.";
+  if (isBlank(value)) return BLANK;
+  if (LONE_SURROGATE.test(value)) return `${quoteValue(value)} contains half of a character (a lone surrogate).`;
+  if (TEXT_CONTROL.test(value)) return `${quoteValue(value)} contains a control character (${codePointOf(value, TEXT_CONTROL)}).`;
+  if (TEXT_FORMAT.test(value)) return `${quoteValue(value)} contains an invisible character (${codePointOf(value, TEXT_FORMAT)}).`;
+  return undefined;
+}
+
+/** A control or format character in a token (after trimming): every Cc and every Cf. */
+const TOKEN_INVISIBLE = /[\p{Cc}\p{Cf}]/u;
+
+/**
+ * Why `value` cannot be sent as a token, or undefined when it can. A token is a code the API
+ * compares exactly: the Leistungsschlüssel, an AGS, an ARS, an area id. The rules apply to the
+ * value with surrounding whitespace trimmed, as it is sent ({@link normalizeToken}): not blank
+ * (and not only invisible characters or combining marks), no lone surrogate, and no control or
+ * format character at all (a zero-width space, ZWJ, a soft hyphen, a bidi control), since an
+ * invisible character in a code only ever makes it match nothing. The reason quotes the value
+ * visibly. Each token's own pattern (digits of the right length) is checked after this.
+ */
+export function tokenProblem(value: string): string | undefined {
+  if (typeof value !== "string") return "Expected a string.";
+  if (isBlank(value)) return BLANK;
+  const token = value.trim();
+  if (LONE_SURROGATE.test(token)) return `${quoteValue(value)} contains half of a character (a lone surrogate).`;
+  if (TOKEN_INVISIBLE.test(token)) {
+    return `${quoteValue(value)} contains an invisible or control character (${codePointOf(token, TOKEN_INVISIBLE)}).`;
+  }
+  return undefined;
+}
+
+/** A token as it is sent: trimmed and in composed Unicode (NFC). Check it with {@link tokenProblem} first. */
+export function normalizeToken(value: string): string {
+  return value.trim().normalize("NFC");
+}
 
 /**
  * An integer in min..max (a safe integer; NaN, Infinity and fractions are
@@ -155,12 +233,13 @@ export const MAX_AREA_ID = 2_147_483_647;
  * upper bound of its own to match: live on 2026-10-06 it answered that same 500 for every
  * id it doesn't know — 99999, a 9-digit 123456789, 2147483647 and 2147483648 alike — so
  * the int32 cap (like `offset`) only keeps the value a plain number; every real id seen
- * has five digits or fewer. Checked on the trimmed value; a blank one is
- * `nonBlankProblem`'s.
+ * has five digits or fewer. Checked on the trimmed value, after the {@link tokenProblem} rules
+ * (blank, invisible or control characters).
  */
 export const areaIdProblem: Problem = (value) => {
+  const token = tokenProblem(value);
+  if (token !== undefined) return token;
   const id = value.trim();
-  if (id === "") return "Value must not be blank.";
   if (!/^[1-9]\d{0,9}$/.test(id) || Number(id) > MAX_AREA_ID) {
     return `Expected an area id as \`fit-connect areas\` lists it: a positive whole number without leading zeros, at most ${MAX_AREA_ID}.`;
   }

@@ -80,7 +80,9 @@ info                                              show the deployed Routing API 
 ### `routes <leikaKey>`
 
 Find the responsible destination(s) for a public service in an area. Requires a
-`leikaKey` and **exactly one** area selector.
+`leikaKey` and **exactly one** area selector. Each code is trimmed; one holding an
+invisible or control character (a zero-width space, a soft hyphen) is refused before any
+request, with the character shown escaped (`"94\u200b0"`).
 
 | Option | Description |
 | --- | --- |
@@ -115,7 +117,9 @@ characters other than a plain space the search was split at, each once (`( . )`;
 invisible ones as `U+XXXX`), so you see how the query was changed. The API answers
 HTTP 500 for any letter other than A–Z, `Ä`, `Ö`, `Ü` and `ß` (`É`, Cyrillic, `Ł`) and for a
 symbol (`+`, `€`, an emoji), so such a search is refused before any request, naming the
-character (`write "É" as "E"`); digits of another script are read by value (`٦٠٣١١` searches
+character (`write "É" as "E"`); so is an invisible or control character inside a term (a
+soft hyphen copied from a web page, a zero-width space), shown escaped (`Frank\u00adfurt`),
+where it used to split the word and find nothing; digits of another script are read by value (`٦٠٣١١` searches
 `60311`). The API's matching
 treats `ß` and `ss` alike: `areas Giessen` finds the same 45 areas as `areas Gießen`
 (checked live on 2026-10-06), so either spelling works. Each result

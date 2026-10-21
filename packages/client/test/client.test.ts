@@ -239,7 +239,7 @@ test("an echoed input is quoted with control and bidi characters escaped, and cu
   const c = clientWith(constantJson({ count: 0, offset: 0, totalCount: 0, routes: [] }));
   await assert.rejects(
     c.routes({ leikaKey: "99\u001b[31mX‮", ars: "16" }),
-    (err: unknown) => err instanceof FitConnectValidationError && err.message.startsWith('Invalid leikaKey "99\\u001b[31mX\\u202e":'),
+    (err: unknown) => err instanceof FitConnectValidationError && err.message === 'Invalid leikaKey: "99\\u001b[31mX\\u202e" contains an invisible or control character (U+001B).',
   );
   await assert.rejects(
     c.routes({ leikaKey: "9".repeat(5000), ars: "16" }),

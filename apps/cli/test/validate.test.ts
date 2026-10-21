@@ -5,6 +5,9 @@ import {
   headerValueProblem,
   intRangeProblem,
   nonBlankProblem,
+  normalizeToken,
+  textProblem,
+  tokenProblem,
   type Problem,
 } from "@maschinenlesbar.org/fit-connect-client/internal/validate";
 import { resolveUserAgent } from "@maschinenlesbar.org/fit-connect-client/internal/engine";
@@ -107,4 +110,27 @@ test("resolveUserAgent checks the raw value first, then lets a blank one fall ba
   }
   assert.equal(library.resolveUserAgent, resolveUserAgent);
   assert.equal(library.headerValueProblem, headerValueProblem);
+});
+
+test("tokenProblem refuses blank, invisible, control and half characters, quoting the value visibly; normalizeToken trims and composes (D8)", () => {
+  assert.equal(tokenProblem(" 940 "), undefined);
+  assert.equal(normalizeToken(" 940 "), "940");
+  assert.equal(normalizeToken("e\u0301"), "\u00e9");
+  for (const blank of ["", " ", "\u200b", "\u0301\u0308", " \u200b "]) assert.equal(tokenProblem(blank), "Value must not be blank.", JSON.stringify(blank));
+  assert.equal(tokenProblem("94\u200b0"), '"94\\u200b0" contains an invisible or control character (U+200B).');
+  assert.equal(tokenProblem("94\u00ad0"), '"94\\u00ad0" contains an invisible or control character (U+00AD).');
+  assert.equal(tokenProblem("9\u00004"), '"9\\u00004" contains an invisible or control character (U+0000).');
+  assert.equal(tokenProblem("94\ud800"), '"94\\ud800" contains half of a character (a lone surrogate).');
+});
+
+test("textProblem (the area search) refuses invisible and control characters, ZWJ/ZWNJ included, and half characters (D8, Bug 1)", () => {
+  assert.equal(textProblem("Frankfurt am Main"), undefined);
+  assert.equal(textProblem("Bad\tOeynhausen\n"), undefined);
+  assert.equal(textProblem("\u200b"), "Value must not be blank.");
+  for (const [ch, code] of [["\u00ad", "00AD"], ["\u200b", "200B"], ["\u200d", "200D"], ["\u200c", "200C"], ["\ufeff", "FEFF"]] as const) {
+    assert.equal(textProblem(`Frank${ch}furt`), `"Frank\\u${code.toLowerCase()}furt" contains an invisible character (U+${code}).`);
+  }
+  assert.equal(textProblem("a\u001bb"), '"a\\u001bb" contains a control character (U+001B).');
+  assert.equal(textProblem("a\u0085b"), '"a\\u0085b" contains a control character (U+0085).');
+  assert.equal(textProblem("x\ud83d"), '"x\\ud83d" contains half of a character (a lone surrogate).');
 });

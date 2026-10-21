@@ -386,6 +386,15 @@ message `Invalid <name>: <reason>`; a method that returns a promise rejects with
 CLI's option parsers call the same `…Problem` functions, so an input gets the same
 outcome on both sides, and `run.ts` reports a `FitConnectValidationError` raised in an
 action as a usage error (an `ERROR` record of `fit-connect.cli`, exit `1`).
+Every value that goes into a request passes one rule for its kind: a token (the
+Leistungsschlüssel, an AGS, an ARS, an area id) `tokenProblem` — not blank, not only invisible
+characters or combining marks, no lone surrogate, no control or format character (a zero-width
+space, a soft hyphen, ZWJ, a bidi control) — then its digit pattern, and is sent as
+`normalizeToken` (trimmed, NFC); a search term `textProblem` — the same, but TAB, LF and CR
+are whitespace there (they split words) — then `areaSearchWords`. Unlike the kit's text rule,
+`textProblem` refuses ZWJ and ZWNJ too, as no name the API can find needs one. The reasons
+quote the value with its invisible characters escaped (`"Frank\u00adfurt" contains an
+invisible character (U+00AD).`). All three are exported.
 
 **Retry / backoff.** Transient `429` and `503` are retried automatically with
 backoff, up to `maxRetries` (default `2`; `0`..`MAX_RETRIES` = 10, checked by the library).
@@ -460,9 +469,11 @@ The client's tests are in `packages/client/test/` (`query`, `http`, `engine`, `c
   API-key cases skipped: no variable, no key), P21 README links (a relative link must point at a
   file `files` ships, since npmjs.com shows the README; anything else is an absolute GitHub URL),
   P23 the log on stderr (records with timestamp, level and topic; `--log-format text|jsonl`),
-  P24 the input corpus (kit rollout 2026-10-21: every corpus value through the area search, on
-  the CLI and in the library, is refused before any request or sent trimmed in NFKC; no id goes
-  into a path here, so its id cases have nothing to run), P25 the response corpus (a number a
+  P24 the input corpus (every corpus value through the area search and the four tokens —
+  leikaKey, `--ags`, `--ars`, `--area-id` — on the CLI and in the library, is refused before
+  any request or sent canonical: the search trimmed in NFKC, a token trimmed in NFC; a blank,
+  invisible, control or half character is refused with the character shown escaped; no list
+  option, so its list cases have nothing to run), P25 the response corpus (a number a
   double can't carry exactly, a subnormal that prints changed, and an empty answer, are parse
   errors naming the request), P26 output integrity (the CLI has no `-o`, so only its stdout
   case runs, `HAS_OUTPUT_OPTION = false`: stdout redirected to a file and cut short by a
