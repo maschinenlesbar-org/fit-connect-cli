@@ -605,3 +605,32 @@ test("credentials a server echoes are scrubbed from the error: Basic, user:passw
     return true;
   });
 });
+
+test("a number JSON.parse cannot carry exactly is a FitConnectParseError, never a changed value (K1)", async () => {
+  // These printed Infinity as null, 12345678901234567000, 9007199254740992 and 0, exit 0.
+  const body = (n: string) => `{"count":0,"offset":0,"totalCount":${n},"routes":[]}`;
+  for (const n of [
+    "1e400", "-1e400", "12345678901234567890", "12345678901234567890.0", "9007199254740993e0", "90071992547409930E-1",
+    "9007199254740992.5", "-9007199254740992.5", "1e-400", "-0.0001e-399", "1e23",
+  ]) {
+    const e = new RequestEngine({ transport: makeMockTransport(() => rawResponse(body(n), "application/json")).transport });
+    await assert.rejects(e.getJson("/v2/routes"), (err) => {
+      assert.ok(err instanceof FitConnectParseError, n);
+      assert.equal(err.message, `Unexpected response from /v2/routes: the number ${n} cannot be represented exactly.`);
+      return true;
+    });
+  }
+  // A number inside a string is not a number.
+  const quoted = new RequestEngine({ transport: makeMockTransport(() => rawResponse('{"a":"1e400 \\" 12345678901234567890"}', "application/json")).transport });
+  assert.deepEqual(await quoted.getJson("/v2/info"), { a: '1e400 " 12345678901234567890' });
+  // The same values in other forms, zero in any form, and a decimal fraction below 2^53 pass.
+  const ok: Array<[string, number]> = [
+    ["9007199254740992", 2 ** 53], ["9007199254740992.0", 2 ** 53], ["9007199254740992e0", 2 ** 53], ["90071992547409920E-1", 2 ** 53],
+    ["1.2e21", 1.2e21], ["0", 0], ["-0", -0], ["0.0e-500", 0], ["0e5", 0], ["1.00000000000000001", 1], ["5e-324", 5e-324],
+    ["1e2", 100], ["-17.25", -17.25],
+  ];
+  for (const [n, value] of ok) {
+    const e = new RequestEngine({ transport: makeMockTransport(() => rawResponse(body(n), "application/json")).transport });
+    assert.equal((await e.getJson<{ totalCount: number }>("/v2/routes")).totalCount, value, n);
+  }
+});

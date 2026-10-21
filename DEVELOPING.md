@@ -141,7 +141,13 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   `info` `{ version: { major, minor, patch } }`. Anything else — `null`, `{}`, an array,
   a string, an error envelope a proxy answered with `200` — is a `FitConnectParseError`
   (`Unexpected response from /v2/routes: "routes" is not an array, not the documented
-  shape.`), never data, since the skills read `count: 0` as a valid answer.
+  shape.`), never data, since the skills read `count: 0` as a valid answer. So is an
+  answer with a number `JSON.parse` cannot carry exactly (`Unexpected response from
+  /v2/routes: the number 12345678901234567890 cannot be represented exactly.`): one out of
+  a double's range (`1e400`), one past 2^53 in any written form (`9007199254740993e0`,
+  `9007199254740992.5`), or a non-zero one too small (`1e-400`), rather than a changed
+  value; below 2^53 a decimal fraction keeps a double's precision. The answer's numbers are
+  counts, offsets, version parts and durations, none near 2^53.
 - `client.apiVersion` reflects the configured version.
 
 ## Authentication internals
