@@ -278,3 +278,12 @@ test("an answer of the wrong shape names the request, method and URL (D9)", asyn
   const info = new FitConnectClient({ transport: makeMockTransport(() => jsonResponse({ version: 1 })).transport });
   await assert.rejects(info.info(), /^FitConnectParseError: GET https:\/\/routing-api-prod\.fit-connect\.fitko\.net\/v2\/info: unexpected response shape: "version" is not an object\.$/);
 });
+
+test("a value a message quotes shows its invisible characters escaped, never raw (D10)", async () => {
+  const client = new FitConnectClient({ transport: makeMockTransport(() => jsonResponse({})).transport });
+  for (const [ch, escape] of [["\u200b", "\\u200b"], ["\u2028", "\\u2028"], ["\u2029", "\\u2029"], ["\u0085", "\\u0085"]] as const) {
+    await assert.rejects(client.routes({ leikaKey: `9${ch}9`, ars: "16" }), (err: Error) => err.message.includes(escape) && !err.message.includes(ch));
+    await assert.rejects(client.routes({ leikaKey: "99123456760610", ars: "16", [`x${ch}`]: "1" } as never), (err: Error) => err.message.includes(escape) && !err.message.includes(ch));
+    await assert.rejects(client.routes({ leikaKey: "99123456760610", ars: "16", limit: `5${ch}` } as never), (err: Error) => err.message.includes(escape) && !err.message.includes(ch));
+  }
+});

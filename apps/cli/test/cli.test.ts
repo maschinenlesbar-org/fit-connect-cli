@@ -667,3 +667,16 @@ test("a subcommand's value option does not swallow the program's --log-format, i
   assert.ok(cli.err.length > 0 && cli.err.every((line) => line.startsWith("{")), cli.err.join("\n"));
   assert.match((JSON.parse(cli.err[0] ?? "") as Record<string, unknown>)["msg"] as string, / <[a-z]+>' argument missing/);
 });
+
+test("a refused value is shown with its invisible and control characters escaped, never raw (D10)", async () => {
+  // commander repeats a rejected option value raw ("argument '940\u200b' is invalid"); a record
+  // escaped bidi controls but not a zero-width space, which made two refusals look alike.
+  for (const [ch, escape] of [["\u200b", "\\u200b"], ["\u00ad", "\\u00ad"], ["\u2028", "\\u2028"], ["\u0085", "\\u0085"], ["\u0007", "\\u0007"]] as const) {
+    const cli = makeCli(() => jsonResponse(ROUTE_BODY));
+    assert.equal(await run(["routes", "99123456760610", "--area-id", `94${ch}0`], cli.deps), 1);
+    assert.equal(cli.mt.calls.length, 0);
+    const err = cli.err.join("\n");
+    assert.ok(err.includes(escape), `${escape}: ${err}`);
+    assert.ok(!err.includes(ch), `${escape} raw: ${err}`);
+  }
+});

@@ -368,7 +368,10 @@ FitConnectValidationError) … }` therefore catches every rejected input, never 
 `TypeError`. A server `detail` in a message is cut at 500 characters (`body` keeps it
 all; `cutForMessage`, `MAX_MESSAGE_VALUE_LENGTH`, also for a redirect target and an
 unknown response charset), and an echoed input (`Invalid leikaKey "…"`) is cut at 100 characters and quoted
-with control and bidi characters escaped (`quoteValue`). No cut lands inside a surrogate
+with control characters, every Unicode format character (bidi controls, zero-width
+characters, the soft hyphen) and U+2028/U+2029 escaped (`quoteValue`, also for a parameter
+name and a wrong-typed string); commander's own echo of a rejected option value gets the same
+escapes in `run.ts` (`escapeCommanderError`), so a refused `94<ZWSP>0` reads `94\u200b0`. No cut lands inside a surrogate
 pair (`cutText`), so a message stays well-formed.
 
 **Input validation.** [`validate.ts`](packages/client/src/validate.ts): a rule is a pure

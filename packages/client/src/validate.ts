@@ -113,14 +113,15 @@ export const MAX_ECHO_LENGTH = 100;
 /**
  * `value` quoted for a validation message: cut to MAX_ECHO_LENGTH characters (never inside
  * a surrogate pair), then
- * JSON-quoted (C0 controls such as ESC become `\u001b`), with DEL, C1 controls and Unicode
- * format characters (bidi overrides, zero-width characters) escaped as well. A library
+ * JSON-quoted (C0 controls such as ESC become `\u001b`), with DEL, C1 controls, Unicode
+ * format characters (bidi overrides, zero-width characters, the soft hyphen) and the line and
+ * paragraph separators U+2028/U+2029 escaped as well, so a refused value shows what it holds. A library
  * user who logs the message of a rejected form field gets no raw terminal escapes, and a
  * 20 000-character value doesn't become a 20 KB line.
  */
 export function quoteValue(value: string): string {
   const cut = value.length > MAX_ECHO_LENGTH ? `${cutText(value, MAX_ECHO_LENGTH)}…` : value;
-  return JSON.stringify(cut).replace(/[\u007f-\u009f]|\p{Cf}/gu, (ch) =>
+  return JSON.stringify(cut).replace(/[\u007f-\u009f\u2028\u2029]|\p{Cf}/gu, (ch) =>
     Array.from({ length: ch.length }, (_, i) => `\\u${ch.charCodeAt(i).toString(16).padStart(4, "0")}`).join(""),
   );
 }

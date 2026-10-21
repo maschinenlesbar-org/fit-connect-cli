@@ -167,7 +167,8 @@ and half characters (lone surrogates) are replaced with U+FFFD, so the output st
 for `jq`, and a `WARN` record of `fit-connect.api` says how many. By default it is written log4j style;
 `--log-format jsonl` writes one JSON object per line instead. A record is always one
 line: a line break, a control character or a bidi control in a message (a server's text,
-a value you typed) is written as an escape (`\n`, `\u001b`, `\u202e`), so it can neither
+a value you typed; in a value you typed, an invisible character such as a zero-width space
+too) is written as an escape (`\n`, `\u001b`, `\u202e`, `\u200b`), so it can neither
 split a record nor forge another one, nor steer the terminal; a message longer than 4000
 characters is cut and ends in `… (N more characters)`:
 

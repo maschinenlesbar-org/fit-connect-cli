@@ -386,13 +386,13 @@ const AREA_PARAMS = ["search", "offset", "limit"] as const;
 
 /**
  * How a wrong-typed value reads in a message: `the string "50"`, `a number`, `an
- * array`, `null`. A string is quoted (cut to 50 characters) so `got 50` can't be mistaken
- * for the number.
+ * array`, `null`. A string is quoted (cut to 50 characters, invisible characters escaped:
+ * `quoteValue`) so `got 50` can't be mistaken for the number.
  */
 export function describeValue(value: unknown): string {
   if (value === null || value === undefined) return String(value);
   if (Array.isArray(value)) return "an array";
-  if (typeof value === "string") return `the string ${JSON.stringify(value.length > 50 ? `${cutText(value, 50)}…` : value)}`;
+  if (typeof value === "string") return `the string ${quoteValue(value.length > 50 ? `${cutText(value, 50)}…` : value)}`;
   if (typeof value === "number") return Number.isNaN(value) ? "NaN" : String(value);
   return typeof value === "object" ? "an object" : `a ${typeof value}`;
 }
@@ -410,7 +410,7 @@ function checkParams(method: string, params: unknown, allowed: readonly string[]
   for (const key of Object.keys(params)) {
     if (!allowed.includes(key)) {
       throw new FitConnectValidationError(
-        `Invalid ${method}() parameter ${JSON.stringify(key)}: expected one of ${allowed.join(", ")}.`,
+        `Invalid ${method}() parameter ${quoteValue(key)}: expected one of ${allowed.join(", ")}.`,
       );
     }
   }
