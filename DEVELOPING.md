@@ -291,6 +291,12 @@ apps/cli/src/cli/
 - The CLI is built around injectable `CliDeps` (client factory + I/O), so the whole
   program can be driven in-process by tests with a mocked client and captured
   output — no subprocesses.
+- **Rendering** (`renderJson` in `shared.ts`): an answer nested too deeply to pretty-print is a
+  clean error that suggests `--compact`. `--compact` takes V8's fast `JSON.stringify` path,
+  which on Node 26 is the only one that prints very deep nesting, unless the answer holds a
+  string or key of 64 Mi characters or more (`holdsHugeString`): there the fast path aborts
+  the process on Node 26, so such an answer goes through the gap path (an empty gap, the
+  same text).
 - The Routing API version (`v1`/`v2`) is a **path prefix**; the client owns it as
   `apiVersion` and builds `/${apiVersion}/{routes,areas,info}` from it.
 
@@ -404,7 +410,7 @@ The client's tests are in `packages/client/test/` (`query`, `http`, `engine`, `c
 - **`engine.test.ts`** — URL building, JSON decoding, error mapping, 429/503 retry, UA fallback — mocked transport.
 - **`client.test.ts`** — path/version building, query params, area-selector validation — mocked transport.
 - **`validate.test.ts`** — `assertValid` and the `parity()` helper (`apps/cli/test/helpers.ts`), which sends one input through `run()` and through the library, each on a recording mock transport, so a test can assert both give the same outcome.
-- **`shared.test.ts`** — option parsing (`parseIntArg`, `parseApiVersion`) and `toClientOptions` mapping.
+- **`shared.test.ts`** — option parsing (`parseIntArg`, `parseApiVersion`), `toClientOptions` mapping, and the `JSON.stringify` path `--compact` takes (mocked, so no huge body is built).
 - **`parity.test.ts`** — CLI ↔ library parity: one input through `run()` and through the library (`parity()`), asserting the same outcome.
 - **`cli.test.ts`** — end-to-end command parsing, rendering, error/exit codes and option flow-through — mocked client.
 - **`io.test.ts`** — `handleOutputErrors` (EPIPE on a closed stdout exits 0; on a closed stderr it is ignored, so the run keeps its exit code) — fake streams.
