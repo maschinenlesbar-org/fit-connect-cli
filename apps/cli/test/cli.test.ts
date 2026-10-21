@@ -266,7 +266,7 @@ test("a parse error (non-JSON body) maps to exit code 1, an ERROR record of fit-
   const cli = makeCli(() => rawResponse("<html>not json</html>", "text/html"));
   const code = await run(["info"], cli.deps);
   assert.equal(code, 1);
-  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.api\] Failed to parse JSON/);
+  assert.match(untimed(cli.err.join("\n")), /^ERROR \[fit-connect\.api\] GET https:\/\/routing-api-prod\.fit-connect\.fitko\.net\/v2\/\S+: the answer is not valid JSON/);
 });
 
 test("whatever a transport throws is reported as a network error, exit 1", async () => {

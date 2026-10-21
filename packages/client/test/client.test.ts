@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FitConnectClient, areaSearchWords } from "../src/client.js";
-import { FitConnectApiError, FitConnectError, FitConnectValidationError } from "../src/errors.js";
+import { FitConnectApiError, FitConnectError, FitConnectParseError, FitConnectValidationError } from "../src/errors.js";
 import { makeMockTransport, jsonResponse, constantJson } from "./helpers.js";
 
 function clientWith(
@@ -263,4 +263,18 @@ test("combining marks NFKC leaves over are dropped, never sent (the API answers 
   await clientWith(mt).areas({ search: "Kö̈ln" });
   assert.equal(mt.calls.length, 1);
   assert.equal(new URL(mt.last().url).searchParams.get("areaSearchexpression"), "Köln");
+});
+
+test("an answer of the wrong shape names the request, method and URL (D9)", async () => {
+  const client = new FitConnectClient({ transport: makeMockTransport(() => jsonResponse({ count: 0, offset: 0, totalCount: 0 })).transport });
+  await assert.rejects(client.areas({ search: "Hanau" }), (err: unknown) => {
+    assert.ok(err instanceof FitConnectParseError, String(err));
+    assert.equal(
+      err.message,
+      'GET https://routing-api-prod.fit-connect.fitko.net/v2/areas?areaSearchexpression=Hanau: unexpected response shape: "areas" is not an array.',
+    );
+    return true;
+  });
+  const info = new FitConnectClient({ transport: makeMockTransport(() => jsonResponse({ version: 1 })).transport });
+  await assert.rejects(info.info(), /^FitConnectParseError: GET https:\/\/routing-api-prod\.fit-connect\.fitko\.net\/v2\/info: unexpected response shape: "version" is not an object\.$/);
 });

@@ -257,16 +257,16 @@ export function resolveUserAgent(value: string | undefined): string {
  * Decode a response body by the Content-Type's `charset` (default UTF-8) with
  * TextDecoder, which — unlike Buffer#toString — drops a leading byte-order mark,
  * so a BOM-prefixed JSON body parses. An unknown charset label is a
- * `FitConnectParseError`. The Routing API sends UTF-8; this matters for proxies and
- * mirrors that re-encode or prepend a BOM.
+ * `FitConnectParseError` naming `request` (`GET <url>`). The Routing API sends UTF-8;
+ * this matters for proxies and mirrors that re-encode or prepend a BOM.
  */
-function decodeBody(body: Buffer, contentType: string, path: string): string {
+function decodeBody(body: Buffer, contentType: string, request: string): string {
   const charset = /;\s*charset\s*=\s*"?([^";\s]+)"?/i.exec(contentType)?.[1] ?? "utf-8";
   let decoder: TextDecoder;
   try {
     decoder = new TextDecoder(charset);
   } catch {
-    throw new FitConnectParseError(`Unsupported response charset "${cutForMessage(sanitizeServerText(charset))}" from ${path}.`);
+    throw new FitConnectParseError(`${request}: unsupported response charset "${cutForMessage(sanitizeServerText(charset))}".`);
   }
   return decoder.decode(body);
 }
@@ -561,6 +561,16 @@ export class RequestEngine {
     return `${this.#baseUrl}${normalizedPath}${qs ? `?${qs}` : ""}`;
   }
 
+  /**
+   * The request URL as error messages show it: absolute (so a message names the host that gave
+   * a bad answer, which matters with a mirror as `--base-url`), userinfo redacted, the base URL's
+   * credentials scrubbed, control and bidi characters dropped, and cut at
+   * MAX_MESSAGE_VALUE_LENGTH characters.
+   */
+  describeUrl(path: string, query?: QueryParams): string {
+    return cutForMessage(sanitizeServerText(this.scrub(redactUrl(this.buildUrl(path, query)))));
+  }
+
   /** Perform a request with Accept negotiation and transient-error retries. */
   async request(
     method: string,
@@ -647,25 +657,37 @@ export class RequestEngine {
     }
   }
 
-  /** Perform a GET expecting JSON and parse it into `T`. */
+  /**
+   * Perform a GET expecting JSON and parse it into `T`. An empty (or whitespace-only) body is a
+   * FitConnectParseError: every endpoint answers with a JSON document. Every error about the
+   * answer names the request (`GET <url>: …`, userinfo redacted), as a network error does.
+   */
   async getJson<T>(path: string, query?: QueryParams): Promise<T> {
     // The Routing API serves the /areas success body as `application/problem+json`
     // (not `application/json`); we don't gate on content-type, only on parseability.
     const res = await this.request("GET", path, { query, accept: "application/json" });
-    const text = decodeBody(res.data, res.contentType, path);
+    const request = `GET ${this.describeUrl(path, query)}`;
+    const text = decodeBody(res.data, res.contentType, request);
+    if (text.trim() === "") {
+      // A broken answer, not "no results": printed as nothing with exit 0, it would let a
+      // script carry on as if the API had found nothing.
+      throw new FitConnectParseError(`${request}: empty response body.`);
+    }
     let parsed: T;
     try {
       parsed = JSON.parse(text) as T;
     } catch (cause) {
-      throw new FitConnectParseError(`Failed to parse JSON response from ${path}`, { cause: this.scrubCause(cause) });
+      // An HTML maintenance or proxy page is the usual non-JSON answer: name its type, so it
+      // reads as an upstream problem rather than a client bug.
+      const type = res.contentType.split(";")[0]?.trim() ?? "";
+      const hint = type !== "" && !/json/i.test(type) ? ` (expected JSON, got Content-Type "${cutForMessage(sanitizeServerText(type))}")` : "";
+      throw new FitConnectParseError(`${request}: the answer is not valid JSON${hint}.`, { cause: this.scrubCause(cause) });
     }
     // JSON.parse rounds and overflows numbers silently: refuse the answer rather than return
     // a changed value.
     const inexact = firstInexactNumber(text);
     if (inexact !== undefined) {
-      throw new FitConnectParseError(
-        `Unexpected response from ${path}: the number ${cutForMessage(inexact)} cannot be represented exactly.`,
-      );
+      throw new FitConnectParseError(`${request}: the number ${cutForMessage(inexact)} cannot be represented exactly.`);
     }
     return parsed;
   }

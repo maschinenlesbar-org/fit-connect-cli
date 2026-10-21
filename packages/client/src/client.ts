@@ -133,7 +133,7 @@ export class FitConnectClient {
       areaId,
       ...paging(params.offset, params.limit),
     };
-    return expectShape(this.path("routes"), await this.engine.getJson<unknown>(this.path("routes"), query), listProblem("routes"));
+    return this.getShaped(this.path("routes"), query, listProblem("routes"));
   }
 
   /**
@@ -150,12 +150,26 @@ export class FitConnectClient {
       areaSearchexpression: words,
       ...paging(params.offset, params.limit),
     };
-    return expectShape(this.path("areas"), await this.engine.getJson<unknown>(this.path("areas"), query), listProblem("areas"));
+    return this.getShaped(this.path("areas"), query, listProblem("areas"));
   }
 
   /** Fetch the version of the deployed Routing API instance. */
   async info(): Promise<Info> {
-    return expectShape(this.path("info"), await this.engine.getJson<unknown>(this.path("info")), infoProblem);
+    return this.getShaped(this.path("info"), undefined, infoProblem);
+  }
+
+  /**
+   * GET `path` and return the answer typed as `T` when `problem` finds nothing in it; otherwise a
+   * `FitConnectParseError` naming the request and what is wrong (the body itself is not echoed):
+   * `GET <url>: unexpected response shape: "routes" is not an array.`
+   */
+  private async getShaped<T>(path: string, query: QueryParams | undefined, problem: (value: unknown) => string | undefined): Promise<T> {
+    const value = await this.engine.getJson<unknown>(path, query);
+    const reason = problem(value);
+    if (reason !== undefined) {
+      throw new FitConnectParseError(`GET ${this.engine.describeUrl(path, query)}: unexpected response shape: ${reason}.`);
+    }
+    return value as T;
   }
 }
 
@@ -193,18 +207,6 @@ function infoProblem(value: unknown): string | undefined {
     if (!Number.isInteger(version[field])) return `"version.${field}" is not an integer`;
   }
   return undefined;
-}
-
-/**
- * `value` typed as `T` when `problem` finds nothing; otherwise a `FitConnectParseError`
- * naming the path and what is wrong (the body itself is not echoed).
- */
-function expectShape<T>(path: string, value: unknown, problem: (value: unknown) => string | undefined): T {
-  const reason = problem(value);
-  if (reason !== undefined) {
-    throw new FitConnectParseError(`Unexpected response from ${path}: ${reason}, not the documented shape.`);
-  }
-  return value as T;
 }
 
 /**

@@ -126,7 +126,7 @@ test("getJson parses a body with a UTF-8 byte-order mark and honours the charset
   await assert.rejects(
     () => e.getJson("/v2/info"),
     (err: unknown) =>
-      err instanceof FitConnectParseError && err.message === 'Unsupported response charset "x-bogus" from /v2/info.',
+      err instanceof FitConnectParseError && err.message === 'GET https://routing-api-prod.fit-connect.fitko.net/v2/info: unsupported response charset "x-bogus".',
   );
 });
 
@@ -619,7 +619,7 @@ test("a number JSON.parse cannot carry exactly is a FitConnectParseError, never 
     const e = new RequestEngine({ transport: makeMockTransport(() => rawResponse(body(n), "application/json")).transport });
     await assert.rejects(e.getJson("/v2/routes"), (err) => {
       assert.ok(err instanceof FitConnectParseError, n);
-      assert.equal(err.message, `Unexpected response from /v2/routes: the number ${n} cannot be represented exactly.`);
+      assert.equal(err.message, `GET https://routing-api-prod.fit-connect.fitko.net/v2/routes: the number ${n} cannot be represented exactly.`);
       return true;
     });
   }
@@ -684,4 +684,24 @@ test("a header named __proto__ is an ordinary header, never the prototype of the
   const fetchLike = new Headers([["__proto__", "x"], ["content-type", "application/json"]]);
   const f = new RequestEngine({ transport: async () => ({ status: 200, headers: fetchLike as unknown as Record<string, string>, body: Buffer.from('{"a":1}') }) });
   assert.deepEqual(await f.getJson("/x"), { a: 1 });
+});
+
+test("an answer error names the request: method and URL, userinfo redacted (D9)", async () => {
+  const answers: Array<[string, () => HttpResponse]> = [
+    ["the answer is not valid JSON (expected JSON, got Content-Type \"text/html\")", () => rawResponse("<html>", "text/html")],
+    ["the answer is not valid JSON.", () => rawResponse("{", "application/json")],
+    ["empty response body", () => rawResponse(" ", "application/json")],
+    ["cannot be represented exactly", () => rawResponse('{"n":1e400}', "application/json")],
+    ["unsupported response charset", () => rawResponse("{}", "application/json; charset=x-bogus")],
+  ];
+  for (const [what, respond] of answers) {
+    const e = new RequestEngine({ baseUrl: "https://alice:s3cret@mirror.example", transport: makeMockTransport(respond).transport });
+    await assert.rejects(e.getJson("/v2/areas", { areaSearchexpression: "Hanau" }), (err: unknown) => {
+      assert.ok(err instanceof FitConnectParseError, what);
+      assert.ok(err.message.startsWith("GET https://***@mirror.example/v2/areas?areaSearchexpression=Hanau: "), err.message);
+      assert.ok(err.message.includes(what), `${what}: ${err.message}`);
+      assert.ok(!err.message.includes("s3cret"), err.message);
+      return true;
+    });
+  }
 });

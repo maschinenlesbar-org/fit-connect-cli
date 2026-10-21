@@ -145,10 +145,12 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   `{ count, offset, totalCount, routes|areas: [object, …] }` with integer counts,
   `info` `{ version: { major, minor, patch } }`. Anything else — `null`, `{}`, an array,
   a string, an error envelope a proxy answered with `200` — is a `FitConnectParseError`
-  (`Unexpected response from /v2/routes: "routes" is not an array, not the documented
-  shape.`), never data, since the skills read `count: 0` as a valid answer. So is an
-  answer with a number `JSON.parse` cannot carry exactly (`Unexpected response from
-  /v2/routes: the number 12345678901234567890 cannot be represented exactly.`): one out of
+  (`GET https://routing-api-prod.fit-connect.fitko.net/v2/routes?…: unexpected response
+  shape: "routes" is not an array.`), never data, since the skills read `count: 0` as a valid
+  answer. So are an empty body (`GET <url>: empty response body.`), one that isn't JSON
+  (`GET <url>: the answer is not valid JSON (expected JSON, got Content-Type "text/html").`)
+  and an answer with a number `JSON.parse` cannot carry exactly (`GET <url>: the number
+  12345678901234567890 cannot be represented exactly.`): one out of
   a double's range (`1e400`), one past 2^53 in any written form (`9007199254740993e0`,
   `9007199254740992.5`), a non-zero one too small (`1e-400`), or a subnormal one (below
   2.2250738585072014e-308, where a double has fewer digits) that doesn't print as written
@@ -342,8 +344,9 @@ rejected parameter and rule only there), `FitConnectNetworkError`
 (transport failure/timeout; its message names the request, `GET <url> failed: <reason>` with
 the userinfo redacted and ` (after N retries)` for a reset that was retried, the original
 error as `cause`: a timeout, the size cap, a refused connection, a DNS failure and a reset
-alike), `FitConnectParseError` (bad JSON or a 2xx body without
-the documented shape) and `FitConnectValidationError` (every input the library rejects
+alike), `FitConnectParseError` (bad JSON, an empty body, an unknown charset, an inexact
+number or a 2xx body without the documented shape; its message names the request the same
+way, `GET <url>: …`, userinfo redacted) and `FitConnectValidationError` (every input the library rejects
 before a request: client options, `apiVersion`, the leikaKey, selectors, search words,
 paging), all extending `FitConnectError`. A `catch (e) { if (e instanceof
 FitConnectValidationError) … }` therefore catches every rejected input, never a raw
