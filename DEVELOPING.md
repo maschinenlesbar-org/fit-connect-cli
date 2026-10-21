@@ -151,7 +151,11 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   /v2/routes: the number 12345678901234567890 cannot be represented exactly.`): one out of
   a double's range (`1e400`), one past 2^53 in any written form (`9007199254740993e0`,
   `9007199254740992.5`), or a non-zero one too small (`1e-400`), rather than a changed
-  value; below 2^53 a decimal fraction keeps a double's precision. The answer's numbers are
+  value. Past 2^53 the number as written is compared with the number as printed
+  (`String(value)`), not with the double's exact binary value: `12345678901234567890` prints
+  as `12345678901234567000` and is refused, while `1E23` or `1.7976931348623157E308` (a
+  double a server printed in its shortest form) print as the same number and pass. Below
+  2^53 a decimal fraction keeps a double's precision. The answer's numbers are
   counts, offsets, version parts and durations, none near 2^53.
 - `client.apiVersion` reflects the configured version.
 
