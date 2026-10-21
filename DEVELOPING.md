@@ -150,9 +150,13 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   (`GET https://routing-api-prod.fit-connect.fitko.net/v2/routes?…: unexpected response
   shape: "routes" is not an array.`), never data, since the skills read `count: 0` as a valid
   answer. So are an empty body (`GET <url>: empty response body.`), one that isn't JSON
-  (`GET <url>: the answer is not valid JSON (expected JSON, got Content-Type "text/html").`)
-  and an answer with a number `JSON.parse` cannot carry exactly (`GET <url>: the number
-  12345678901234567890 cannot be represented exactly.`): one out of
+  (`GET <url>: the answer is not valid JSON (expected JSON, got Content-Type "text/html").`),
+  a body too large to become one string (512 MB and more, possible only with
+  `maxResponseBytes: 0`: `GET <url>: the answer is too large to read as text (N bytes; the
+  longest string is 536870888 characters).`; an error status with such a body keeps its
+  `FitConnectApiError`, without the body) and an answer with a number `JSON.parse` cannot
+  carry exactly (`GET <url>: the number 12345678901234567890 cannot be represented
+  exactly.`): one out of
   a double's range (`1e400`), one past 2^53 in any written form (`9007199254740993e0`,
   `9007199254740992.5`), a non-zero one too small (`1e-400`), or a subnormal one (below
   2.2250738585072014e-308, where a double has fewer digits) that doesn't print as written
