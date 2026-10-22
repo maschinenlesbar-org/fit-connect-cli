@@ -208,8 +208,12 @@ Two non-obvious upstream behaviours the client handles:
   `withRedactedOutput`) takes the exact userinfo of every URL argument (`credentialsIn`,
   exported) and replaces it with `***` — in commander's usage errors, which echo a
   rejected `--base-url` value or an unknown command, and in the CLI's own messages — so a
-  password with spaces, quotes, `#`, `?` or `/` is caught as well as an ordinary one. Only
-  a value that starts with a scheme counts (a bare `a:b@c` is a search text or a
+  password with spaces, quotes, `#`, `?` or `/` is caught as well as an ordinary one. A URL
+  counts wherever it starts inside an argument (`urlsWithin`: each `://` found with indexOf,
+  its scheme by walking back, at most 64 per argument), since a search term is sent split into
+  words and a refusal quotes the value whole: a padded `" https://u:pw@host"`, one after a dash
+  or inside a phrase reached the request URL of an error record and the notes. Only
+  a URL with a scheme counts (a bare `a:b@c` is a search text or a
   User-Agent as often as a credential, and stays as it is), except as the `--base-url`
   value, where a `user:password@host` typed without its scheme is still a credential. On
   stderr the log replaces them in each record's message, before the record is cut and

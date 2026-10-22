@@ -707,3 +707,59 @@ test("a soft hyphen, ZWSP or ZWJ inside a place name is refused, naming it; neve
     assert.ok(err.startsWith(`ERROR [fit-connect.cli] Invalid search: "Frank\\u${code.slice(2).toLowerCase()}furt" contains an invisible character (${code}).`), err);
   }
 });
+
+// T15 of the 2026-10-21 fix round (jobsuche-cli 28be809, ladesaeulenregister-cli 001c48d,
+// abgeordnetenwatch-cli 6d136ad): a URL with a password anywhere in an argument — a search term,
+// padded, after a dash, inside a phrase, a key, a rejected option value, commander's echo — must
+// never reach stderr, neither raw in a refusal or note nor percent-encoded in the request URL of
+// an error record.
+test("a password in a URL inside any argument is redacted on stderr, raw or percent-encoded (T15)", async () => {
+  const url = "https://bob:s3cretpw@host.example/x";
+  const argvs = [
+    ["areas", url],
+    ["areas", ` ${url}`],
+    ["areas", `Hanau ${url}`],
+    ["areas", "Hanau", ` -${url}`],
+    ["areas", `\t${url}`],
+    ["areas", "a b c d e f g h i j k", url],
+    ["areas", "Hanau", "--limit", ` ${url}`],
+    ["areas", "Hanau", "--offset", `1 ${url}`],
+    ["routes", ` ${url}`, "--ags", "06435014"],
+    ["routes", `99123456000000 ${url}`, "--ags", "06435014"],
+    ["routes", "99123456000000", "--ags", ` ${url}`],
+    ["routes", "99123456000000", "--ars", `06 ${url}`],
+    ["routes", "99123456000000", "--area-id", ` ${url}`],
+    ["routes", "99123456000000", "--ags", "06435014", "--area-id", ` ${url}`],
+    ["info", ` ${url}`],
+    [` ${url}`],
+    ["areas", ` ${url}`, "--bogus"],
+    ["areas", "Hanau", `--limit= ${url}`],
+    ["--timeout", ` ${url}`, "info"],
+  ];
+  const answers: Array<() => HttpResponse> = [
+    () => jsonResponse({ detail: `not found: ${url}` }, 404),
+    () => jsonResponse({}, 500),
+    () => rawResponse("busy", "text/plain", 503),
+    () => {
+      throw Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+    },
+  ];
+  for (const argv of argvs) {
+    for (const answer of answers) {
+      const cli = makeCli(answer);
+      await run(["--max-retries", "0", ...argv], cli.deps);
+      const err = cli.err.join("\n");
+      assert.ok(err.length > 0, JSON.stringify(argv));
+      assert.doesNotMatch(err, /s3cretpw|bob%3As3/, `${JSON.stringify(argv)}: ${err}`);
+    }
+  }
+});
+
+test("the URL search of the redaction is linear: a 1 MB argument without '://' is quick (T15)", async () => {
+  for (const big of ["a".repeat(1 << 20), "a:/".repeat(350_000), `${"a".repeat(1 << 20)}://`]) {
+    const cli = makeCli(() => jsonResponse({}, 404));
+    const started = performance.now();
+    await run(["--max-retries", "0", "areas", big], cli.deps);
+    assert.ok(performance.now() - started < 1500, `${big.length} characters took ${Math.round(performance.now() - started)} ms`);
+  }
+});
