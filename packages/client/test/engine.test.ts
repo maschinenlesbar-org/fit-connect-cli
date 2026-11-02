@@ -369,8 +369,9 @@ test("an API error strips terminal control characters from the detail (no escape
       // human-readable message that run.ts prints raw to stderr...
       assert.ok(!hasControlChars(err.detail ?? ""));
       assert.ok(!hasControlChars(err.message));
-      // ...while the printable characters are preserved.
-      assert.equal(err.detail, "boom[31mred2J");
+      // ...whole escape sequences with them (`ESC [31m`, the 8-bit CSI `2J`), while the
+      // printable text is preserved.
+      assert.equal(err.detail, "boomred");
       return true;
     },
   );
@@ -412,7 +413,7 @@ test("violations[] without a detail become the detail; control characters are st
   const e = new RequestEngine({ transport: mt.transport });
   await assert.rejects(
     () => e.getJson("/v2/routes"),
-    (err: unknown) => err instanceof FitConnectApiError && err.detail === "a[2Jb: bad]0;x",
+    (err: unknown) => err instanceof FitConnectApiError && err.detail === "ab: bad0;x",
   );
 });
 
@@ -428,7 +429,7 @@ test("error detail loses bidi controls and line breaks, so it cannot reorder or 
     () => e.getJson("/v2/info"),
     (err: unknown) => {
       assert.ok(err instanceof FitConnectApiError);
-      assert.equal(err.detail, "bad request ]0;PWNED fit-connect: all good, 3 routes foundevil Error: forged x y");
+      assert.equal(err.detail, "bad request fit-connect: all good, 3 routes foundevil Error: forged x y");
       assert.ok(!/[\n\r\u2028\u202e\u2066]/.test(err.message));
       return true;
     },
@@ -887,4 +888,56 @@ test("a TextBuilder joins its pieces in order across batches", () => {
   }
   assert.equal(b.toString(), expected.join(""));
   assert.equal(new TextBuilder().toString(), "");
+});
+
+test("sanitizeServerText reads a bounded prefix and drops what the per-character filter dropped", () => {
+  // The filter it replaces, one character at a time, widened to every format character (Cf):
+  // C0 but TAB to CR, DEL, C1 and Cf go.
+  const perCharacter = (text: string): string =>
+    [...text]
+      .filter((ch) => {
+        const n = ch.codePointAt(0) ?? 0;
+        return (n >= 0x09 && n <= 0x0d) || !(n <= 0x1f || (n >= 0x7f && n <= 0x9f) || /\p{Cf}/u.test(ch));
+      })
+      .join("")
+      .replace(/\s+/g, " ")
+      .trim();
+  const every = Array.from({ length: 0x3000 }, (_, i) => String.fromCharCode(i)).join("") + "\u{1f600}\u{e0001}\ud800x";
+  for (let at = 0; at < every.length; at += 512) {
+    const piece = every.slice(at, at + 512).replace(/[\u001b\u0090\u0098\u009b-\u009f]/g, "");
+    assert.equal(sanitizeServerText(piece), perCharacter(piece), `from U+${at.toString(16)}`);
+  }
+  // At most 16 384 units of the text are read, never half a surrogate pair.
+  assert.equal(sanitizeServerText("x".repeat(100_000)).length, 16_384);
+  assert.equal(sanitizeServerText(`${"x".repeat(16_383)}\u{1f600}`), "x".repeat(16_383));
+  // Whole escape sequences go, not only their control bytes; a control string ends at another
+  // introducer: the first is dropped by the filter, the second string as a whole.
+  const ESC = String.fromCharCode(0x1b);
+  const BEL = String.fromCharCode(0x07);
+  const OSC8 = String.fromCharCode(0x9d);
+  const ST8 = String.fromCharCode(0x9c);
+  assert.equal(sanitizeServerText(`a${ESC}[31mred${ESC}[0m ${ESC}]0;title${BEL}b`), "ared b");
+  assert.equal(sanitizeServerText(`a${OSC8}0;x${OSC8}0;t${ST8}b`), "a0;xb");
+  assert.equal(sanitizeServerText(`a${ESC}]0;x${ESC}]0;t${BEL}b`), "a0;xb");
+  // An unterminated run of control-string introducers is cleaned in linear time.
+  for (const opener of [OSC8, "\u0090", "\u0098", "\u009e", "\u009f", `${ESC}]`]) {
+    const start = performance.now();
+    sanitizeServerText(`${opener.repeat(100_000)} tail`);
+    assert.ok(performance.now() - start < 1000, `${JSON.stringify(opener)}: ${Math.round(performance.now() - start)} ms`);
+  }
+});
+
+test("an error detail and its violations are cut before they are cleaned: a 16 MB one is quick and bounded", async () => {
+  const big = "x ".repeat(8_000_000);
+  for (const body of [{ detail: big }, { detail: "Constraint Violation", violations: [{ field: big, message: big }] }]) {
+    const e = new RequestEngine({ maxRetries: 0, transport: makeMockTransport(() => jsonResponse(body, 400)).transport });
+    const start = performance.now();
+    await assert.rejects(e.getJson("/v2/info"), (err: unknown) => {
+      assert.ok(err instanceof FitConnectApiError, String(err));
+      assert.ok(err.message.length < 2000, `${err.message.length} characters`);
+      assert.ok((err.detail ?? "").length <= 2 * 16_384 + 64, `${(err.detail ?? "").length} characters of detail`);
+      return true;
+    });
+    assert.ok(performance.now() - start < 1500, `${Math.round(performance.now() - start)} ms`);
+  }
 });

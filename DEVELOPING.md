@@ -378,8 +378,14 @@ way, `GET <url>: …`, userinfo redacted) and `FitConnectValidationError` (every
 before a request: client options, `apiVersion`, the leikaKey, selectors, search words,
 paging), all extending `FitConnectError`. A `catch (e) { if (e instanceof
 FitConnectValidationError) … }` therefore catches every rejected input, never a raw
-`TypeError`. A server `detail` in a message is cut at 500 characters (`body` keeps it
-all; `cutForMessage`, `MAX_MESSAGE_VALUE_LENGTH`, also for a redirect target and an
+`TypeError`. Server text bound for a message (the `detail`, `title` or `message`, each
+violation's field and message, a Content-Type, a charset, a Location) is cleaned by
+`sanitizeServerText` (engine.ts): it reads at most the first 16 384 characters
+(`MAX_SERVER_TEXT`, so a 16 MB `detail` costs neither seconds nor the heap), drops whole
+terminal escape sequences (`ESC [31m`, `ESC ] 0;title BEL`), then the remaining C0/C1
+controls, DEL and every Unicode format character, and folds whitespace to one space, all in
+linear regex replaces. A server `detail` in a message is then cut at 500 characters (`body`
+keeps it all; `cutForMessage`, `MAX_MESSAGE_VALUE_LENGTH`, also for a redirect target and an
 unknown response charset), and an echoed input (`Invalid leikaKey "…"`) is cut at 100 characters and quoted
 with control characters, every Unicode format character (bidi controls, zero-width
 characters, the soft hyphen) and U+2028/U+2029 escaped (`quoteValue`, also for a parameter
