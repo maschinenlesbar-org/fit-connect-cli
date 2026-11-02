@@ -779,3 +779,16 @@ test("a token as the --base-url userinfo is redacted from what the CLI prints, o
   assert.ok(out.includes("for ***x"), out);
   assert.ok(!out.includes(basic) && !out.includes(`${token}:`), out);
 });
+
+test("the userinfo redaction of stdout is linear in the answer", async () => {
+  // With a URL with userinfo in argv, every stdout text is redacted. 200 000 characters of
+  // `a.a.…` took seconds with the scheme regex; the linear pass takes milliseconds.
+  const base = "https://alice:s3cret-Pw@mirror.example";
+  const value = "a.".repeat(100_000);
+  const cli = makeCli(() => jsonResponse({ ...ROUTE_BODY, routes: [{ ...ROUTE_BODY.routes[0], x: value }] }));
+  const start = performance.now();
+  assert.equal(await run(["--base-url", base, "--compact", "routes", "99123456760610", "--ars", "16"], cli.deps), 0, cli.err.join("\n"));
+  const ms = performance.now() - start;
+  assert.ok(cli.out.join("\n").includes(value));
+  assert.ok(ms < 1500, `${Math.round(ms)} ms`);
+});
