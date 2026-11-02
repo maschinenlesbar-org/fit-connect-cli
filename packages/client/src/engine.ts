@@ -545,7 +545,8 @@ export class RequestEngine {
   readonly #credentials: string[];
   /**
    * The forms a server echoes that userinfo back in (the Basic value, the decoded
-   * `user:password`, the password alone), longest first, so a password never leaves half
+   * `user:password`, the password alone; in a userinfo without a password the user name is
+   * the secret, a token), longest first, so a password never leaves half
    * of the `user:password` around it.
    */
   readonly #echoed: string[];

@@ -763,3 +763,19 @@ test("the URL search of the redaction is linear: a 1 MB argument without '://' i
     assert.ok(performance.now() - started < 1500, `${big.length} characters took ${Math.round(performance.now() - started)} ms`);
   }
 });
+
+test("a token as the --base-url userinfo is redacted from what the CLI prints, on stderr and stdout", async () => {
+  const token = "T0kenS3cret";
+  const basic = Buffer.from(`${token}:`, "utf8").toString("base64");
+  const base = `https://${token}@mirror.example`;
+  // An error answer that echoes the token: stderr.
+  const failed = makeCli(() => jsonResponse({ detail: `bad token ${token}` }, 401));
+  assert.notEqual(await run(["--base-url", base, "--max-retries", "0", "info"], failed.deps), 0);
+  assert.ok(!failed.err.join("\n").includes(token), failed.err.join("\n"));
+  // A 2xx answer that echoes the Basic value and `TOKEN:`: stdout.
+  const echoed = makeCli(() => jsonResponse({ ...ROUTE_BODY, routes: [{ ...ROUTE_BODY.routes[0], x: `Basic ${basic} for ${token}:x` }] }));
+  assert.equal(await run(["--base-url", base, "routes", "99123456760610", "--ars", "16"], echoed.deps), 0, echoed.err.join("\n"));
+  const out = echoed.out.join("\n");
+  assert.ok(out.includes("for ***x"), out);
+  assert.ok(!out.includes(basic) && !out.includes(`${token}:`), out);
+});

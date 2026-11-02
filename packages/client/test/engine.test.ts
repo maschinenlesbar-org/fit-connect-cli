@@ -19,6 +19,7 @@ import {
   FitConnectValidationError,
   cutForMessage,
   cutText,
+  echoedCredentialForms,
   toWellFormed,
 } from "../src/errors.js";
 import type { HttpResponse } from "../src/http.js";
@@ -829,4 +830,33 @@ test("a number with a long run of zeros is checked in linear time, past --timeou
   assert.equal(scanNumbers('{"x":000123000000000000000000.000e0}').inexact, undefined);
   assert.equal(scanNumbers('{"x":0.000}').inexact, undefined);
   assert.equal(scanNumbers('{"x":0.0001e-400}').inexact, "0.0001e-400");
+});
+
+test("echoedCredentialForms treats a userinfo without a password as a token (Basic `TOKEN:`)", () => {
+  const basic = (pair: string): string => Buffer.from(pair, "utf8").toString("base64");
+  assert.deepEqual(echoedCredentialForms("alice:s3cret"), [basic("alice:s3cret"), "alice:s3cret", "s3cret"]);
+  assert.deepEqual(echoedCredentialForms("T0ken"), [basic("T0ken:"), "T0ken:", "T0ken"]);
+  assert.deepEqual(echoedCredentialForms("T0ken:"), [basic("T0ken:"), "T0ken:", "T0ken"]);
+  assert.deepEqual(echoedCredentialForms("T%C3%B6k"), [basic("Tök:"), "Tök:"]); // short: not alone
+  assert.deepEqual(echoedCredentialForms(":pw12"), [basic(":pw12"), ":pw12", "pw12"]);
+  assert.deepEqual(echoedCredentialForms(""), []);
+  assert.deepEqual(echoedCredentialForms(":"), []);
+});
+
+test("a token as the base URL's userinfo is scrubbed from errors in every form a server echoes it in", async () => {
+  // Node sends `https://TOKEN@host` as `Authorization: Basic base64("TOKEN:")`; none of these was scrubbed.
+  const token = "T0kenS3cret";
+  const basic = Buffer.from(`${token}:`, "utf8").toString("base64");
+  for (const baseUrl of [`https://${token}@mirror.example`, `https://${token}:@mirror.example`]) {
+    for (const echo of [`bad token ${token}`, `Authorization: Basic ${basic}`, `user ${token}: unknown`]) {
+      const engine = new RequestEngine({ baseUrl, maxRetries: 0, transport: makeMockTransport(() => jsonResponse({ detail: echo }, 401)).transport });
+      await assert.rejects(engine.getJson("/v2/info"), (err: unknown) => {
+        assert.ok(err instanceof FitConnectApiError, String(err));
+        for (const text of [err.message, err.body, String(err.detail)]) {
+          assert.ok(!text.includes(token) && !text.includes(basic), `${baseUrl} ${echo}: ${text}`);
+        }
+        return true;
+      });
+    }
+  }
 });
