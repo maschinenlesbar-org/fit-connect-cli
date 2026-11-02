@@ -808,3 +808,25 @@ test("an answer longer than V8's longest string is a FitConnectParseError naming
   const failing = new RequestEngine({ maxResponseBytes: 0, maxRetries: 0, transport: makeMockTransport(() => rawResponse(huge, "text/plain", 500)).transport });
   await assert.rejects(failing.getJson("/v2/info"), (err: unknown) => err instanceof FitConnectApiError && err.status === 500 && err.body === "");
 });
+
+test("a number with a long run of zeros is checked in linear time, past --timeout no more", async () => {
+  // 1.<100 000 zeros>1e300 took about 15 s with the trailing-zero regex `/0+$/` (tried at every
+  // zero of a run that doesn't end the literal); the index loops take milliseconds.
+  const literal = `1.${"0".repeat(100_000)}1e300`;
+  let start = performance.now();
+  assert.equal(scanNumbers(`{"x":${literal}}`).inexact, literal);
+  assert.ok(performance.now() - start < 1000, `${Math.round(performance.now() - start)} ms`);
+  const e = new RequestEngine({ transport: makeMockTransport(() => rawResponse(`{"x":${literal}}`, "application/json")).transport });
+  start = performance.now();
+  await assert.rejects(e.getJson("/v2/info"), (err: unknown) => {
+    assert.ok(err instanceof FitConnectParseError, String(err));
+    assert.match(err.message, /cannot be represented exactly/);
+    assert.ok(err.message.length < 1000, "the message quotes the literal cut");
+    return true;
+  });
+  assert.ok(performance.now() - start < 1000, `${Math.round(performance.now() - start)} ms`);
+  // Zeros at both ends still count as before.
+  assert.equal(scanNumbers('{"x":000123000000000000000000.000e0}').inexact, undefined);
+  assert.equal(scanNumbers('{"x":0.000}').inexact, undefined);
+  assert.equal(scanNumbers('{"x":0.0001e-400}').inexact, "0.0001e-400");
+});
