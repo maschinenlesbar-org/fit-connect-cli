@@ -792,3 +792,15 @@ test("the userinfo redaction of stdout is linear in the answer", async () => {
   assert.ok(cli.out.join("\n").includes(value));
   assert.ok(ms < 1500, `${Math.round(ms)} ms`);
 });
+
+test("the userinfo redaction of stdout hides the userinfo of a URL glued onto the one before it (B2)", async () => {
+  // The linear pass read the first URL's authority up to the second `://` and searched on after
+  // it, so the second URL's userinfo reached stdout; the scheme regex it replaced redacted both.
+  const base = "https://alice:s3cret-Pw@mirror.example";
+  const value = "https://host://u:p1@h and https://u:p2@x://v:q3@w";
+  const cli = makeCli(() => jsonResponse({ ...ROUTE_BODY, routes: [{ ...ROUTE_BODY.routes[0], x: value }] }));
+  assert.equal(await run(["--base-url", base, "--compact", "routes", "99123456760610", "--ars", "16"], cli.deps), 0, cli.err.join("\n"));
+  const out = cli.out.join("\n");
+  assert.ok(out.includes("https://host://***@h and https://***@x://***@w"), out);
+  for (const secret of ["u:p1", "u:p2", "v:q3"]) assert.ok(!out.includes(secret), out);
+});
