@@ -613,12 +613,17 @@ export class RequestEngine {
     // Only `undefined` selects the default base URL (`??`, not `||`): an explicit
     // "" is rejected like "  ", as the CLI rejects `--base-url ""`, rather than
     // quietly sending the request to the production host.
-    // The raw value is checked (baseUrlProblem: an http(s) URL, no query, fragment,
-    // surrounding whitespace or malformed "%" in the userinfo) before the trailing
-    // slashes are dropped; the message never repeats the value.
-    this.#baseUrl = assertValid("baseUrl", options.baseUrl ?? DEFAULT_BASE_URL, baseUrlProblem).replace(/\/+$/, "");
+    // The raw value is checked (baseUrlProblem: an http(s) URL spelled scheme://host, no query,
+    // fragment, backslash, surrounding whitespace or malformed "%" in the userinfo); the
+    // message never repeats the value.
+    const baseUrl = assertValid("baseUrl", options.baseUrl ?? DEFAULT_BASE_URL, baseUrlProblem);
+    // Requests go to the base URL as WHATWG parses it, the reading every check of it makes (the
+    // host, the cleartext warning, the Authorization header Node derives), not to a text-based
+    // reading of the string: a transport that reads the URL as text reaches the same host.
+    const href = new URL(baseUrl).href;
+    this.#baseUrl = href.replace(/\/+$/, "");
     // The userinfo as typed and as sent (WHATWG percent-encodes some of its characters).
-    const userinfos = [...new Set([...credentialsIn(this.#baseUrl), ...credentialsIn(new URL(this.#baseUrl).href)])];
+    const userinfos = [...new Set([...credentialsIn(baseUrl), ...credentialsIn(href)])];
     this.#credentials = userinfos.flatMap((raw) => {
       try {
         return [raw, decodeURIComponent(raw)];

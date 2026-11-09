@@ -117,6 +117,30 @@ test("base URL: an empty or blank baseUrl is rejected by both, not replaced by p
   assert.deepEqual(ok.cli.requests, ok.lib.requests);
 });
 
+test("base URL: CLI and library reject a backslash or a repaired scheme with the same reason, and neither repeats its credentials (F, F3, F4)", async () => {
+  for (const baseUrl of [
+    "https://user:s3cret@h.example\\@evil.example",
+    "http:user:s3cret@h.example",
+    "http:///user:s3cret@h.example",
+    "https:\\\\user:s3cret@h.example",
+    "http:///user:s3cret@h.example/?q=1",
+  ]) {
+    const { cli, lib } = await parity(
+      ["--base-url", baseUrl, "info"],
+      (transport) => new FitConnectClient({ transport, baseUrl }).info(),
+      () => jsonResponse({ version: { major: 2, minor: 1, patch: 0 } }),
+    );
+    const label = JSON.stringify(baseUrl);
+    assert.equal(cli.code, 1, label);
+    assert.equal(cli.requests.length, 0, label);
+    assert.equal(lib.ok, false, label);
+    assert.equal(lib.requests.length, 0, label);
+    const reason = lib.error?.message.replace(/^Invalid baseUrl: /, "") ?? "";
+    assert.ok(reason !== "" && cli.err.includes(reason), `${label}: ${cli.err}`);
+    assert.ok(!cli.err.includes("s3cret") && !cli.out.includes("s3cret") && !(lib.error?.message ?? "").includes("s3cret"), `${label}: ${cli.err}`);
+  }
+});
+
 test("User-Agent: whitespace with CR/LF or above U+00FF is rejected by both", async () => {
   const cases: [string, RegExp][] = [
     ["\n", /^Invalid userAgent: Value contains control characters\.$/],

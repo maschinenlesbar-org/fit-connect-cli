@@ -81,12 +81,21 @@ as `undefined` means what an omitted one means, so `{ baseUrl: process.env.X }` 
 `exactOptionalPropertyTypes` too.
 
 Only an omitted (`undefined`) `baseUrl` selects the production default; an empty
-or blank one, a non-http(s) URL, one with a `?query` or `#fragment`, surrounding
-whitespace or a control character, and one whose user name or password has a `%`
-that isn't an escape (write a literal `%` as `%25`) throw a
-`FitConnectValidationError` (`Invalid baseUrl: Expected an absolute http(s) URL.`),
-as `--base-url` rejects them in the CLI. One rule, `baseUrlProblem` (exported),
-decides for both, and its reasons never repeat the value.
+or blank one, a non-http(s) URL, one with a `?query` or `#fragment`, a backslash
+(`A base URL cannot contain a backslash (\); write "/" instead.`: WHATWG ends an http(s)
+host at one, text-based code reads on), surrounding whitespace or a control character, one
+whose user name or password has a `%` that isn't an escape (write a literal `%` as `%25`),
+and one whose scheme is not followed by exactly `//` and the host (`http:host`,
+`http:/host`, `http:///host`, which WHATWG repairs silently into `http://host`: `Expected an
+absolute http(s) URL ("https://" and the host).`) throw a `FitConnectValidationError`
+(`Invalid baseUrl: Expected an absolute http(s) URL.`), as `--base-url` rejects them in the
+CLI. One rule, `baseUrlProblem` (exported), decides for both, and its reasons never repeat
+the value. Requests go to the base URL as WHATWG parses it (`new URL(baseUrl).href`, trailing
+slashes dropped): the host lower-cased, a default port dropped, the path percent-encoded where
+WHATWG does it, so a custom transport that reads the URL as text reaches the host every check
+read. `credentialsIn` (exported) reads a userinfo where WHATWG does: after the slashes and
+backslashes a special scheme skips (`http:///u:pw@h`, `https:\\u:pw@h`, `http:u:pw@h`), up to
+a backslash too.
 
 The constructor range-checks the numeric options and throws a
 `FitConnectValidationError` (`Invalid maxRetries: Expected an integer between 0 and

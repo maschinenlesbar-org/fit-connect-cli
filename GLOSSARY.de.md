@@ -95,7 +95,7 @@ Zeichen (einzelne Surrogate) werden durch U+FFFD ersetzt und in einem `WARN`-Ein
 | `-h, --help` | Zeigt die Hilfe an |
 | `--compact` | JSON in einer Zeile statt formatiert |
 | `--log-format <format>` | Wie Fehler, Warnungen und Hinweise auf stderr geschrieben werden: `text` (Standard; im Stil von log4j: Zeit, Level, `[fit-connect.<bereich>]`, Meldung) oder `jsonl` (ein JSON-Objekt pro Zeile: `ts`, `level`, `topic`, `msg`) |
-| `--base-url <url>` | Basis-URL der API, http(s), Pfad-Präfix erlaubt, aber keine `?query`, kein `#fragment` und kein Leerraum am Anfang oder Ende; ein `%` im Passwort wird als `%25` geschrieben (Standard `https://routing-api-prod.fit-connect.fitko.net`) |
+| `--base-url <url>` | Basis-URL der API, geschrieben als `http(s)://` und der Host, Pfad-Präfix erlaubt, aber keine `?query`, kein `#fragment`, kein Backslash und kein Leerraum am Anfang oder Ende; ein `%` im Passwort wird als `%25` geschrieben (Standard `https://routing-api-prod.fit-connect.fitko.net`) |
 | `--api-version <version>` | Version der Routing-API, `v1` oder `v2` (Standard `v2`; `v1` ist veraltet) |
 | `--timeout <ms>` | Zeitlimit pro Anfrage, einschließlich des Lesens der gesamten Antwort (Standard `30000`; `0` deaktiviert es; höchstens `2147483647`) |
 | `--user-agent <ua>` | `User-Agent`-Header (ein leerer Wert – nur Leerzeichen und Tabs – fällt auf den Standard zurück; nur Latin-1, keine Steuerzeichen außer Tab, und das wird zuerst geprüft, sodass ein Zeilenumbruch oder U+3000 auch in einem sonst leeren Wert abgelehnt wird; die Bibliothek wendet dieselbe Regel an; manche Werte blockiert die Bot-Erkennung der API) |
