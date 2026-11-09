@@ -1080,3 +1080,36 @@ test("an echo of the request URL as sent is scrubbed, a short password too", asy
     assert.ok(!text.includes("p%22%C3%A4@") && !text.includes('p"ä@'), text);
   }
 });
+
+test("a credential in a redirect's Location is scrubbed, in its path and its query (Location, D2)", async () => {
+  // The Location was resolved first: `new URL` percent-encodes what it holds in a new spelling
+  // (`'` as `%27` in a query), so a scrub after resolving no longer matched the raw password.
+  const pw = "pä\"s's-W0rd";
+  const basic = Buffer.from(`alice:${pw}`, "utf8").toString("base64");
+  const secrets = [pw, `alice:${pw}`, basic];
+  const decoded = (text: string): string =>
+    text.replace(/(?:%[0-9a-fA-F]{2})+/g, (run) => {
+      try {
+        return decodeURIComponent(run);
+      } catch {
+        return run;
+      }
+    });
+  for (const location of [
+    `https://elsewhere.example/login?user=alice&pw=${encodeURIComponent(pw)}`,
+    `https://elsewhere.example/login?pw=${pw}`,
+    `https://elsewhere.example/${encodeURIComponent(`alice:${pw}`)}/x`,
+    `https://elsewhere.example/auth?basic=${basic}`,
+    `/relative/${pw}`,
+  ]) {
+    const e = new RequestEngine({
+      baseUrl: `https://alice:${encodeURIComponent(pw)}@mirror.example`,
+      maxRetries: 0,
+      transport: async () => ({ status: 302, headers: { location }, body: Buffer.alloc(0) }),
+    });
+    const err = await e.getJson("/v2/info").catch((caught: unknown) => caught);
+    assert.ok(err instanceof FitConnectApiError, String(err));
+    const seen = decoded(`${err.message}\n${err.location ?? ""}`);
+    for (const secret of secrets) assert.ok(!seen.includes(secret), `${location}: ${seen}`);
+  }
+});

@@ -195,8 +195,9 @@ Two non-obvious upstream behaviours the client handles:
   — a `3xx` surfaces as an error rather than being chased to another host. The error names
   the target so the base URL can be fixed: `HTTP 301 for GET <url>: redirect to <target> not
   followed` (or `redirect not followed (no Location header)`), and
-  `FitConnectApiError.location` holds it — resolved against the request URL, userinfo
-  redacted, control and bidi characters dropped. A base URL on
+  `FitConnectApiError.location` holds it — the base URL's credentials scrubbed from it as sent
+  (in its path or query too, also percent-encoded), then resolved against the request URL,
+  userinfo redacted, control and bidi characters dropped. A base URL on
   plain `http:` to a host other than loopback (`localhost`, `127.0.0.0/8`, `::1`) gets one
   `WARN` record of `fit-connect.http` on stderr per run, before the first request (`action()` in
   `apps/cli/src/cli/shared.ts`); the sentence comes from the exported `cleartextProblem(baseUrl,

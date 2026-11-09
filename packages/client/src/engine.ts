@@ -931,19 +931,22 @@ export class RequestEngine {
   }
 
   /**
-   * The absolute, printable form of a `Location` header: resolved against the request
-   * URL, userinfo redacted (and the base URL's credentials scrubbed wherever they appear),
-   * control and bidi characters dropped — it is server text bound for stderr. An
-   * unparseable value is shown sanitised as it came; an empty result is undefined.
+   * The absolute, printable form of a `Location` header: the base URL's credentials scrubbed
+   * as sent, before resolving percent-encodes what is left of them in a new spelling (`'` as
+   * `%27` in a query; the scrub's percent-encoded forms cover a server that encoded them
+   * itself); resolved against the request URL, userinfo redacted, control and bidi characters
+   * dropped — it is server text bound for stderr. An unparseable value is shown sanitised as
+   * it came; an empty result is undefined.
    */
   private redirectTarget(requestUrl: string, location: string): string | undefined {
+    const sent = this.scrub(location);
     let target: string;
     try {
-      target = redactUrl(new URL(location, requestUrl).href);
+      target = redactUrl(new URL(sent, requestUrl).href);
     } catch {
-      target = redactUrl(location);
+      target = redactUrl(sent);
     }
-    const clean = sanitizeServerText(this.scrub(target)).trim();
+    const clean = sanitizeServerText(target).trim();
     return clean === "" ? undefined : clean;
   }
 
