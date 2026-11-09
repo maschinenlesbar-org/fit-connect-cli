@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { execFileSync } from "node:child_process";
 import { TextDecoder } from "node:util";
 import assert from "node:assert/strict";
 import {
@@ -972,4 +973,38 @@ test("an error detail and its violations are cut before they are cleaned: a 16 M
     });
     assert.ok(performance.now() - start < 1500, `${Math.round(performance.now() - start)} ms`);
   }
+});
+
+// These tests start a process with a small heap: 30 s instead of the suite's 5 s.
+const STARTS_A_PROCESS = { timeout: 30_000 };
+
+/** Run `script` (an ES module that can import `engine`, the built engine's URL) under a heap of `heapMb`; its stdout. */
+function withSmallHeap(heapMb: number, script: string): string {
+  const engine = JSON.stringify(new URL("../src/engine.js", import.meta.url).href);
+  return execFileSync(process.execPath, [`--max-old-space-size=${heapMb}`, "--input-type=module", "-e", `const engine = ${engine};\n${script}`], { encoding: "utf8" });
+}
+
+test("scanNumbers quotes millions of declared members within a small heap", STARTS_A_PROCESS, () => {
+  // One `+=` per quoted member made a rope node each: 3 million of them exhausted a 128 MB heap.
+  const n = 3_000_000;
+  const out = withSmallHeap(
+    128,
+    `const { scanNumbers } = await import(engine);` +
+      `const json = "[" + '{"k":1},'.repeat(${n - 1}) + '{"k":1}]';` +
+      `process.stdout.write(String(scanNumbers(json, new Set(["k"])).json.length));`,
+  );
+  assert.equal(out, String(n * 10 + 1));
+});
+
+test("an answer of millions of lone surrogate escapes is repaired within a small heap (C)", STARTS_A_PROCESS, () => {
+  // One `+=` per lone-surrogate repair (6 million) exhausted a 128 MB heap.
+  const out = withSmallHeap(
+    128,
+    `const { RequestEngine } = await import(engine);` +
+      `const answer = (status, text) => async () => ({ status, headers: { "content-type": "application/json" }, body: Buffer.from(text) });` +
+      `const lone = new RequestEngine({ transport: answer(200, '{"x":"' + "\\\\ud800".repeat(6_000_000) + '"}') });` +
+      `const value = await lone.getJson("/x");` +
+      `process.stdout.write(JSON.stringify([value.x.length, value.x.slice(0, 2)]));`,
+  );
+  assert.deepEqual(JSON.parse(out), [6_000_000, "\ufffd\ufffd"]);
 });

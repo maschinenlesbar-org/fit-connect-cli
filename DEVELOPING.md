@@ -391,7 +391,11 @@ with control characters, every Unicode format character (bidi controls, zero-wid
 characters, the soft hyphen) and U+2028/U+2029 escaped (`quoteValue`, also for a parameter
 name and a wrong-typed string); commander's own echo of a rejected option value gets the same
 escapes in `run.ts` (`escapeCommanderError`), so a refused `94<ZWSP>0` reads `94\u200b0`. No cut lands inside a surrogate
-pair (`cutText`), so a message stays well-formed.
+pair (`cutText`), so a message stays well-formed. The passes over a whole 2xx answer that copy
+it with changes (`wellFormedEscapes`, which writes a lone-surrogate escape as `\ufffd`, and
+`scanNumbers`, which quotes a declared big-integer member) collect their pieces in a
+`TextBuilder` (errors.ts), so their memory follows the answer, not the number of repairs:
+millions of them fit in a 128 MB heap.
 
 **Input validation.** [`validate.ts`](packages/client/src/validate.ts): a rule is a pure
 `<thing>Problem(value)` function that returns why a value is invalid, or `undefined`.
