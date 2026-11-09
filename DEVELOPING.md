@@ -523,6 +523,20 @@ The client's tests are in `packages/client/test/` (`query`, `http`, `engine`, `c
   (a large flat answer and 20 MB of DEL print within a small heap, 90 MB of DEL is a clean
   ERROR record, two million one-byte chunks are read in a 256 MB heap, a lone surrogate or
   invalid bytes become U+FFFD with a WARN).
+  The security audit of 2026-10-27 added four more, from the same template:
+  P28 (`conformance-p28-hostile-error-answers`: a number with a long run of zeros and an error
+  answer of unterminated control-string introducers are handled in linear time; a 16 MB error
+  detail ends in one ERROR record and millions of lone surrogate escapes are repaired in a 128 MB
+  heap; the base URL's credential is scrubbed from JSON-escaped echoes in the message, the detail
+  and the decoded body, and from a redirect's Location; no 2xx value is quoted into an error here,
+  so its quoted-value case is skipped; two tests start the bin, 30 s), P29
+  (`conformance-p29-base-url-credentials`: a userinfo without a password is a token, scrubbed
+  from library errors and CLI output; a backslash or a scheme not followed by `//` and the host
+  is refused, never echoing the password; requests go to the parsed host; the stdout redaction
+  is linear and covers glued URLs), P30 (`conformance-p30-output-links`: `-o --force` and links;
+  no `-o` here, `HAS_OUTPUT_OPTION = false`, all skipped) and P31
+  (`conformance-p31-release-pipeline`: release.yml runs the SBOM tool locked from `tools/sbom/`,
+  in a job of its own, and only `gh` with the write token).
   Copied across the `*-cli` repos; only the adapter block at the top differs.
 
 ## Continuous integration
@@ -543,7 +557,8 @@ GitHub Actions workflows under `.github/workflows/`:
   where the tarball is built or where the write token is. Update the tool by changing its
   version in `tools/sbom/package.json` and running `npm install --package-lock-only
   --ignore-scripts` there; don't chain its install into an npm script. Conformance test P31
-  reads the workflow and the lockfile and checks it.
+  (`apps/cli/test/conformance-p31-release-pipeline.test.ts`) reads the workflow and the
+  lockfile and checks it.
 - **publish.yml** — manual dispatch from the release tag (`gh workflow run publish.yml --ref vX.Y.Z`; the version is the tag's): `npm publish --workspace apps/cli` via OIDC **Trusted Publishing** (no stored `NPM_TOKEN`) with provenance.
 - **docs.yml** — build the project website (`site/`, English and German) with the TypeDoc API docs
   under `/api/`, and deploy both to GitHub Pages on each `v*` tag.
