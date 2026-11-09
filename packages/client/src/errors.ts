@@ -256,6 +256,11 @@ export class FitConnectApiError extends FitConnectError {
   /** The request URL, absolute, with any userinfo redacted (`https://***@host/…`). */
   readonly url: string;
   readonly method: string;
+  /**
+   * The body as the server sent it, the base URL's credentials scrubbed. A JSON body that spells
+   * one with escapes (`\"`, `\u00e4`) is kept as its decoded JSON written again, scrubbed;
+   * a body too large to be a string, or too deeply nested to write again, is left out ("").
+   */
   readonly body: string;
   /** How many times the engine retried the request before giving up (0 when it did not). */
   readonly retries: number;

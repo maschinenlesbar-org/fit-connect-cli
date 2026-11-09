@@ -1008,3 +1008,75 @@ test("an answer of millions of lone surrogate escapes is repaired within a small
   );
   assert.deepEqual(JSON.parse(out), [6_000_000, "\ufffd\ufffd"]);
 });
+
+test("a credential echoed with JSON escapes is scrubbed from the detail, the violations and the body (D)", async () => {
+  // The scrub ran over the body as sent; JSON.parse then decoded `s3cret-Pw` into the
+  // password, which reached `.message` and `.detail`.
+  const base = "https://alice:s3cret-Pw@mirror.example";
+  const escaped = "s3cret\\u002dPw";
+  for (const body of [
+    `{"detail":"no: ${escaped}"}`,
+    `{"title":"no: ${escaped}"}`,
+    `{"message":"no: ${escaped}"}`,
+    `{"detail":"Constraint Violation","violations":[{"field":"x ${escaped}","message":"y ${escaped}"}]}`,
+  ]) {
+    const e = new RequestEngine({ baseUrl: base, maxRetries: 0, transport: async () => rawResponse(body, "application/problem+json", 400) });
+    const err = await e.getJson("/v2/info").catch((caught: unknown) => caught);
+    assert.ok(err instanceof FitConnectApiError, String(err));
+    for (const text of [err.message, err.detail ?? "", err.body, JSON.stringify(JSON.parse(err.body))]) {
+      assert.ok(!text.includes("s3cret-Pw") && !text.includes(escaped), `${body}: ${text}`);
+    }
+    assert.match(err.detail ?? "", /\*\*\*/);
+  }
+});
+
+test("an error body keeps its spelling unless a credential hides behind an escape", async () => {
+  const base = "https://alice:s3cret-pw@mirror.example";
+  const bodyOf = async (body: string): Promise<string> => {
+    const e = new RequestEngine({ baseUrl: base, maxRetries: 0, transport: async () => rawResponse(body, "application/json", 500) });
+    const err = await e.getJson("/x").catch((caught: unknown) => caught);
+    assert.ok(err instanceof FitConnectApiError, String(err));
+    return err.body;
+  };
+  // No credential, or one spelled as sent: the body as sent (scrubbed), escapes kept.
+  assert.equal(await bodyOf('{"m":"caf\\u00e9 \\"x\\""}'), '{"m":"caf\\u00e9 \\"x\\""}');
+  assert.equal(await bodyOf('{"m":"pw s3cret-pw \\u00e9"}'), '{"m":"pw *** \\u00e9"}');
+  // Escaped: written again decoded, scrubbed in that spelling.
+  assert.equal(await bodyOf('{"m":"pw s3cret\\u002dpw \\u00e9"}'), '{"m":"pw *** é"}');
+  // Not JSON: nobody decodes it, it stays as sent.
+  assert.equal(await bodyOf("pw s3cret\\u002dpw"), "pw s3cret\\u002dpw");
+  // Deeply nested: written again where this runtime can, else left out (probed, not assumed:
+  // whether JSON.stringify recurses depends on the Node version).
+  const deep = `${"[".repeat(200_000)}"s3cret\\u002dpw"${"]".repeat(200_000)}`;
+  let parses = true;
+  let writes = true;
+  try {
+    const value: unknown = JSON.parse(deep);
+    try {
+      JSON.stringify(value);
+    } catch {
+      writes = false;
+    }
+  } catch {
+    parses = false;
+  }
+  if (parses) {
+    const body = await bodyOf(deep);
+    assert.ok(!body.includes("s3cret"), body.slice(199_990, 200_030));
+    assert.equal(body === "", !writes);
+  }
+});
+
+test("an echo of the request URL as sent is scrubbed, a short password too", async () => {
+  // Typed raw; WHATWG sends `p%22%C3%A4` in the URL, which a server echoes.
+  const e = new RequestEngine({
+    baseUrl: 'https://alice:p"ä@mirror.example',
+    maxRetries: 0,
+    transport: async (req) => rawResponse(JSON.stringify({ message: `no access: ${req.url}` }), "application/json", 403),
+  });
+  const err = await e.getJson("/x").catch((caught: unknown) => caught);
+  assert.ok(err instanceof FitConnectApiError, String(err));
+  for (const text of [err.message, err.detail ?? "", err.body]) {
+    assert.ok(!text.includes("p%22%C3%A4@") && !text.includes('p"ä@'), text);
+  }
+});

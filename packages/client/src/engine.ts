@@ -269,18 +269,22 @@ export function sanitizeServerText(text: string): string {
  * "Constraint Violation" detail — `[{"field":"route.areaId","message":"must match
  * \"^\\d{1,}\""}]` — as `route.areaId: must match "^\d{1,}"`, joined with "; ".
  * They name the rejected parameter and the rule, which the detail alone does not.
- * Entries without a string `message` are skipped; every part is server text and
- * goes through `sanitizeServerText`. Undefined when there is nothing to show.
+ * Entries without a string `message` are skipped; every part is server text, decoded:
+ * `scrub` takes the base URL's credentials out of it (a JSON escape hid them from the scrub
+ * of the body as sent), then it goes through `sanitizeServerText`. Undefined when there is
+ * nothing to show.
  */
-function describeViolations(violations: unknown): string | undefined {
+function describeViolations(violations: unknown, scrub: (text: string) => string): string | undefined {
   if (!Array.isArray(violations)) return undefined;
   const parts: string[] = [];
   for (const v of violations as unknown[]) {
     if (v === null || typeof v !== "object") continue;
     const { field, message } = v as { field?: unknown; message?: unknown };
-    if (typeof message !== "string" || sanitizeServerText(message) === "") continue;
-    const name = typeof field === "string" ? sanitizeServerText(field) : "";
-    parts.push(name ? `${name}: ${sanitizeServerText(message)}` : sanitizeServerText(message));
+    if (typeof message !== "string") continue;
+    const text = sanitizeServerText(scrub(message));
+    if (text === "") continue;
+    const name = typeof field === "string" ? sanitizeServerText(scrub(field)) : "";
+    parts.push(name ? `${name}: ${text}` : text);
   }
   return parts.length > 0 ? parts.join("; ") : undefined;
 }
@@ -368,6 +372,19 @@ function countChar(text: string, code: number): number {
   let n = 0;
   for (let i = 0; i < text.length; i++) if (text.charCodeAt(i) === code) n++;
   return n;
+}
+
+/**
+ * `form` and its spelling in a URL (`encodeURIComponent`): a server that puts a credential into
+ * a URL, a redirect's Location, percent-encodes it. A form that has no such spelling (a lone
+ * surrogate) is kept as it is.
+ */
+function urlSpellings(form: string): string[] {
+  try {
+    return [form, encodeURIComponent(form)];
+  } catch {
+    return [form];
+  }
 }
 
 /** A JSON escape of a surrogate, `\uD800`–`\uDFFF`, anywhere in a text (a cheap pre-check). */
@@ -576,8 +593,8 @@ export class RequestEngine {
   /**
    * The forms a server echoes that userinfo back in (the Basic value, the decoded
    * `user:password`, the password alone; in a userinfo without a password the user name is
-   * the secret, a token), longest first, so a password never leaves half
-   * of the `user:password` around it.
+   * the secret, a token), each also percent-encoded as in a URL (a redirect's Location),
+   * longest first, so a password never leaves half of the `user:password` around it.
    */
   readonly #echoed: string[];
   private readonly transport: Transport;
@@ -600,16 +617,17 @@ export class RequestEngine {
     // surrounding whitespace or malformed "%" in the userinfo) before the trailing
     // slashes are dropped; the message never repeats the value.
     this.#baseUrl = assertValid("baseUrl", options.baseUrl ?? DEFAULT_BASE_URL, baseUrlProblem).replace(/\/+$/, "");
-    this.#credentials = credentialsIn(this.#baseUrl).flatMap((raw) => {
+    // The userinfo as typed and as sent (WHATWG percent-encodes some of its characters).
+    const userinfos = [...new Set([...credentialsIn(this.#baseUrl), ...credentialsIn(new URL(this.#baseUrl).href)])];
+    this.#credentials = userinfos.flatMap((raw) => {
       try {
         return [raw, decodeURIComponent(raw)];
       } catch {
         return [raw];
       }
     });
-    this.#echoed = credentialsIn(this.#baseUrl)
-      .flatMap(echoedCredentialForms)
-      .sort((a, b) => b.length - a.length);
+    // Longest first, so a password never leaves half of the user:password around it.
+    this.#echoed = [...new Set(userinfos.flatMap(echoedCredentialForms).flatMap(urlSpellings))].sort((a, b) => b.length - a.length);
     this.transport = optionalFunction("transport", options.transport) ?? nodeHttpTransport;
     // The one string option where blank means "default" (see resolveUserAgent).
     this.userAgent = resolveUserAgent(options.userAgent);
@@ -662,6 +680,32 @@ export class RequestEngine {
    */
   private scrub(text: string): string {
     return this.#credentials.length === 0 ? text : redactSecrets(redactCredentials(text, this.#credentials), this.#echoed);
+  }
+
+  /**
+   * An error body, already scrubbed as sent, as `FitConnectApiError.body` keeps it: when it is
+   * JSON with an escape in it, checked decoded too. An escape (`\"`, `\u00e4`) hides an echoed
+   * credential from the scrub of the text as sent, while a caller who parses the body sees it. Such
+   * a body is kept as the decoded JSON written again (`JSON.stringify`, one spelling per character)
+   * with the credential scrubbed in that spelling. A body that doesn't parse is text nobody
+   * decodes, and stays as sent; one too deeply nested to write again is left out.
+   */
+  private scrubBody(scrubbed: string): string {
+    if (this.#echoed.length === 0 || !scrubbed.includes("\\")) return scrubbed;
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(scrubbed);
+    } catch {
+      return scrubbed;
+    }
+    let rewritten: string;
+    try {
+      rewritten = JSON.stringify(decoded);
+    } catch {
+      return "";
+    }
+    const spelled = this.#echoed.map((form) => JSON.stringify(form).slice(1, -1));
+    return spelled.some((form) => rewritten.includes(form)) ? redactSecrets(rewritten, spelled) : scrubbed;
   }
 
   /**
@@ -932,10 +976,11 @@ export class RequestEngine {
       if (parsed && typeof parsed.detail === "string") detail = parsed.detail;
       else if (parsed && typeof parsed.title === "string") detail = parsed.title;
       else if (parsed && typeof parsed.message === "string") detail = parsed.message;
-      // `detail` came from the response body; strip control characters so a hostile
+      // `detail` came from the response body, decoded: scrubbed again (a JSON escape hid the
+      // credential from the scrub above), then stripped of control characters so a hostile
       // endpoint cannot inject terminal escape sequences via the stderr error message.
-      if (detail !== undefined) detail = sanitizeServerText(detail);
-      const violations = describeViolations(parsed?.violations);
+      if (detail !== undefined) detail = sanitizeServerText(this.scrub(detail));
+      const violations = describeViolations(parsed?.violations, (t) => this.scrub(t));
       if (violations !== undefined) detail = detail ? `${detail} (${violations})` : violations;
     } catch {
       // Non-JSON error body; leave detail undefined.
@@ -949,7 +994,7 @@ export class RequestEngine {
       status,
       url,
       method,
-      body: text,
+      body: this.scrubBody(text),
       detail,
       ...(location === undefined ? {} : { location }),
       retries: retry.retries,

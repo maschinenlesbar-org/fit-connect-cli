@@ -235,8 +235,15 @@ Two non-obvious upstream behaviours the client handles:
   percent-decoded), and the forms a server echoes it back in (the `Basic` value, the
   decoded `user:password`, the password alone from 4 characters, or the user name when the
   userinfo has no password: `echoedCredentialForms`),
-  are scrubbed from error bodies, transport error text and the `cause` chain. Whatever a custom transport throws reaches the caller as a
-  `FitConnectNetworkError` (the original, scrubbed, as `cause`).
+  each also percent-encoded as in a URL, and the userinfo as WHATWG sends it in the request URL
+  (`p%22%C3%A4` for a typed `p"ä`), are scrubbed from error bodies, transport error text and the
+  `cause` chain. Text decoded from an error body (`detail`, `title`, `message`, each violation's
+  field and message) is scrubbed again after `JSON.parse`, since a JSON escape (`\u002d`, `\"`)
+  hides an echoed credential from the scrub of the body as sent; `FitConnectApiError.body` stays as
+  sent (scrubbed) unless such an escape hides one, when it is the decoded JSON written again with
+  the credential as `***` (`""` for a body too deeply nested to write again). Whatever a custom
+  transport throws reaches the caller as a `FitConnectNetworkError` (the original, scrubbed, as
+  `cause`).
 - **`destinationSignature` is passed through unverified.** Each route carries a
   JWS (RFC 7515) over its addressing information. This client treats it as an
   **opaque string** — it does no JWS/JWK/crypto validation of any kind (there is
