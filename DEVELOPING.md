@@ -90,7 +90,9 @@ and one whose scheme is not followed by exactly `//` and the host (`http:host`,
 absolute http(s) URL ("https://" and the host).`) throw a `FitConnectValidationError`
 (`Invalid baseUrl: Expected an absolute http(s) URL.`), as `--base-url` rejects them in the
 CLI. One rule, `baseUrlProblem` (exported), decides for both, and its reasons never repeat
-the value. Requests go to the base URL as WHATWG parses it (`new URL(baseUrl).href`, trailing
+the value: a scheme is named (`Unsupported scheme "ftp:"`) only when the value spells
+`<scheme>://`, since a `user:password@host` or `TOKEN:@host` typed without its scheme parses
+with the user name as the scheme (refused as `Expected an absolute http(s) URL.`). Requests go to the base URL as WHATWG parses it (`new URL(baseUrl).href`, trailing
 slashes dropped): the host lower-cased, a default port dropped, the path percent-encoded where
 WHATWG does it, so a custom transport that reads the URL as text reaches the host every check
 read. `credentialsIn` (exported) reads a userinfo where WHATWG does: after the slashes and

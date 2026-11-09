@@ -804,3 +804,30 @@ test("the userinfo redaction of stdout hides the userinfo of a URL glued onto th
   assert.ok(out.includes("https://host://***@h and https://***@x://***@w"), out);
   for (const secret of ["u:p1", "u:p2", "v:q3"]) assert.ok(!out.includes(secret), out);
 });
+
+test("a --base-url typed without its scheme never names its user name or password as a scheme (F5)", async () => {
+  // `T0kenS3cret:@h` parses as a URL whose scheme is the token, lower-cased: the refusal named it
+  // (`Unsupported scheme "t0kens3cret:"`), which no exact-string redaction matches.
+  for (const [baseUrl, secret] of [
+    ["T0kenS3cret:@h.example", "t0kens3cret"],
+    ["my_user:s3cret-pw@h.example", "my_user"],
+    ["Alice:s3cret-pw@h.example/x", "alice"],
+  ] as const) {
+    const cli = makeCli(() => jsonResponse({ version: { major: 2, minor: 1, patch: 0 } }));
+    assert.equal(await run(["--base-url", baseUrl, "info"], cli.deps), 1, baseUrl);
+    assert.equal(cli.mt.calls.length, 0, baseUrl);
+    const text = [...cli.out, ...cli.err].join("\n");
+    assert.ok(!text.toLowerCase().includes(secret) && !text.includes("s3cret"), text);
+    assert.match(text, /Expected an absolute http\(s\) URL\./, baseUrl);
+    assert.throws(
+      () => new FitConnectClient({ baseUrl }),
+      (err: unknown) =>
+        err instanceof FitConnectValidationError &&
+        !err.message.toLowerCase().includes(secret) &&
+        err.message === "Invalid baseUrl: Expected an absolute http(s) URL.",
+      baseUrl,
+    );
+  }
+  // A value that spells a scheme still has it named.
+  assert.throws(() => new FitConnectClient({ baseUrl: "ftp://h.example" }), /Unsupported scheme "ftp:"/);
+});
