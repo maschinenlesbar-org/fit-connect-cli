@@ -464,7 +464,10 @@ seconds, ms under 1 s). Tests: `apps/cli/test/retry-log.test.ts`.
 **Custom transports.** The engine, not the transport, enforces the documented limits:
 every call runs under the `timeoutMs` deadline (the request carries an `AbortSignal`
 in `signal`, which the built-in transport honours and a `fetch` transport should pass
-on), and a body over `maxResponseBytes` is rejected after the fact. Headers are read in
+on), and a body over `maxResponseBytes` is rejected after the fact (the built-in transport
+aborts as soon as the cap is passed, and joins the body's chunks as they arrive, every 1024
+chunks or 64 KiB, so its memory follows the bytes, not the number of chunks a server splits
+them into: a Buffer per one-byte chunk held about 210 bytes of heap). Headers are read in
 any letter case and from a `Headers` object or a `Map`, the body may be any
 ArrayBuffer view or an ArrayBuffer, and whatever a transport throws or returns that
 isn't a usable response becomes a `FitConnectNetworkError`.
@@ -518,7 +521,8 @@ The client's tests are in `packages/client/test/` (`query`, `http`, `engine`, `c
   case runs, `HAS_OUTPUT_OPTION = false`: stdout redirected to a file and cut short by a
   file-size limit exits 1 with an ERROR record of `fit-connect.output`), P27 big and odd answers
   (a large flat answer and 20 MB of DEL print within a small heap, 90 MB of DEL is a clean
-  ERROR record, a lone surrogate or invalid bytes become U+FFFD with a WARN).
+  ERROR record, two million one-byte chunks are read in a 256 MB heap, a lone surrogate or
+  invalid bytes become U+FFFD with a WARN).
   Copied across the `*-cli` repos; only the adapter block at the top differs.
 
 ## Continuous integration
