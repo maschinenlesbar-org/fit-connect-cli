@@ -8,7 +8,7 @@
 
 import http from "node:http";
 import https from "node:https";
-import { FitConnectNetworkError, redactUrl } from "./errors.js";
+import { FitConnectNetworkError, redactUrl, credentialsIn, redactCredentials } from "./errors.js";
 
 export interface HttpRequest {
   method: string;
@@ -61,6 +61,14 @@ const COALESCE_CHUNKS = 1024;
 const COALESCE_BYTES = 64 * 1024;
 
 /**
+ * `url` for a message, its userinfo redacted; one typed without its scheme (`user:pw@host`,
+ * `TOKEN:@host`) is read as if it had one, since `redactUrl` finds a userinfo only after a scheme.
+ */
+function shownUrl(url: string): string {
+  return credentialsIn(url).length > 0 ? redactUrl(url) : redactCredentials(url, credentialsIn(`http://${url}`));
+}
+
+/**
  * Default transport. Resolves with the raw response (including non-2xx) — status
  * interpretation is the client's job. Rejects only on transport-level failures
  * (connection errors, timeouts, malformed URLs). The body's memory follows its bytes, not
@@ -72,7 +80,7 @@ export const nodeHttpTransport: Transport = (request) =>
     try {
       url = new URL(request.url);
     } catch {
-      reject(new FitConnectNetworkError(`Invalid URL: ${redactUrl(request.url)}`));
+      reject(new FitConnectNetworkError(`Invalid URL: ${shownUrl(request.url)}`));
       return;
     }
 
@@ -80,7 +88,10 @@ export const nodeHttpTransport: Transport = (request) =>
     // typed error instead of letting Node throw an opaque ERR_INVALID_PROTOCOL
     // (and so this never reaches the file:/ftp:/etc. drivers).
     if (url.protocol !== "http:" && url.protocol !== "https:") {
-      reject(new FitConnectNetworkError(`Unsupported protocol "${url.protocol}" in URL: ${redactUrl(request.url)}`));
+      // `user:password@host` without a scheme parses with the user name as the scheme: name a
+      // scheme only when the value spells one (`<scheme>://`).
+      const named = /^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(request.url) ? ` "${url.protocol}"` : "";
+      reject(new FitConnectNetworkError(`Unsupported protocol${named} in URL: ${shownUrl(request.url)}`));
       return;
     }
 
