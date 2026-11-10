@@ -265,6 +265,11 @@ Two non-obvious upstream behaviours the client handles:
   submit an application, so a spoofed/MITM'd routing response cannot misdirect a
   submission. Do **not** add home-rolled JWT validation here.
 
+  A base URL (`--base-url`, and the environment variable where the CLI reads one) is read as
+  a URL however its scheme is typed (`typedUrlCredentials`): missing (`alice:pw@host`) or
+  mistyped (`http//alice:pw@host`, the colon left out, whose userinfo is everything between the
+  first slashes and the last `@`), so commander's echo of a refused one shows no password.
+
 ## Architecture
 
 The repository is an **npm workspace** with two folders: `apps/` holds the programs it
