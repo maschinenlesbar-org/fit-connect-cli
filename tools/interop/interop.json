@@ -1,0 +1,217 @@
+{
+  "comment": "What tools/interop/interop.mjs needs that is particular to this repo: the mock upstream's answer per path (under --base-url http://127.0.0.1:<port>; the API's paths start with /v2), how many tools the server lists, and the calls to make with what each must answer. The area answer is the live one for Hanau recorded on 2026-11-19; the route is the one the OpenAPI spec documents, since no live lookup found one (packages/client/test/routing.ts). The mock answers by path only: every area search answers Hanau's rows.",
+  "answers": {
+    "/v2/areas": {
+      "count": 13,
+      "offset": 0,
+      "totalCount": 13,
+      "areas": [
+        {
+          "id": "940",
+          "name": "Hanau, Brüder-Grimm-Stadt",
+          "type": "kreisfreie Stadt"
+        },
+        {
+          "id": "945",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Früheres Stadtgebiet",
+          "type": "Gemeindeteil"
+        },
+        {
+          "id": "946",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Früheres Stadtgebiet - OT Mitte",
+          "type": "Gemeindeteil2"
+        },
+        {
+          "id": "947",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Früheres Stadtgebiet - OT Kesselstadt",
+          "type": "Gemeindeteil2"
+        },
+        {
+          "id": "948",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Früheres Stadtgebiet - OT Nordwest",
+          "type": "Gemeindeteil2"
+        },
+        {
+          "id": "949",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Früheres Stadtgebiet - OT Nordost",
+          "type": "Gemeindeteil2"
+        },
+        {
+          "id": "950",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Früheres Stadtgebiet - OT Südost",
+          "type": "Gemeindeteil2"
+        },
+        {
+          "id": "941",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Klein-Auheim",
+          "type": "Gemeindeteil"
+        },
+        {
+          "id": "942",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Mittelbuchen",
+          "type": "Gemeindeteil"
+        },
+        {
+          "id": "943",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Steinheim am Main",
+          "type": "Gemeindeteil"
+        },
+        {
+          "id": "944",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Wolfgang",
+          "type": "Gemeindeteil"
+        },
+        {
+          "id": "951",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Großauheim",
+          "type": "Gemeindeteil"
+        },
+        {
+          "id": "952",
+          "name": "Hanau, Brüder-Grimm-Stadt - OT Hohe Tanne (ehemaliger Ortsteil von Wachenbuchen)",
+          "type": "Gemeindeteil"
+        }
+      ]
+    },
+    "/v2/routes": {
+      "count": 1,
+      "offset": 0,
+      "totalCount": 1,
+      "routes": [
+        {
+          "destinationId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          "destinationSignature": "eyJraWQiOiJmT0hzdExPNGJlQnEwcHgtMDFwTEoyUnhQbUJEakNtbEtIQk84ZzVXLVNBIiwidHlwIjoiand0IiwiYWxnIjoiUFM1MTIifQ.e30.c2ln",
+          "destinationName": "Stadtverwaltung Musterstadt - Dezernat II - Einwohner:innenmeldeamt",
+          "destinationShortName": "Einwohner:innenmeldeamt Musterstadt",
+          "destinationLogo": "https://efadante.hessen.de/ressources/framework/pics/Bundesland-HE.svg",
+          "contactPersons": [
+            {
+              "name": "Dr. Erika Muster",
+              "tel": "+496990009123",
+              "fax": "+496990009124",
+              "email": "mail@example.org"
+            }
+          ],
+          "address": {
+            "street": "Am Alten Stadtschloss",
+            "houseNumber": "13 A",
+            "additional": "Hinterhof, 3. Aufgang, Haus A",
+            "zip": "11011",
+            "city": "Berlin (Mahzahn)"
+          },
+          "postalAddress": {
+            "street": "Am Alten Stadtschloss",
+            "houseNumber": "13 A",
+            "additional": "Hinterhof, 3. Aufgang, Haus A",
+            "zip": "11011",
+            "city": "Berlin (Mahzahn)"
+          },
+          "postOfficeBox": {
+            "postOfficeBox": "Postfach 8 15",
+            "zip": "11011",
+            "city": "Berlin (Mahzahn)"
+          },
+          "privacyPolicyUrl": "https://www.fitko.de/datenschutz",
+          "imprintUrl": "https://www.fitko.de/impressum",
+          "accessibilityUrl": "https://www.fitko.de/barrierefreiheitserklaerung",
+          "contactFormUrl": "https://zustaendige-fachbehoerde.example.org/contactform",
+          "furtherInformation": {
+            "description": {
+              "de": "<p>Dies sind weiterführende Infos zur Leistung.</p>",
+              "en": "<p>This is further information about the public service.</p>"
+            }
+          },
+          "requiredDocuments": {
+            "description": {
+              "de": "<p>Dies ist die Beschreibung aller erforderlicher Unterlagen.</p>",
+              "en": "<p>This is the description of all required documents.</p>"
+            }
+          },
+          "legalBasis": {
+            "description": {
+              "de": "<p>Dies ist die Beschreibung der Rechtsgrundlage.</p>",
+              "en": "<p>This is the legal basis description.</p>"
+            }
+          },
+          "deadline": {
+            "description": {
+              "de": "<p>Die Anmeldung eines Straßenfestes muss mind. zwei Wochen vor dem Straßenfest erfolgen.</p>",
+              "en": "<p>The registration of a street party must be made at least two weeks before the street party.</p>"
+            }
+          },
+          "processingDuration": {
+            "minDuration": 1,
+            "maxDuration": 4,
+            "unit": "week"
+          },
+          "customParameters": {
+            "hunderasse": 3,
+            "geschaeftsstelle": 3,
+            "prozessvariante": "lieferant",
+            "mahnfrist": 14,
+            "mahngebuehr": 10.99
+          },
+          "origin": "PVOG"
+        }
+      ]
+    }
+  },
+  "tools": 4,
+  "calls": [
+    {
+      "name": "findAuthority",
+      "arguments": {
+        "leikaKey": "99123456760610",
+        "place": "Hanau"
+      },
+      "expect": {
+        "status": "ok",
+        "searched.area.id": "940",
+        "authorities.0.name": "Stadtverwaltung Musterstadt - Dezernat II - Einwohner:innenmeldeamt"
+      }
+    },
+    {
+      "name": "getServiceBriefing",
+      "arguments": {
+        "leikaKey": "99123456760610",
+        "areaId": "940"
+      },
+      "expect": {
+        "status": "ok",
+        "briefings.0.processing.text": "1–4 weeks",
+        "briefings.0.about.language": "de"
+      }
+    },
+    {
+      "name": "findArea",
+      "arguments": {
+        "place": "Hanau"
+      },
+      "expect": {
+        "status": "ok",
+        "area.id": "940",
+        "districts.count": 12
+      }
+    },
+    {
+      "name": "searchAreas",
+      "arguments": {
+        "place": "Hanau",
+        "limit": 20
+      },
+      "expect": {
+        "status": "ok",
+        "total": 13,
+        "areas.0.kind": "place"
+      }
+    },
+    {
+      "name": "findAuthority",
+      "arguments": {
+        "leikaKey": "Personalausweis",
+        "place": "Hanau"
+      },
+      "error": true
+    }
+  ]
+}
