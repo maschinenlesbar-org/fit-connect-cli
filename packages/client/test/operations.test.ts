@@ -98,6 +98,18 @@ test("one whole place and a grouping of the same name: the place, with a note na
   assert.match(answer.notes.join(" "), /Also matched a grouping \(München, Landkreis\)/);
 });
 
+test("several whole places but exactly one named just that: that one, the others and the grouping in notes (München, live)", async () => {
+  const answer = await findArea(clientOf(routingApi()), { place: "münchen" });
+  assert.equal(answer.status, "ok");
+  if (answer.status !== "ok") return;
+  assert.deepEqual(answer.area, { id: "46018", name: "München", type: "kreisfreie Stadt", kind: "place" });
+  assert.equal(answer.places.length, 4, "Grafing, Garching and Kirchheim b.München are still listed");
+  assert.match(answer.notes.join(" "), /3 other places contain the words \(Grafing b\.München, St; Garching b\.München, St; Kirchheim b\.München\)/);
+  assert.match(answer.notes.join(" "), /Also matched a grouping \(München, Landkreis\)/);
+  const halle = await findArea(clientOf(routingApi()), { place: "Halle" });
+  assert.equal(halle.status, "ambiguous", "Halle (Saale) and Halle (Westf.) are not named just Halle: no namesake, still ambiguous");
+});
+
 test("area types by kind: the Länder's variants; a type not seen yet is other and stays with the places", async () => {
   const kinds = Object.fromEntries(["Gemeindeteil", "Gemeindeteil2", "Ortsteil", "kreisfreie Stadt", "Stadt", "große Kreisstadt", "Amtsangehörige Gemeinde", "Mitgliedsgemeinde", "Amt", "Verwaltungsgemeinschaft", "Landkreis", "Bundesland", "Weiler"].map((t) => [t, areaKind(t)]));
   assert.deepEqual(kinds, {

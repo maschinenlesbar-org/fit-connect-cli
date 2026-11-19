@@ -3,7 +3,8 @@
 // (https://routing-api-prod.fit-connect.fitko.net/v2) on 2026-11-19 around 23:10 CET with the
 // fit-connect CLI, in full (they are small): "Hanau" (13: the kreisfreie Stadt and 12 parts, some
 // of type Gemeindeteil2), "Halle" (50: Halle (Saale), Halle (Westf.), two Mitgliedsgemeinden and 46
-// Gemeindeteile), the postal code 60311 (6: Frankfurt am Main and 5 parts), "Köln Bonn" (none: the
+// Gemeindeteile), "München" (7, around 23:30: the city, the Landkreis, three towns named "b.München",
+// two parts of other towns), the postal code 60311 (6: Frankfurt am Main and 5 parts), "Köln Bonn" (none: the
 // API ANDs the words), the info answer, and the problem answer for an area key the service
 // doesn't know (HTTP 400, application/problem+json).
 // No live lookup found a route (count 0 for every service and place tried, 2026-09-15 and
@@ -91,6 +92,17 @@ export const AREAS_HALLE: Area[] = rows([
   ["31927", "Halle (Niedersachsen, 49843)", "Mitgliedsgemeinde"],
 ]);
 
+/** "München" (recorded later the same evening): the city and the Landkreis, both named just München, three towns "b.München", and two parts of other towns called München. */
+export const AREAS_MUENCHEN: Area[] = rows([
+  ["13885", "Bad Berka - OT München", "Gemeindeteil"],
+  ["46018", "München", "kreisfreie Stadt"],
+  ["46381", "München", "Landkreis"],
+  ["46123", "Grafing b.München, St", "Stadt"],
+  ["46386", "Garching b.München, St", "Stadt"],
+  ["9675", "Uebigau-Wahrenbrück - OT München", "Ortsteil"],
+  ["46394", "Kirchheim b.München", "Kreisangehörige Gemeinde"],
+]);
+
 /** The postal code 60311: Frankfurt am Main and five of its parts. */
 export const AREAS_60311: Area[] = rows([
   ["1099", "Frankfurt am Main", "kreisfreie Stadt"],
@@ -152,7 +164,7 @@ export function variant<T extends object>(base: T, changes: Partial<T> | Record<
 
 /** What the mock answers: the area rows searched by name, the rows per postal code, the routes per lookup. */
 export interface RoutingFixture {
-  /** Every area a name search can find (default: Hanau's and Halle's). */
+  /** Every area a name search can find (default: Hanau's, Halle's and München's). */
   areas?: Area[];
   /** Rows per postal code (default: 60311's). */
   postalCodes?: Record<string, Area[]>;
@@ -176,7 +188,7 @@ export function routingAnswer(request: HttpRequest, fixture: RoutingFixture = {}
     const words = url.searchParams.getAll("areaSearchexpression");
     const postal = fixture.postalCodes ?? { "60311": AREAS_60311 };
     if (words.length === 1 && /^\d+$/.test(words[0] as string)) return page("areas", postal[words[0] as string] ?? []);
-    const pool = fixture.areas ?? [...AREAS_HANAU, ...AREAS_HALLE];
+    const pool = fixture.areas ?? [...AREAS_HANAU, ...AREAS_HALLE, ...AREAS_MUENCHEN];
     const patterns = words.map((w) => new RegExp(w.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*"), "i"));
     return page("areas", pool.filter((area) => patterns.every((p) => p.test(area.name))));
   }

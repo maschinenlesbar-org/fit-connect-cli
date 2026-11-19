@@ -87,7 +87,8 @@ const DISTRICTS_LISTED = 10;
  * A place or postal code to its area entry, the id a route lookup takes (areaId). The API ANDs the
  * words: every word must match the same area, so one place per call. A city comes with its
  * districts: the whole place leads (status ok), the districts are counted. Several whole places
- * (Halle: Halle (Saale), Halle (Westf.), two Mitgliedsgemeinden) are `ambiguous`; with no whole
+ * (Halle: Halle (Saale), Halle (Westf.), two Mitgliedsgemeinden) are `ambiguous`, unless exactly
+ * one is named just what was searched (München beside Grafing b.München: the others in a note); with no whole
  * place, one grouping (a Landkreis, a Bundesland) or one row is the answer. None is `empty`, with
  * what to try. The areas carry no ags or ars.
  */
@@ -105,10 +106,18 @@ export async function findArea(client: FitConnectClient, input: FindAreaInput): 
     };
   }
   const { places, groupings, districts } = groups;
+  // Several whole places but exactly one named just what was searched ("München" beside "Grafing
+  // b.München"): that one. Halle (Saale) and Halle (Westf.) are not named just "Halle".
+  const namesakes = places.filter((p) => fold(p.name) === fold(searched.place));
+  const place = places.length === 1 ? places[0] : namesakes.length === 1 ? namesakes[0] : undefined;
   const one =
-    places.length === 1 ? places[0] : places.length === 0 && groupings.length === 1 ? groupings[0] : groups.total === 1 && groups.complete ? districts.listed[0] : undefined;
+    place ?? (places.length === 0 && groupings.length === 1 ? groupings[0] : groups.total === 1 && groups.complete ? districts.listed[0] : undefined);
   if (one !== undefined) {
-    if (places.length === 1 && groupings.length > 0) notes.push(`Also matched ${groupings.length === 1 ? "a grouping" : `${groupings.length} groupings`} (${groupings.map((g) => `${g.name}, ${g.type}`).join("; ")}): ask if the user meant that.`);
+    const others = places.filter((p) => p !== one);
+    if (place !== undefined && others.length > 0) {
+      notes.push(`${others.length} other ${others.length === 1 ? "place contains" : "places contain"} the words (${others.map((p) => p.name).join("; ")}): ask if the user meant one of them.`);
+    }
+    if (place !== undefined && groupings.length > 0) notes.push(`Also matched ${groupings.length === 1 ? "a grouping" : `${groupings.length} groupings`} (${groupings.map((g) => `${g.name}, ${g.type}`).join("; ")}): ask if the user meant that.`);
     return { status: "ok", searched, area: one, ...groups, notes };
   }
   const candidates = places.length > 0 ? [...places, ...groupings] : groupings.length > 0 ? groupings : districts.listed;
@@ -158,6 +167,9 @@ function searchNotes(searched: AreaSearched): string[] {
 }
 
 const quoteWords = (words: readonly string[]): string => words.map((w) => quoteValue(w)).join(", ");
+
+/** Folded for comparing names: NFC, case, inner whitespace. */
+const fold = (text: string): string => text.normalize("NFC").toLocaleLowerCase("de").replace(/\s+/g, " ").trim();
 
 /** The input of {@link searchAreas}. */
 export interface SearchAreasInput {
