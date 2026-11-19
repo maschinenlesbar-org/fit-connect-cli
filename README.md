@@ -38,6 +38,58 @@ Check it works:
 fit-connect --help
 ```
 
+### Docker
+
+From 0.9.0 every release is also a container image for linux/amd64 and linux/arm64 on the
+GitHub Container Registry, made from the same tarball as the npm package. It needs no Node.js and no
+install:
+
+```bash
+docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
+  ghcr.io/maschinenlesbar-org/fit-connect-cli:latest areas Hanau
+```
+
+The image's entrypoint is the program, so the command follows the image name directly;
+`… fit-connect-cli:latest fit-connect areas Hanau` works too.
+
+In a container with a memory limit (`--memory`) the default `--max-response-bytes` is an eighth
+of that limit (at most the usual 100 MiB), so an oversized answer is refused with a clear
+error instead of the container being killed for memory. The Routing API's answers are small.
+The CLI needs at least 12 processes and threads (`--pids-limit 12`): below that it refuses with
+an error, and with 4 or fewer Node.js itself hangs before the CLI can check.
+
+`latest` is the newest release. For scripts, name a release and pin its digest, which the
+[release notes](https://github.com/maschinenlesbar-org/fit-connect-cli/releases) give:
+`…/fit-connect-cli:0.9.0@sha256:<digest>`. Each image carries signed build provenance;
+check it with
+
+```bash
+gh attestation verify oci://ghcr.io/maschinenlesbar-org/fit-connect-cli:latest \
+  --repo maschinenlesbar-org/fit-connect-cli
+```
+
+### MCP server
+
+From 0.9.0 the same Routing API is also an [MCP](https://modelcontextprotocol.io/) server for AI
+agents, `@maschinenlesbar.org/fit-connect-mcp` (command `fit-connect-mcp`, image
+`ghcr.io/maschinenlesbar-org/fit-connect-mcp`): four read-only tools, the authority responsible for
+a service in a place (the place given by name, resolved first), a "how to apply" briefing from the
+route's region-specific notes, a place or postal code to its area id (the whole place first, its
+districts counted, several places reported, never one picked), and the area search a page at a
+time, with the API's traps handled (the words ANDed, short words dropped, no route as the usual
+answer rather than an error, an area key the service doesn't know), on stdio or Streamable HTTP.
+Setup for Claude Code, Claude Desktop and VS Code:
+[MCP.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/MCP.md).
+
+```bash
+npm i -g @maschinenlesbar.org/fit-connect-mcp
+claude mcp add fit-connect -- fit-connect-mcp
+```
+
+No open-data licence is declared for the routing data, whose use falls under the FIT-Connect
+terms: every result names the source and says so, and running the server as a service for others
+may need FITKO's permission (we provide the tool, not the data).
+
 ## Concepts in 30 seconds
 
 A routing lookup answers *"who handles service X in place Y?"* and needs two inputs:
@@ -253,6 +305,7 @@ one wins".
 - **[Usage.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/Usage.md)** — full use-case-driven cookbook.
 - **[GLOSSARY.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/GLOSSARY.md)** — every command, field, and domain term explained.
 - **[DEVELOPING.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/DEVELOPING.md)** — TypeScript library usage, architecture, testing, CI.
+- **[MCP.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/MCP.md)** — the MCP server: tools, setup, options.
 - **[SKILLS.md](https://github.com/maschinenlesbar-org/fit-connect-cli/blob/main/SKILLS.md)** — Claude Code Agent Skills bundled with this repo
   (find authority, area lookup, service briefing), installable as a plugin.
 
