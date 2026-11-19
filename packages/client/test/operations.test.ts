@@ -194,6 +194,16 @@ test("a place by name is resolved first, then routed by its area id; the answer 
   assert.match(answer.status === "ok" ? answer.notes.join(" ") : "", /resolved to Hanau, Brüder-Grimm-Stadt \(kreisfreie Stadt, areaId 940\)/);
 });
 
+test("no route for a place given by name: the answer still says which area it took and what else matched", async () => {
+  const answer = await findAuthority(clientOf(routingApi()), { leikaKey: "99050012104000", place: "München" });
+  assert.equal(answer.status, "empty");
+  if (answer.status !== "empty") return;
+  assert.equal(answer.searched.area?.id, "46018");
+  assert.match(answer.notes?.join(" ") ?? "", /resolved to München \(kreisfreie Stadt, areaId 46018\).*3 other places contain the words/);
+  const byKey = await findAuthority(clientOf(routingApi()), { leikaKey: "99050012104000", ars: "064350014014" });
+  assert.equal("notes" in byKey, false, "nothing to say for a key");
+});
+
 test("a place that fits several areas is ambiguous, and no route is asked for", async () => {
   const mock = routingApi();
   const answer = await findAuthority(clientOf(mock), { leikaKey: EXAMPLE_KEY, place: "Halle" });

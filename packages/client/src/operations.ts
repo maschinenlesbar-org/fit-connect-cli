@@ -264,6 +264,8 @@ interface NoRoute {
   reason: string;
   /** For an ags or ars: the Land's key, the broader area to try. */
   broader?: { ars?: string; ags?: string };
+  /** For a place given by name: which area it was resolved to, and what else matched. */
+  notes?: string[];
 }
 
 /** The input of {@link findAuthority}. */
@@ -408,6 +410,7 @@ async function routeFor(client: FitConnectClient, input: RouteWhere): Promise<Ro
         "It does not mean no authority is responsible, only that FIT-Connect can't name it. A broader area (the Landkreis or Bundesland) or a re-checked " +
         "Leistungsschlüssel is cheap to try but rarely changes this; point the user to the place's own administration website or the state's service portal.",
       ...broaderOf(which, value),
+      ...(notes.length > 0 ? { notes } : {}),
       noRoute: true,
     };
   }
