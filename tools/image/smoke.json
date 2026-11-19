@@ -1,0 +1,49 @@
+{
+  "comment": "What tools/image/smoke.mjs needs that is particular to this repo: the bin (its log topic), a command that makes one request, the exit code of a network error, the mock's answer to that request (by path, under --base-url http://mock:8080), and a string the printed answer contains. The answer is the live one for the postal code 60311, recorded on 2026-11-19.",
+  "bin": "fit-connect",
+  "command": [
+    "areas",
+    "60311"
+  ],
+  "networkErrorExit": 1,
+  "answers": {
+    "/v2/areas": {
+      "count": 6,
+      "offset": 0,
+      "totalCount": 6,
+      "areas": [
+        {
+          "id": "1099",
+          "name": "Frankfurt am Main",
+          "type": "kreisfreie Stadt"
+        },
+        {
+          "id": "1107",
+          "name": "Frankfurt am Main - OT Altstadt",
+          "type": "Gemeindeteil"
+        },
+        {
+          "id": "1159",
+          "name": "Frankfurt am Main - OT Nieder-Eschbach",
+          "type": "Gemeindeteil"
+        },
+        {
+          "id": "1172",
+          "name": "Frankfurt am Main - OT Nieder-Erlenbach",
+          "type": "Gemeindeteil"
+        },
+        {
+          "id": "1175",
+          "name": "Frankfurt am Main - OT Kalbach",
+          "type": "Gemeindeteil"
+        },
+        {
+          "id": "1179",
+          "name": "Frankfurt am Main - OT Gallusviertel",
+          "type": "Gemeindeteil"
+        }
+      ]
+    }
+  },
+  "expectStdout": "Frankfurt am Main - OT Altstadt"
+}
