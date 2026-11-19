@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { Command, InvalidArgumentError } from "commander";
 import type { CliDeps } from "./io.js";
 import { defaultIO } from "./io.js";
+import { readContainerLimits } from "./limits.js";
 import { FitConnectClient } from "@maschinenlesbar.org/fit-connect-client/internal/client";
 import { DEFAULT_BASE_URL, MAX_RETRIES } from "@maschinenlesbar.org/fit-connect-client/internal/engine";
 import { MAX_TIMEOUT_MS } from "@maschinenlesbar.org/fit-connect-client/internal/http";
@@ -45,6 +46,8 @@ export const VERSION = readVersion();
 export const defaultDeps: CliDeps = {
   io: defaultIO,
   createClient: (options) => new FitConnectClient(options),
+  // In a container: the memory and pids limits (cgroup), for action()'s checks.
+  limits: () => readContainerLimits(),
 };
 
 /** commander value-parser for `--log-format`. */
