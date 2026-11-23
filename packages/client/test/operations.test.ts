@@ -278,3 +278,17 @@ test("the processing time as a human range, from either bound", () => {
 test("plainText drops the tags, keeps lists as lists and decodes entities", () => {
   assert.equal(plainText("<p>Unterlagen:</p><ul><li>Pass &amp; Foto</li><li>Nachweis&nbsp;A</li></ul>Ende<br>&#x2713;"), "Unterlagen:\n\n- Pass & Foto\n- Nachweis A\nEnde\n✓");
 });
+
+test("plainText is linear: an opening bracket with no closing one never rescans the rest of the text", () => {
+  // `/<[^>]*>/` and `/<\s*li[^>]*>/` tried every "<" against the rest of the text: quadratic, so
+  // 120 000 characters of "<li" took 20 s, and a route text of a few MiB held the event loop for hours.
+  for (const text of ["<li".repeat(40_000), "<".repeat(120_000)]) {
+    const start = performance.now();
+    const out = plainText(text);
+    const ms = performance.now() - start;
+    assert.ok(ms < 500, `${Math.round(ms)} ms`);
+    assert.ok(out.startsWith("<"), "a bracket that closes no tag is text, as before");
+  }
+  assert.equal(plainText("x<br  />y<br>z<brx>w< / h2 >v<li-x>u"), "x\ny\nzw\nv\n- u");
+  assert.equal(plainText("<P>Ein</P><BR/>Zwei<UL><LI>Drei</LI></UL>< /div >Vier"), "Ein\n\nZwei\n- Drei\n\nVier", "one blank line between blocks, as before");
+});

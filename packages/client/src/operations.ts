@@ -528,6 +528,33 @@ function compact<T extends object>(value: T): T {
   ) as T;
 }
 
+/**
+ * The text with its tags dropped, a list item's start as "- ", a line break and a block's end as
+ * a new line. One pass: each "<" is matched with the next ">" by indexOf, never by a regular
+ * expression that, at every "<" with no ">" after it, reads to the end of the text (quadratic: 120 000
+ * characters of "<li" took 20 s). A tag runs from "<" to the next ">"; a "<" with no ">" after it is text.
+ */
+function withoutTags(html: string): string {
+  let out = "";
+  let at = 0;
+  while (at < html.length) {
+    const open = html.indexOf("<", at);
+    const close = open < 0 ? -1 : html.indexOf(">", open + 1);
+    if (close < 0) break;
+    out += html.slice(at, open) + tagAsText(html.slice(open + 1, close));
+    at = close + 1;
+  }
+  return out + html.slice(at);
+}
+
+/** What a tag (its text between "<" and ">") becomes in plain text. */
+function tagAsText(tag: string): string {
+  if (/^\s*li/i.test(tag)) return "\n- ";
+  if (/^\s*br\s*\/?$/i.test(tag)) return "\n";
+  if (/^\s*\/\s*(p|div|ul|ol|h[1-6]|table|tr)\s*$/i.test(tag)) return "\n";
+  return "";
+}
+
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 
 /**
@@ -536,11 +563,7 @@ const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"'
  */
 export function plainText(html: string | null | undefined): string {
   if (html === null || html === undefined) return "";
-  return html
-    .replace(/<\s*li[^>]*>/gi, "\n- ")
-    .replace(/<\s*br\s*\/?>/gi, "\n")
-    .replace(/<\s*\/\s*(p|div|ul|ol|h[1-6]|table|tr)\s*>/gi, "\n")
-    .replace(/<[^>]*>/g, "")
+  return withoutTags(html)
     .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, name: string) => {
       if (name[0] === "#") {
         const code = name[1] === "x" || name[1] === "X" ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
