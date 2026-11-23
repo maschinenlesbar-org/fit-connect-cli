@@ -77,7 +77,8 @@ Every tool only reads. An answer is JSON (`structuredContent` and the same as te
 which this API can't look up from words: the FIM Portal's server (fim-portal-mcp) can. Routing data
 is sparse: most lookups find no route, which means FIT-Connect has none registered there, not that
 no authority is responsible. A text over 2000 characters is cut and ends in `…[cut, N characters in
-all]`, and the answer says `truncated`. A failure is a tool error that says what to change.
+all]`, and the answer says `truncated`. A failure is a tool error that says what to change (one over
+5000 characters loses its middle, never its end, where the reason is).
 
 ## Options
 
