@@ -170,3 +170,22 @@ test("findArea München: no district of Bad Berka counted as München's; they co
   assert.deepEqual((content["otherDistricts"] as { listed: { partOf: string }[] }).listed.map((d) => d.partOf), ["Bad Berka", "Uebigau-Wahrenbrück"]);
   await connection.close();
 });
+
+test("the deadline's and the size cap's advice fit every tool: each option they name comes with the tools that take it", async () => {
+  const { DEADLINE_HINT, SIZE_HINT } = await import("../src/mcp/tools.js");
+  const schemas = new Map(TOOLS.map((tool) => [tool.name, Object.keys((tool.inputSchema as { properties: Record<string, unknown> }).properties)]));
+  for (const text of [DEADLINE_HINT, SIZE_HINT]) {
+    const pairs = [...text.matchAll(/(\w+(?: or \w+)*) \((\w+(?:, \w+)*)\)/g)];
+    assert.ok(pairs.length >= 2, text);
+    for (const [, options, tools] of pairs) {
+      for (const tool of (tools as string).split(", ")) {
+        assert.ok(schemas.has(tool), `no tool ${tool}: ${text}`);
+        for (const option of (options as string).split(" or ")) assert.ok(schemas.get(tool)?.includes(option), `${tool} takes no ${option}: ${text}`);
+      }
+    }
+    const named = new Set(pairs.flatMap(([, options]) => (options as string).split(" or ")));
+    for (const option of ["offset", "limit", "areaId", "allDistricts", "place"]) {
+      assert.ok(!new RegExp(`\\b${option}\\b`).test(text) || named.has(option), `${option} named without its tools: ${text}`);
+    }
+  }
+});
