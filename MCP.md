@@ -121,7 +121,8 @@ no authority is responsible. A failure is a tool error that says what to change.
   ends it at once. On stdio it ends at once, and when stdin ends.
 - **In a container** it needs at least 12 processes and threads (`--pids-limit`) and about
   256 MB of memory. The answers it reads are small (a search reads at most 500 areas).
-- **Logs** go to stderr, one record per line; stdout carries only the protocol.
+- **Logs** go to stderr, one record per line; stdout carries only the protocol. A call that fails
+  upstream or reaches its deadline leaves a WARN record naming the tool.
 - **Never installs anything.**
 
 ## Licence
