@@ -341,7 +341,6 @@ export async function findAuthority(client: FitConnectClient, input: FindAuthori
   if (routed.status === "empty") return withoutFlag(routed);
   if (routed.status !== "ok") return routed;
   const notes = routed.notes;
-  if (routed.total > routed.routes.length) notes.push(`${routed.total} routes, ${routed.routes.length} listed.`);
   return { status: "ok", searched: routed.searched, total: routed.total, authorities: routed.routes.map(authorityOf), notes };
 }
 
@@ -476,6 +475,7 @@ async function routeFor(client: FitConnectClient, input: RouteWhere): Promise<Ro
       noRoute: true,
     };
   }
+  if (answer.total > answer.rows.length) notes.push(`${answer.total} routes, the first ${answer.rows.length} listed (pages of 500, up to maxPages): say that more are registered.`);
   return { status: "ok", searched, total: answer.total, routes: answer.rows, notes };
 }
 

@@ -370,3 +370,21 @@ test("a search with more rows than were read is never answered ok from the part 
   const whole = await findArea(clientOf(routingApi({ areas })), { place: "Altort" });
   assert.equal(whole.status === "ok" ? whole.area.id : undefined, "7", "read to the end, the place named just that");
 });
+
+test("a route page that counts routes but holds none is an error, not the usual 'no Zustellpunkt'; both lookups say how many routes they list", async () => {
+  const drift = makeMockTransport(() => jsonResponse({ count: 0, offset: 0, totalCount: 3, routes: [] }));
+  const client = new FitConnectClient({ transport: drift.transport, maxRetries: 0 });
+  await assert.rejects(findAuthority(client, { leikaKey: EXAMPLE_KEY, areaId: "940" }), /holds no rows, though the total is 3/);
+  await assert.rejects(getServiceBriefing(client, { leikaKey: EXAMPLE_KEY, areaId: "940" }), /holds no rows, though the total is 3/);
+  const routes = Array.from({ length: 501 }, (_, i) => ({ destinationId: `d${i}`, destinationSignature: "s" }));
+  const many = () => clientOf(routingApi({ routes: { [`${EXAMPLE_KEY} areaId=940`]: routes } }));
+  const authority = await findAuthority(many(), { leikaKey: EXAMPLE_KEY, areaId: "940", maxPages: 1 });
+  const briefing = await getServiceBriefing(many(), { leikaKey: EXAMPLE_KEY, areaId: "940", maxPages: 1 });
+  for (const answer of [authority, briefing]) {
+    assert.equal(answer.status, "ok");
+    assert.match(answer.status === "ok" ? answer.notes.join(" ") : "", /501 routes, the first 500 listed/);
+  }
+  const all = await getServiceBriefing(many(), { leikaKey: EXAMPLE_KEY, areaId: "940" });
+  assert.equal(all.status === "ok" ? all.briefings.length : 0, 501);
+  assert.doesNotMatch(all.status === "ok" ? all.notes.join(" ") : "", /listed/);
+});

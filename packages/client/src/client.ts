@@ -191,6 +191,10 @@ function listProblem(key: "routes" | "areas", asked: number | undefined): (value
     const list = value[key];
     if (!Array.isArray(list)) return `"${key}" is not an array`;
     if (!list.every(isObject)) return `"${key}" holds a value that is not an object`;
+    // An empty page before the end contradicts the total: read as "nothing registered" (the
+    // usual answer for routes) it would hide the drift.
+    const start = value["offset"] as number;
+    if (list.length === 0 && start < (value["totalCount"] as number)) return `the page at offset ${start} holds no rows, though the total is ${String(value["totalCount"])}`;
     const rowProblem = key === "areas" ? areaProblem : routeProblem;
     for (const [i, row] of list.entries()) {
       const problem = rowProblem(row as Record<string, unknown>, `${key}[${i}]`);

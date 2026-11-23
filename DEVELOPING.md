@@ -174,7 +174,7 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   (texts strings, `contactPersons` an array of objects with string fields, the addresses and
   the localized blocks objects, a localized `description` an object of strings, the
   processing bounds numbers, `customParameters` an object), the field named in the error
-  (`"routes[0].contactPersons[0]" is not an object`); `info` `{ version: { major, minor, patch } }`. Anything else — `null`, `{}`, an array,
+  (`"routes[0].contactPersons[0]" is not an object`); a page before the end is never empty (`the page at offset 0 holds no rows, though the total is 3`: read as "nothing registered" it would hide the drift); `info` `{ version: { major, minor, patch } }`. Anything else — `null`, `{}`, an array,
   a string, an error envelope a proxy answered with `200` — is a `FitConnectParseError`
   (`GET https://routing-api-prod.fit-connect.fitko.net/v2/routes?…: unexpected response
   shape: "routes" is not an array.`), never data, since the skills read `count: 0` as a valid
