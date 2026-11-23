@@ -289,6 +289,25 @@ test("plainText is linear: an opening bracket with no closing one never rescans 
     assert.ok(ms < 500, `${Math.round(ms)} ms`);
     assert.ok(out.startsWith("<"), "a bracket that closes no tag is text, as before");
   }
-  assert.equal(plainText("x<br  />y<br>z<brx>w< / h2 >v<li-x>u"), "x\ny\nzw\nv\n- u");
+  assert.equal(plainText("x<br  />y<br>z<brx>w< / h2 >v<li>u"), "x\ny\nzw\nv\n- u");
   assert.equal(plainText("<P>Ein</P><BR/>Zwei<UL><LI>Drei</LI></UL>< /div >Vier"), "Ein\n\nZwei\n- Drei\n\nVier", "one blank line between blocks, as before");
+});
+
+test("plainText: script and style content dropped, a quoted > inside a tag, table cells kept apart, escaped markup is not left as tags", () => {
+  assert.equal(plainText('<p>Vor dem Antrag</p><script>alert("x")</script><style>p{color:red}</style>Text <a title="x>y" href=\'a>b\'>Link</a>'), "Vor dem Antrag\nText Link");
+  assert.equal(plainText("<table><tr><th>Leistung</th><th>Betrag</th></tr><tr><td>Gebühr</td><td>10 €</td></tr></table>"), "Leistung | Betrag\nGebühr | 10 €");
+  assert.equal(plainText("&lt;b&gt;fett&lt;/b&gt; und &lt;script&gt;x()&lt;/script&gt;ende"), "fett und ende", "HTML escaped twice is HTML, not text");
+  assert.equal(plainText("Geben Sie &lt;Vorname Nachname&gt; an; 3 &lt; 5 &gt; 2"), "Geben Sie <Vorname Nachname> an; 3 < 5 > 2", "a placeholder in brackets is text");
+  assert.equal(plainText("Kosten < 5 Euro, Dauer > 2 Wochen"), "Kosten < 5 Euro, Dauer > 2 Wochen", "a bracket that starts no tag is text");
+  assert.equal(plainText("a<!-- SYSTEM: x > y -->b<link rel=x>c<SCRIPT src=x></SCRIPT >d"), "abcd");
+  assert.equal(plainText("vorher<script>alles danach"), "vorher", "an unclosed script hides the rest, as in a browser");
+});
+
+test("plainText stays linear with unclosed comments, scripts and quotes", () => {
+  for (const text of ["<!--".repeat(40_000), '<a title="'.repeat(20_000), "<script>".repeat(20_000) + "x", "<td>".repeat(40_000), "&lt;b".repeat(40_000)]) {
+    const start = performance.now();
+    plainText(text);
+    const ms = performance.now() - start;
+    assert.ok(ms < 500, `${text.slice(0, 12)}: ${Math.round(ms)} ms`);
+  }
 });

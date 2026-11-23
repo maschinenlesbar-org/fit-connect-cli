@@ -528,31 +528,109 @@ function compact<T extends object>(value: T): T {
   ) as T;
 }
 
+/** Elements whose content is code, not text: dropped with their tags. */
+const RAW_TEXT = new Set(["script", "style"]);
+/** Elements whose end is a new line. */
+const BLOCK_ENDS = new Set(["p", "div", "ul", "ol", "h1", "h2", "h3", "h4", "h5", "h6", "table", "tr"]);
 /**
- * The text with its tags dropped, a list item's start as "- ", a line break and a block's end as
- * a new line. One pass: each "<" is matched with the next ">" by indexOf, never by a regular
- * expression that, at every "<" with no ">" after it, reads to the end of the text (quadratic: 120 000
- * characters of "<li" took 20 s). A tag runs from "<" to the next ">"; a "<" with no ">" after it is text.
+ * The HTML elements a text escaped twice ("&lt;b&gt;") carries: after the entities are decoded,
+ * these are dropped as tags too, while any other bracketed word ("<Vorname>") stays text.
  */
-function withoutTags(html: string): string {
+const HTML_ELEMENTS = new Set([
+  "a", "abbr", "b", "blockquote", "body", "br", "caption", "center", "code", "col", "colgroup", "dd", "del", "div", "dl", "dt", "em", "font", "h1", "h2", "h3", "h4", "h5", "h6",
+  "head", "hr", "html", "i", "iframe", "img", "ins", "li", "link", "mark", "meta", "ol", "p", "pre", "q", "s", "script", "section", "small", "span", "strong", "style", "sub", "sup",
+  "table", "tbody", "td", "tfoot", "th", "thead", "title", "tr", "u", "ul",
+]);
+
+/** A tag found at a "<": its name (lower case; "!" for a comment or declaration), whether it closes, and where it ends. */
+interface Tag {
+  name: string;
+  closing: boolean;
+  end: number;
+}
+
+/**
+ * The tags dropped, a list item's start as "- ", a line break and a block's end as a new line, the
+ * cells of a table row apart (" | "), and the content of script and style left out. A tag starts
+ * at "<" followed by a letter, "/" or "!" (else the "<" is text: "Kosten < 5 Euro") and ends at
+ * the first ">" outside its quoted attribute values, before the next "<"; a "<" without such an
+ * end is text. With `known`, only the HTML elements of HTML_ELEMENTS (and comments) are tags.
+ * One pass: every search moves forward, and a search that found nothing is not repeated (a
+ * regular expression tried at every "<" read to the end of the text each time: quadratic).
+ */
+function withoutTags(html: string, known = false): string {
   let out = "";
   let at = 0;
-  while (at < html.length) {
-    const open = html.indexOf("<", at);
-    const close = open < 0 ? -1 : html.indexOf(">", open + 1);
-    if (close < 0) break;
-    out += html.slice(at, open) + tagAsText(html.slice(open + 1, close));
-    at = close + 1;
+  let cell = false;
+  let noCommentEnd = false;
+  const rawEnd = /<\s*\/\s*(script|style)\b[^<>]*>/gi;
+  for (let open = html.indexOf("<"); open >= 0; open = html.indexOf("<", at)) {
+    let tag = tagAt(html, open);
+    if (tag !== undefined && tag.name === "!" && html.startsWith("<!--", open) && !noCommentEnd) {
+      const end = html.indexOf("-->", open + 4);
+      if (end < 0) noCommentEnd = true;
+      else tag = { name: "!", closing: false, end: end + 3 };
+    }
+    if (tag === undefined || (known && tag.name !== "!" && !HTML_ELEMENTS.has(tag.name))) {
+      out += html.slice(at, open + 1);
+      at = open + 1;
+      continue;
+    }
+    out += html.slice(at, open);
+    at = tag.end;
+    if (tag.name === "li" && !tag.closing) out += "\n- ";
+    else if (tag.name === "br") out += "\n";
+    else if (tag.closing && BLOCK_ENDS.has(tag.name)) out += "\n";
+    if (tag.name === "tr" || tag.name === "table") cell = false;
+    else if ((tag.name === "td" || tag.name === "th") && !tag.closing) {
+      if (cell) out += " | ";
+      cell = true;
+    }
+    if (RAW_TEXT.has(tag.name) && !tag.closing) {
+      rawEnd.lastIndex = at;
+      let found: RegExpExecArray | null;
+      while ((found = rawEnd.exec(html)) !== null && found[1]?.toLowerCase() !== tag.name);
+      at = found === null ? html.length : rawEnd.lastIndex;
+    }
   }
   return out + html.slice(at);
 }
 
-/** What a tag (its text between "<" and ">") becomes in plain text. */
-function tagAsText(tag: string): string {
-  if (/^\s*li/i.test(tag)) return "\n- ";
-  if (/^\s*br\s*\/?$/i.test(tag)) return "\n";
-  if (/^\s*\/\s*(p|div|ul|ol|h[1-6]|table|tr)\s*$/i.test(tag)) return "\n";
-  return "";
+/** The tag starting at the "<" at `open`, or undefined when that "<" starts none. */
+function tagAt(html: string, open: number): Tag | undefined {
+  let i = open + 1;
+  while (i < html.length && /\s/.test(html[i] as string)) i += 1;
+  let closing = false;
+  if (html[i] === "/") {
+    closing = true;
+    i += 1;
+    while (i < html.length && /\s/.test(html[i] as string)) i += 1;
+  }
+  let name: string;
+  if (!closing && html[i] === "!") {
+    name = "!";
+  } else {
+    const start = i;
+    while (i < html.length && /[A-Za-z0-9-]/.test(html[i] as string)) i += 1;
+    name = html.slice(start, i).toLowerCase();
+    if (!/^[a-z]/.test(name)) return undefined;
+  }
+  const next = html.indexOf("<", i);
+  const limit = next < 0 ? html.length : next;
+  let quote: string | undefined;
+  let firstGt = -1;
+  for (let j = i; j < limit; j += 1) {
+    const c = html[j];
+    if (c === ">" && firstGt < 0) firstGt = j;
+    if (quote !== undefined) {
+      if (c === quote) quote = undefined;
+    } else if (c === '"' || c === "'") {
+      quote = c;
+    } else if (c === ">") {
+      return { name, closing, end: j + 1 };
+    }
+  }
+  return firstGt < 0 ? undefined : { name, closing, end: firstGt + 1 };
 }
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
@@ -563,14 +641,14 @@ const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"'
  */
 export function plainText(html: string | null | undefined): string {
   if (html === null || html === undefined) return "";
-  return withoutTags(html)
-    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, name: string) => {
-      if (name[0] === "#") {
-        const code = name[1] === "x" || name[1] === "X" ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
-        return Number.isSafeInteger(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
-      }
-      return ENTITIES[name.toLowerCase()] ?? whole;
-    })
+  const decoded = withoutTags(html).replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, name: string) => {
+    if (name[0] === "#") {
+      const code = name[1] === "x" || name[1] === "X" ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
+      return Number.isSafeInteger(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+    }
+    return ENTITIES[name.toLowerCase()] ?? whole;
+  });
+  return withoutTags(decoded, true)
     .replace(/[ \t ]+/g, " ")
     .split("\n")
     .map((line) => line.trim())
