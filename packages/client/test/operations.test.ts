@@ -431,3 +431,16 @@ test("a place's districts are its own: districts of other places the words match
   assert.equal(halle.areas[1]?.partOf, "Halle (Saale)");
   assert.equal("partOf" in (halle.areas[0] ?? {}), false, "a whole place belongs to none");
 });
+
+test("an area the routing service doesn't know: the reason fits the key given, no guess about a Kreis key for a Gemeinde key or an area id", async () => {
+  const unknownKeys = ["areaId=99999", "ags=06435014", "ags=06435"];
+  const reason = async (where: { areaId?: string; ags?: string }) => {
+    const answer = await findAuthority(clientOf(routingApi({ unknownKeys })), { leikaKey: EXAMPLE_KEY, ...where });
+    return answer.status === "empty" ? answer.reason : "";
+  };
+  const byId = await reason({ areaId: "99999" });
+  assert.match(byId, /knows no area with areaId 99999\. Take an area id from findArea or searchAreas, or give the place by name\./);
+  assert.doesNotMatch(byId, /Kreis key|Land's key/);
+  assert.doesNotMatch(await reason({ ags: "06435014" }), /Kreis key/, "an 8-digit ags is a Gemeinde key");
+  assert.match(await reason({ ags: "06435" }), /a kreisfreie Stadt has no Kreis key/);
+});

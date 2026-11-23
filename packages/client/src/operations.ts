@@ -507,7 +507,10 @@ async function routeFor(client: FitConnectClient, input: RouteWhere): Promise<Ro
       return {
         status: "empty",
         searched,
-        reason: `The routing service knows no area with ${which} ${value} (a kreisfreie Stadt has no Kreis key, for one). Give the place by name instead, or the Land's key.`,
+        reason:
+          which === "areaId"
+            ? `The routing service knows no area with areaId ${value}. Take an area id from findArea or searchAreas, or give the place by name.`
+            : `The routing service knows no area with ${which} ${value}${value.length === 5 ? " (a kreisfreie Stadt has no Kreis key, for one)" : ""}. Give the place by name instead, or the Land's key.`,
         ...broaderOf(which, value),
         noRoute: false,
       };
