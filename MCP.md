@@ -72,13 +72,14 @@ For scripts and shared configs, pin a release and its digest from the
 | `searchAreas` | Every row of an area search with its type and kind, a page at a time. |
 
 Every tool only reads. An answer is JSON (`structuredContent` and the same as text), with the
-`source` it came from and the data licence. A place that fits several whole places is answered as
-`ambiguous`, with the candidates, never one picked. A service is named by its Leistungsschlüssel,
-which this API can't look up from words: the FIM Portal's server (fim-portal-mcp) can. Routing data
-is sparse: most lookups find no route, which means FIT-Connect has none registered there, not that
-no authority is responsible. A text over 2000 characters is cut and ends in `…[cut, N characters in
-all]`, and the answer says `truncated`. A failure is a tool error that says what to change (one over
-5000 characters loses its middle, never its end, where the reason is).
+`source` it came from (whole, never cut like the data) and the data licence. A place that fits
+several whole places is answered as `ambiguous`, with the candidates, never one picked. A service is
+named by its Leistungsschlüssel, which this API can't look up from words: the FIM Portal's server
+(fim-portal-mcp) can. Routing data is sparse: most lookups find no route, which means FIT-Connect
+has none registered there, not that no authority is responsible. A text over 2000 characters is cut
+and ends in `…[cut, N characters in all]`, and the answer says `truncated`. A failure is a tool
+error that says what to change (one over 5000 characters loses its middle, never its end, where the
+reason is).
 
 ## Options
 
