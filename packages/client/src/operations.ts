@@ -119,7 +119,9 @@ const DISTRICTS_LISTED = 10;
  * words: every word must match the same area, so one place per call. A city comes with its
  * districts: the whole place leads (status ok), the districts are counted. Several whole places
  * (Halle: Halle (Saale), Halle (Westf.), two Mitgliedsgemeinden) are `ambiguous`, unless exactly
- * one is named just what was searched (München beside Grafing b.München: the others in a note); with no whole
+ * one is named just what was searched (München beside Grafing b.München: the others in a note), or,
+ * failing that, exactly one is so named before an addition after a comma (Hamburg, Freie und
+ * Hansestadt beside Wentorf bei Hamburg); with no whole
  * place, one grouping (a Landkreis, a Bundesland) or one row is the answer. None is `empty`, with
  * what to try. More rows than were read (`maxPages` pages of 500) are `ambiguous`, whatever the
  * part read holds: the place meant may come later. The areas carry no ags or ars.
@@ -153,9 +155,14 @@ export async function findArea(client: FitConnectClient, input: FindAreaInput): 
     };
   }
   // Several whole places but exactly one named just what was searched ("München" beside "Grafing
-  // b.München"): that one. Halle (Saale) and Halle (Westf.) are not named just "Halle".
-  const namesakes = places.filter((p) => fold(p.name) === fold(searched.place));
-  const place = places.length === 1 ? places[0] : namesakes.length === 1 ? namesakes[0] : undefined;
+  // b.München"): that one; else exactly one so named before an addition after a comma ("Hamburg,
+  // Freie und Hansestadt" beside "Wentorf bei Hamburg", "Hanau, Brüder-Grimm-Stadt"). Halle (Saale)
+  // and Halle (Westf.) are named neither way "Halle".
+  const wanted = fold(searched.place);
+  const exact = places.filter((p) => fold(p.name) === wanted);
+  const named = places.filter((p) => fold(p.name.split(",")[0] ?? "") === wanted);
+  const namesake = exact.length === 1 ? exact[0] : exact.length === 0 && named.length === 1 ? named[0] : undefined;
+  const place = places.length === 1 ? places[0] : namesake;
   const one =
     place ?? (places.length === 0 && groupings.length === 1 ? groupings[0] : groups.total === 1 && groups.complete ? districts.listed[0] : undefined);
   if (one !== undefined) {

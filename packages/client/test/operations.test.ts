@@ -388,3 +388,22 @@ test("a route page that counts routes but holds none is an error, not the usual 
   assert.equal(all.status === "ok" ? all.briefings.length : 0, 501);
   assert.doesNotMatch(all.status === "ok" ? all.notes.join(" ") : "", /listed/);
 });
+
+test("a city whose official name has an addition after a comma is the namesake: Hamburg, not Wentorf bei Hamburg (live rows)", async () => {
+  const areas = [
+    { id: "2001", name: "Hamburg, Freie und Hansestadt", type: "kreisfreie Stadt" },
+    { id: "2002", name: "Wentorf bei Hamburg", type: "amtsfreie Gemeinde" },
+    { id: "2003", name: "Hamburg", type: "Bundesland" },
+  ];
+  const answer = await findArea(clientOf(routingApi({ areas })), { place: "Hamburg" });
+  assert.equal(answer.status, "ok");
+  if (answer.status !== "ok") return;
+  assert.equal(answer.area.id, "2001");
+  assert.match(answer.notes.join(" "), /1 other place contains the words \(Wentorf bei Hamburg\)/);
+  assert.match(answer.notes.join(" "), /Also matched a grouping \(Hamburg, Bundesland\)/);
+  const two = [...areas, { id: "2004", name: "Hamburg, Stadt", type: "Stadt" }];
+  assert.equal((await findArea(clientOf(routingApi({ areas: two })), { place: "Hamburg" })).status, "ambiguous", "two of that name: ask");
+  const exact = [{ id: "1", name: "Musterstadt", type: "Stadt" }, { id: "2", name: "Musterstadt, Hansestadt", type: "Stadt" }];
+  const picked = await findArea(clientOf(routingApi({ areas: exact })), { place: "Musterstadt" });
+  assert.equal(picked.status === "ok" ? picked.area.id : undefined, "1", "a place named exactly that comes first");
+});
