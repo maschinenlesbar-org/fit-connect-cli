@@ -80,7 +80,7 @@ const where: Record<string, JsonSchema> = {
   place: { ...place, description: "The place by name or postal code, resolved with findArea's rules (give exactly one of place, ags, ars, areaId)." },
   ags: { type: "string", minLength: 2, maxLength: 8, pattern: "^([0-9]{2}|[0-9]{3}|[0-9]{5}|[0-9]{8})$", description: "Amtlicher Gemeindeschlüssel: 8 digits (2, 3, 5 for Land, Regierungsbezirk, Kreis)." },
   ars: { type: "string", minLength: 2, maxLength: 12, pattern: "^([0-9]{2}|[0-9]{3}|[0-9]{5}|[0-9]{9}|[0-9]{12})$", description: "Amtlicher Regionalschlüssel: 12 digits (9 for a Gemeindeverband; 2, 3, 5 as for ags)." },
-  areaId: { type: "string", minLength: 1, maxLength: 10, pattern: "^[1-9][0-9]{0,9}$", description: "An area id from findArea or searchAreas." },
+  areaId: { type: "string", minLength: 1, maxLength: 9, pattern: "^[1-9][0-9]{0,8}$", description: "An area id from findArea or searchAreas (a whole number of at most 9 digits; the ids are much shorter)." },
 };
 const candidates: JsonSchema = { ...arr, description: "With ambiguous: the areas to choose from (id, name, type, kind)." };
 const broader: JsonSchema = { ...obj, description: "With empty, for an ags or ars: the Land's key, the broader area to try." };

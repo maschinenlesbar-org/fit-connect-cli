@@ -259,7 +259,7 @@ export const areaIdProblem: Problem = (value) => {
   if (token !== undefined) return token;
   const id = value.trim();
   if (!/^[1-9]\d{0,9}$/.test(id) || Number(id) > MAX_AREA_ID) {
-    return `Expected an area id as \`fit-connect areas\` lists it: a positive whole number without leading zeros, at most ${MAX_AREA_ID}.`;
+    return `Expected an area id as an area search lists it: a positive whole number without leading zeros, at most ${MAX_AREA_ID}.`;
   }
   return undefined;
 };

@@ -10,6 +10,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { listTools } from "../src/mcp/server.js";
 import { serverTransport } from "../src/mcp/api.js";
+import { TOOLS } from "../src/mcp/tools.js";
 import { connect } from "./harness.js";
 import { EXAMPLE_KEY, ROUTE, routingApi } from "./helpers.js";
 
@@ -107,4 +108,21 @@ test("the server's transport keeps to the API's 5 requests a second", async () =
   for (let i = 0; i < 6; i += 1) await transport(request);
   assert.equal(sent, 6);
   assert.deepEqual(waits, [1000], "the 6th waits for the next second");
+});
+
+test("an areaId the input schema allows is one the tools take; the error for one they refuse names no CLI command", async () => {
+  const { areaIdProblem } = await import("@maschinenlesbar.org/fit-connect-client/internal/validate");
+  const schema = (TOOLS.find((t) => t.name === "findAuthority")?.inputSchema as { properties: Record<string, { pattern: string; maxLength: number }> }).properties["areaId"];
+  const pattern = new RegExp(schema?.pattern ?? "");
+  for (const id of ["1", "940", "999999999", "2147483647", "9999999999"]) {
+    if (pattern.test(id) && id.length <= (schema?.maxLength ?? 0)) assert.equal(areaIdProblem(id), undefined, `the schema takes ${id}, so the tool must`);
+  }
+  const transport = routingApi();
+  const connection = await connect({ transport });
+  const refused = await connection.call("findAuthority", { leikaKey: EXAMPLE_KEY, areaId: "9999999999" });
+  assert.equal(refused.isError, true);
+  assert.doesNotMatch(refused.content[0]?.text ?? "", /fit-connect areas/, "a command the model can't run");
+  assert.equal(transport.calls.length, 0);
+  await connection.close();
+  assert.doesNotMatch(areaIdProblem("0940") ?? "", /fit-connect/);
 });
