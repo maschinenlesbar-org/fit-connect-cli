@@ -107,9 +107,9 @@ no authority is responsible. A failure is a tool error that says what to change.
   start; `(umask 077; openssl rand -hex 32 > mcp-token)` makes one); anything else is answered 401.
   Exposed beyond localhost (it logs a warning then), it belongs behind a proxy that authenticates or
   at least terminates TLS.
-- **Gentle with the upstream.** One server process sends at most 2 requests at a time, 5 a
-  second and 120 a minute to the API (the limits its answers state), pauses on HTTP 429, and stops
-  a tool call after its deadline.
+- **Gentle with the upstream.** One server process sends at most 2 requests at a time, 5 a second
+  and 120 a minute to the API (the limits its answers state), pauses on HTTP 429 (as long as its
+  Retry-After asks, at most 30 s), and stops a tool call after its deadline.
 - **Results are data.** Text from the API is cleaned (control, bidi and zero-width characters
   removed), but it is still other people's text: a model can be told things in it. The server
   can't act on that (it has no tool that writes), but other tools in the same session could.
