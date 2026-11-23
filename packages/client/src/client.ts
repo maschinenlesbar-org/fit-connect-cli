@@ -194,9 +194,74 @@ function listProblem(key: "routes" | "areas"): (value: unknown) => string | unde
     const list = value[key];
     if (!Array.isArray(list)) return `"${key}" is not an array`;
     if (!list.every(isObject)) return `"${key}" holds a value that is not an object`;
+    const rowProblem = key === "areas" ? areaProblem : routeProblem;
+    for (const [i, row] of list.entries()) {
+      const problem = rowProblem(row as Record<string, unknown>, `${key}[${i}]`);
+      if (problem !== undefined) return problem;
+    }
     return undefined;
   };
 }
+
+/**
+ * Why a row is not of the documented shape, naming its field (`"routes[0].address" is not an
+ * object`), or undefined. A field left out or `null` is a field not given; a field given is of
+ * its type. Without this, a route whose contact is `null` crashed the use cases further on, a
+ * contact that is a string became one of single letters, a numeric area type crashed findArea
+ * and a numeric area id passed it only to be refused by the route lookup.
+ */
+type RowProblem = (row: Record<string, unknown>, at: string) => string | undefined;
+
+const absent = (value: unknown): boolean => value === undefined || value === null;
+const fieldProblem = (row: Record<string, unknown>, at: string, field: string, type: "string" | "number"): string | undefined =>
+  absent(row[field]) || (type === "number" ? Number.isFinite(row[field]) : typeof row[field] === "string") ? undefined : `"${at}.${field}" is not a ${type}`;
+const fieldsProblem = (row: Record<string, unknown>, at: string, fields: readonly string[], type: "string" | "number" = "string"): string | undefined => {
+  for (const field of fields) {
+    const problem = fieldProblem(row, at, field, type);
+    if (problem !== undefined) return problem;
+  }
+  return undefined;
+};
+/** An object field, absent or an object whose `check` finds nothing. */
+const objectProblem = (row: Record<string, unknown>, at: string, field: string, check: RowProblem = () => undefined): string | undefined => {
+  const value = row[field];
+  if (absent(value)) return undefined;
+  return isObject(value) ? check(value, `${at}.${field}`) : `"${at}.${field}" is not an object`;
+};
+
+const areaProblem: RowProblem = (row, at) => {
+  for (const field of ["id", "name", "type"]) {
+    if (typeof row[field] !== "string") return `"${at}.${field}" is not a string`;
+  }
+  return undefined;
+};
+
+const ROUTE_TEXTS = ["destinationSignature", "destinationName", "destinationShortName", "destinationLogo", "privacyPolicyUrl", "imprintUrl", "accessibilityUrl", "contactFormUrl", "origin"];
+const LOCALIZED = ["furtherInformation", "requiredDocuments", "legalBasis", "deadline"];
+const localizedProblem: RowProblem = (block, at) =>
+  objectProblem(block, at, "description", (texts, where) => fieldsProblem(texts, where, Object.keys(texts)));
+
+const routeProblem: RowProblem = (row, at) => {
+  if (typeof row["destinationId"] !== "string") return `"${at}.destinationId" is not a string`;
+  const contacts = row["contactPersons"];
+  if (!absent(contacts)) {
+    if (!Array.isArray(contacts)) return `"${at}.contactPersons" is not an array`;
+    for (const [i, contact] of contacts.entries()) {
+      if (!isObject(contact)) return `"${at}.contactPersons[${i}]" is not an object`;
+      const problem = fieldsProblem(contact, `${at}.contactPersons[${i}]`, ["name", "tel", "fax", "email"]);
+      if (problem !== undefined) return problem;
+    }
+  }
+  return (
+    fieldsProblem(row, at, ROUTE_TEXTS) ??
+    objectProblem(row, at, "address", (o, where) => fieldsProblem(o, where, ["street", "houseNumber", "additional", "zip", "city"])) ??
+    objectProblem(row, at, "postalAddress", (o, where) => fieldsProblem(o, where, ["street", "houseNumber", "additional", "zip", "city"])) ??
+    objectProblem(row, at, "postOfficeBox", (o, where) => fieldsProblem(o, where, ["postOfficeBox", "zip", "city"])) ??
+    LOCALIZED.map((field) => objectProblem(row, at, field, localizedProblem)).find((p) => p !== undefined) ??
+    objectProblem(row, at, "processingDuration", (o, where) => fieldsProblem(o, where, ["minDuration", "maxDuration"], "number") ?? fieldsProblem(o, where, ["unit"])) ??
+    objectProblem(row, at, "customParameters")
+  );
+};
 
 /** Why `value` is not the `/info` answer `{ version: { major, minor, patch } }`, or undefined. */
 function infoProblem(value: unknown): string | undefined {

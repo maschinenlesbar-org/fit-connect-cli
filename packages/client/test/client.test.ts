@@ -304,3 +304,31 @@ test("areaSearchWords() refuses a letter, digit or symbol the API can't take, an
   // The German letters, upper case too, pass.
   assert.deepEqual(areaSearchWords(["\u00dcberlingen", "Gie\u00dfen", "\u00d6hringen", "K\u00f6ln"]).words, ["\u00dcberlingen", "Gie\u00dfen", "\u00d6hringen", "K\u00f6ln"]);
 });
+
+test("a row of the wrong shape is an error naming the row and field, never a crash or a contact of single letters further on", async () => {
+  const page = (key: string, row: Record<string, unknown>) => ({ count: 1, offset: 0, totalCount: 1, [key]: [row] });
+  const areaRow = { id: "1", name: "Oddort", type: "Stadt" };
+  const route = { destinationId: "d1", destinationSignature: "s" };
+  const cases: [string, Record<string, unknown>, RegExp][] = [
+    ["areas", { ...areaRow, type: 5 }, /"areas\[0\]\.type" is not a string/],
+    ["areas", { ...areaRow, id: 940 }, /"areas\[0\]\.id" is not a string/],
+    ["areas", { id: "1", type: "Stadt" }, /"areas\[0\]\.name" is not a string/],
+    ["routes", { ...route, contactPersons: [null] }, /"routes\[0\]\.contactPersons\[0\]" is not an object/],
+    ["routes", { ...route, contactPersons: "Frau Y" }, /"routes\[0\]\.contactPersons" is not an array/],
+    ["routes", { ...route, contactPersons: [{ name: "A", tel: 49123 }] }, /"routes\[0\]\.contactPersons\[0\]\.tel" is not a string/],
+    ["routes", { ...route, destinationName: 42 }, /"routes\[0\]\.destinationName" is not a string/],
+    ["routes", { destinationSignature: "s", destinationName: "Amt" }, /"routes\[0\]\.destinationId" is not a string/],
+    ["routes", { ...route, address: "Am Markt 1" }, /"routes\[0\]\.address" is not an object/],
+    ["routes", { ...route, furtherInformation: { description: "Text" } }, /"routes\[0\]\.furtherInformation\.description" is not an object/],
+    ["routes", { ...route, legalBasis: { description: { de: 42 } } }, /"routes\[0\]\.legalBasis\.description\.de" is not a string/],
+    ["routes", { ...route, processingDuration: { minDuration: "2", maxDuration: 4.5 } }, /"routes\[0\]\.processingDuration\.minDuration" is not a number/],
+    ["routes", { ...route, customParameters: [1] }, /"routes\[0\]\.customParameters" is not an object/],
+  ];
+  for (const [key, row, message] of cases) {
+    const client = clientWith(constantJson(page(key, row)));
+    const call = key === "areas" ? client.areas({ search: "Oddort" }) : client.routes({ leikaKey: "99123456760610", areaId: "11" });
+    await assert.rejects(call, (err: unknown) => err instanceof FitConnectParseError && message.test(err.message), `${JSON.stringify(row)}`);
+  }
+  const fine = clientWith(constantJson(page("routes", { ...route, destinationName: null, contactPersons: [{ name: "A", tel: null }], address: null, processingDuration: { maxDuration: 4, unit: "week" } })));
+  assert.equal((await fine.routes({ leikaKey: "99123456760610", areaId: "11" })).routes.length, 1, "null stands for a field not given");
+});
