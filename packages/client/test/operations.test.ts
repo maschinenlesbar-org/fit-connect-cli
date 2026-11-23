@@ -336,3 +336,17 @@ test("searchAreas: an upstream that ignores the offset is an error, not a second
   assert.equal(first.status === "ok" ? first.nextOffset : undefined, 100);
   await assert.rejects(searchAreas(client, { place: "Drift", offset: 100, limit: 100 }), /starts at offset 0, not at the 100 asked/);
 });
+
+test("maxPages: a whole number from 1 to 100, checked before any request; the default reads on past 500 rows", async () => {
+  const mock = routingApi();
+  for (const maxPages of [0, 101, 1.5, Number.NaN]) {
+    await assert.rejects(findArea(clientOf(mock), { place: "Hanau", maxPages }), /Invalid maxPages .*expected a whole number from 1 to 100/);
+    await assert.rejects(findAuthority(clientOf(mock), { leikaKey: EXAMPLE_KEY, place: "Hanau", maxPages }), /Invalid maxPages/);
+  }
+  assert.equal(mock.calls.length, 0);
+  const areas = Array.from({ length: 501 }, (_, i) => ({ id: String(i + 1), name: `Weit ${i}`, type: "Gemeindeteil" }));
+  const wide = routingApi({ areas });
+  const answer = await findArea(clientOf(wide), { place: "Weit" });
+  assert.equal(answer.status === "empty" ? 0 : answer.districts.count, 501);
+  assert.deepEqual(wide.calls.map((c) => params(c).get("offset")), [null, "500"]);
+});

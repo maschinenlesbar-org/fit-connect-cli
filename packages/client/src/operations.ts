@@ -51,6 +51,37 @@ export interface FindAreaInput {
   place: string;
   /** List every district (Gemeindeteil, Ortsteil) instead of the first 10 (default false). */
   allDistricts?: boolean | undefined;
+  /** The most pages of 500 rows the search reads (1–100, default {@link DEFAULT_MAX_PAGES}). */
+  maxPages?: number | undefined;
+}
+
+/** How many pages of 500 rows a use case reads at most, unless told otherwise. */
+export const DEFAULT_MAX_PAGES = 10;
+
+/** `maxPages` checked: a whole number 1–100, or the default. */
+function maxPagesOf(value: unknown): number {
+  if (value === undefined) return DEFAULT_MAX_PAGES;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 100) {
+    throw new FitConnectValidationError(`Invalid maxPages ${quoteValue(String(value))}: expected a whole number from 1 to 100.`);
+  }
+  return value;
+}
+
+/**
+ * Every row of a list, a page of {@link MAX_LIMIT} at a time, until the API's total is read, a
+ * page comes back empty, or `maxPages` pages were read. The first page is asked without an
+ * offset, the next ones from the rows read so far.
+ */
+async function readPages<T>(maxPages: number, page: (offset: number | undefined) => Promise<{ rows: T[]; total: number }>): Promise<{ rows: T[]; total: number }> {
+  const rows: T[] = [];
+  let total = 0;
+  for (let n = 0; n < maxPages; n += 1) {
+    const answer = await page(n === 0 ? undefined : rows.length);
+    total = answer.total;
+    rows.push(...answer.rows);
+    if (answer.rows.length === 0 || rows.length >= total) break;
+  }
+  return { rows, total };
 }
 
 /** What {@link findArea} searched: the input, the words sent, and the words left out. */
@@ -71,7 +102,7 @@ export interface AreaGroups {
   districts: { count: number; listed: AreaEntry[] };
   /** Rows the API found (totalCount). */
   total: number;
-  /** False when the API found more than one request returns (500): narrow the words. */
+  /** False when the API found more rows than were read (maxPages pages of 500): narrow the words. */
   complete: boolean;
 }
 
@@ -141,8 +172,12 @@ async function searchGrouped(client: FitConnectClient, input: FindAreaInput): Pr
   const place = typeof input.place === "string" ? input.place.trim().normalize("NFC") : input.place;
   const { words, dropped } = areaSearchWords(place);
   const searched: AreaSearched = { place, words, dropped };
-  const answer = await client.areas({ search: words, limit: MAX_LIMIT });
-  const entries = answer.areas.map((area) => ({ id: area.id, name: area.name, type: area.type, kind: areaKind(area.type ?? "") }));
+  const maxPages = maxPagesOf(input.maxPages);
+  const answer = await readPages(maxPages, async (offset) => {
+    const page = await client.areas({ search: words, offset, limit: MAX_LIMIT });
+    return { rows: page.areas, total: page.totalCount };
+  });
+  const entries = answer.rows.map((area) => ({ id: area.id, name: area.name, type: area.type, kind: areaKind(area.type ?? "") }));
   const districts = entries.filter((e) => e.kind === "district");
   return {
     searched,
@@ -150,8 +185,8 @@ async function searchGrouped(client: FitConnectClient, input: FindAreaInput): Pr
       places: entries.filter((e) => e.kind === "place" || e.kind === "other"),
       groupings: entries.filter((e) => e.kind === "grouping"),
       districts: { count: districts.length, listed: input.allDistricts === true ? districts : districts.slice(0, DISTRICTS_LISTED) },
-      total: answer.totalCount,
-      complete: answer.totalCount <= entries.length,
+      total: answer.total,
+      complete: answer.total <= entries.length,
     },
   };
 }
@@ -223,6 +258,8 @@ export interface RouteWhere {
   ars?: string | undefined;
   /** An area id from findArea. */
   areaId?: string | undefined;
+  /** The most pages of 500 rows the place's area search and the route lookup each read (1–100, default {@link DEFAULT_MAX_PAGES}). */
+  maxPages?: number | undefined;
 }
 
 /** Where a route lookup was made. */
@@ -373,6 +410,7 @@ async function routeFor(client: FitConnectClient, input: RouteWhere): Promise<Ro
   if (given.length !== 1) {
     throw new FitConnectValidationError(`Give exactly one of place, ags, ars or areaId; got ${given.length === 0 ? "none" : given.join(", ")}.`);
   }
+  const maxPages = maxPagesOf(input.maxPages);
   const which = given[0] as "place" | "ags" | "ars" | "areaId";
   const value = String(input[which]).trim();
   if (which === "ags" && !AGS_PATTERN.test(value)) throw new FitConnectValidationError(`Invalid ags ${quoteValue(value)}: expected 8 digits (2, 3 or 5 for Land, Regierungsbezirk, Kreis).`);
@@ -382,7 +420,7 @@ async function routeFor(client: FitConnectClient, input: RouteWhere): Promise<Ro
   const notes: string[] = [];
   let selector: { ags?: string; ars?: string; areaId?: string } = { [which]: value };
   if (which === "place") {
-    const found = await findArea(client, { place: value });
+    const found = await findArea(client, { place: value, maxPages });
     if (found.status === "empty") return { status: "empty", searched, reason: found.reason, noRoute: false };
     if (found.status === "ambiguous") {
       return { status: "ambiguous", searched, candidates: found.candidates, reason: `${found.reason} Then call again with its areaId.` };
@@ -393,7 +431,10 @@ async function routeFor(client: FitConnectClient, input: RouteWhere): Promise<Ro
   }
   let answer;
   try {
-    answer = await client.routes({ leikaKey, ...selector, limit: MAX_LIMIT });
+    answer = await readPages(maxPages, async (offset) => {
+      const page = await client.routes({ leikaKey, ...selector, offset, limit: MAX_LIMIT });
+      return { rows: page.routes, total: page.totalCount };
+    });
   } catch (err) {
     if (err instanceof FitConnectApiError && err.status === 400 && /no area was found/i.test(err.detail ?? "")) {
       return {
@@ -406,7 +447,7 @@ async function routeFor(client: FitConnectClient, input: RouteWhere): Promise<Ro
     }
     throw err;
   }
-  if (answer.routes.length === 0) {
+  if (answer.rows.length === 0) {
     const where = searched.area !== undefined ? `${searched.area.name} (areaId ${searched.area.id})` : `${which} ${value}`;
     return {
       status: "empty",
@@ -420,7 +461,7 @@ async function routeFor(client: FitConnectClient, input: RouteWhere): Promise<Ro
       noRoute: true,
     };
   }
-  return { status: "ok", searched, total: answer.totalCount, routes: answer.routes, notes };
+  return { status: "ok", searched, total: answer.total, routes: answer.rows, notes };
 }
 
 /** For an ags or ars of a place below the Land: the Land's key (always one the service knows). */

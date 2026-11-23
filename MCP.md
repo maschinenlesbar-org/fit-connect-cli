@@ -103,6 +103,11 @@ never its end, where the reason is).
 --log-format <text|jsonl>  the log records on stderr (default text)
 ```
 
+`--max-pages` limits the pages of 500 rows `findArea` reads of an area search, and, for
+`findAuthority` and `getServiceBriefing`, those of the place's area search and of the route
+lookup: they read on until the API's total is read. `searchAreas` reads one page per call by
+design (offset, limit). Each page is a request, named in the result's `source`.
+
 ## What it does and doesn't do
 
 - **Read-only.** No tool changes anything, here or upstream.
@@ -132,7 +137,7 @@ never its end, where the reason is).
   once. On stdio a signal ends it at once; when stdin ends, it first answers the requests it has
   read (each within its call deadline), then exits.
 - **In a container** it needs at least 12 processes and threads (`--pids-limit`) and about
-  256 MB of memory. The answers it reads are small (a search reads at most 500 areas).
+  256 MB of memory. The answers it reads are small (a page holds at most 500 areas or routes).
 - **Logs** go to stderr, one record per line; stdout carries only the protocol. A call that fails
   upstream or reaches its deadline leaves a WARN record naming the tool.
 - **Never installs anything.**

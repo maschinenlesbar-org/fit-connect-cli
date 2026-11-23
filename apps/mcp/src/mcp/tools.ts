@@ -13,8 +13,8 @@ import {
   findArea,
   findAuthority,
   getServiceBriefing,
-  MAX_LIMIT,
   searchAreas,
+  type FitConnectClient,
   type RouteWhere,
 } from "@maschinenlesbar.org/fit-connect-client";
 import type { JsonSchema, ToolDefinition } from "./server.js";
@@ -85,16 +85,50 @@ const where: Record<string, JsonSchema> = {
 const candidates: JsonSchema = { ...arr, description: "With ambiguous: the areas to choose from (id, name, type, kind)." };
 const broader: JsonSchema = { ...obj, description: "With empty, for an ags or ars: the Land's key, the broader area to try." };
 
-/** What a call answered, by its arguments: the source names the requests that answer made. */
-const answers = new WeakMap<Record<string, unknown>, Record<string, unknown>>();
-const remember = <T extends object>(args: Record<string, unknown>, answer: T): Record<string, unknown> => {
-  const record = { ...answer } as Record<string, unknown>;
-  answers.set(args, record);
-  return record;
+/** The requests each answer was made with, in order: its source names them all. */
+const requests = new WeakMap<object, string[]>();
+
+/**
+ * The client, recording the path of every area search and route lookup a use case makes with
+ * it: a place's search pages, then the route pages (as many as --max-pages lets it read).
+ */
+function recording(client: FitConnectClient): { client: FitConnectClient; paths: string[] } {
+  const paths: string[] = [];
+  const trimmed = (value: unknown): unknown => (typeof value === "string" ? value.trim() : value);
+  const recorder = Object.create(client) as FitConnectClient;
+  recorder.areas = (params) => {
+    let words: unknown = params.search;
+    try {
+      words = areaSearchWords(params.search).words;
+    } catch {
+      // The client refuses the same search with its own error: nothing is requested.
+    }
+    paths.push(`areas?${buildQueryString({ areaSearchexpression: words as string[], offset: params.offset, limit: params.limit })}`);
+    return client.areas(params);
+  };
+  recorder.routes = (params) => {
+    paths.push(`routes?${buildQueryString({ leikaKey: trimmed(params.leikaKey) as string, ags: trimmed(params.ags) as string, ars: trimmed(params.ars) as string, areaId: trimmed(params.areaId) as string, offset: params.offset, limit: params.limit })}`);
+    return client.routes(params);
+  };
+  return { client: recorder, paths };
+}
+
+/** Runs a use case with a recording client and keeps its requests for the source. */
+async function recorded<T extends object>(client: FitConnectClient, use: (client: FitConnectClient) => Promise<T>): Promise<Record<string, unknown>> {
+  const { client: recorder, paths } = recording(client);
+  const answer = { ...(await use(recorder)) } as Record<string, unknown>;
+  requests.set(answer, paths);
+  return answer;
+}
+
+/** The source of an answer: the one request it was made with, or all of them in braces. */
+const cited = (_args: Record<string, unknown>, _base: string, answer: Record<string, unknown>): string => {
+  const paths = requests.get(answer) ?? [];
+  return paths.length === 1 ? (paths[0] as string) : `{${paths.join(",")}}`;
 };
 
-/** The area search a place is made with (every row, as findArea asks). */
-const areaPath = (given: string | undefined, paging: { offset?: number | undefined; limit?: number | undefined } = { limit: MAX_LIMIT }): string => {
+/** The request of one page of the area search. */
+const areaPath = (given: string | undefined, paging: { offset?: number | undefined; limit?: number | undefined }): string => {
   let words: string[];
   try {
     words = areaSearchWords((given ?? "").trim().normalize("NFC")).words;
@@ -102,20 +136,6 @@ const areaPath = (given: string | undefined, paging: { offset?: number | undefin
     words = [];
   }
   return `areas?${buildQueryString({ areaSearchexpression: words, offset: paging.offset, limit: paging.limit })}`;
-};
-
-/** The requests of a route lookup: the place's area search (when given by name), then the routes, if asked. */
-const routePaths = (args: Record<string, unknown>): string => {
-  const searched = answers.get(args)?.["searched"] as { leikaKey?: string; area?: { id: string } } | undefined;
-  const placeGiven = str(args, "place");
-  const search = placeGiven === undefined ? [] : [areaPath(placeGiven)];
-  const areaId = placeGiven === undefined ? str(args, "areaId")?.trim() : searched?.area?.id;
-  const asked = placeGiven === undefined || areaId !== undefined;
-  const routes = asked
-    ? [`routes?${buildQueryString({ leikaKey: (str(args, "leikaKey") ?? "").trim(), ags: str(args, "ags")?.trim(), ars: str(args, "ars")?.trim(), areaId, limit: MAX_LIMIT })}`]
-    : [];
-  const list = [...search, ...routes];
-  return list.length === 1 ? (list[0] as string) : `{${list.join(",")}}`;
 };
 
 const whereOf = (args: Record<string, unknown>): RouteWhere => ({
@@ -137,9 +157,9 @@ export const TOOLS: readonly ToolDefinition[] = [
     ].join("\n\n"),
     inputSchema: input(where, ["leikaKey"]),
     outputSchema: output({ total: int, authorities: arr, candidates, broader }),
-    source: routePaths,
+    source: cited,
     async run(args, context) {
-      return remember(args, await findAuthority(context.client, whereOf(args)));
+      return recorded(context.client, (client) => findAuthority(client, { ...whereOf(args), maxPages: context.maxPages }));
     },
   },
   {
@@ -152,10 +172,10 @@ export const TOOLS: readonly ToolDefinition[] = [
     ].join("\n\n"),
     inputSchema: input({ ...where, language: { type: "string", enum: ["de", "en"], description: "The texts' language: de (default) or en." } }, ["leikaKey"]),
     outputSchema: output({ total: int, briefings: arr, candidates, broader }),
-    source: routePaths,
+    source: cited,
     async run(args, context) {
       const language = str(args, "language") as "de" | "en" | undefined;
-      return remember(args, await getServiceBriefing(context.client, { ...whereOf(args), language }));
+      return recorded(context.client, (client) => getServiceBriefing(client, { ...whereOf(args), language, maxPages: context.maxPages }));
     },
   },
   {
@@ -168,9 +188,9 @@ export const TOOLS: readonly ToolDefinition[] = [
     ].join("\n\n"),
     inputSchema: input({ place, allDistricts: { type: "boolean", description: "List every district, not just the first 10 (default false)." } }, ["place"]),
     outputSchema: output({ area: obj, candidates, places: arr, groupings: arr, districts: obj, total: int, complete: bool }),
-    source: (args) => areaPath(str(args, "place")),
+    source: cited,
     async run(args, context) {
-      return { ...(await findArea(context.client, { place: str(args, "place") ?? "", allDistricts: flag(args, "allDistricts") })) };
+      return recorded(context.client, (client) => findArea(client, { place: str(args, "place") ?? "", allDistricts: flag(args, "allDistricts"), maxPages: context.maxPages }));
     },
   },
   {

@@ -126,3 +126,37 @@ test("an areaId the input schema allows is one the tools take; the error for one
   await connection.close();
   assert.doesNotMatch(areaIdProblem("0940") ?? "", /fit-connect/);
 });
+
+test("--max-pages: findArea and a route lookup by place read on, a page of 500 at a time, up to that many pages; the source names each page", async () => {
+  const areas = [{ id: "1", name: "Neuort", type: "Gemeinde" }, ...Array.from({ length: 1199 }, (_, i) => ({ id: String(i + 2), name: `Neuort - OT Teil ${i + 1}`, type: "Gemeindeteil" }))];
+  const transport = routingApi({ areas });
+  const connection = await connect({ transport });
+  const found = (await connection.call("findArea", { place: "Neuort" })).structuredContent ?? {};
+  assert.equal(found["status"], "ok");
+  assert.equal((found["districts"] as { count: number }).count, 1199, "every district counted, not those of the first page");
+  assert.equal(found["complete"], true);
+  const pages = [`${API}/areas?areaSearchexpression=Neuort&limit=500`, `${API}/areas?areaSearchexpression=Neuort&offset=500&limit=500`, `${API}/areas?areaSearchexpression=Neuort&offset=1000&limit=500`];
+  assert.deepEqual(transport.calls.map((c) => c.url), pages);
+  assert.equal(found["source"], `${API}/{${pages.map((p) => p.slice(API.length + 1)).join(",")}}`);
+  const routed = (await connection.call("findAuthority", { leikaKey: EXAMPLE_KEY, place: "Neuort" })).structuredContent ?? {};
+  assert.equal(routed["source"], `${API}/{${pages.map((p) => p.slice(API.length + 1)).join(",")},routes?leikaKey=${EXAMPLE_KEY}&areaId=1&limit=500}`);
+  await connection.close();
+
+  const one = routingApi({ areas });
+  const narrow = await connect({ transport: one, config: { maxPages: 1 } });
+  const first = (await narrow.call("findArea", { place: "Neuort" })).structuredContent ?? {};
+  assert.equal(one.calls.length, 1);
+  assert.equal(first["complete"], false);
+  assert.equal(first["source"], `${API}/areas?areaSearchexpression=Neuort&limit=500`);
+  await narrow.close();
+});
+
+test("--max-pages: route pages are read on too, and the source names each", async () => {
+  const route = (i: number) => ({ destinationId: `d${i}`, destinationSignature: "s" });
+  const transport = routingApi({ routes: { [`${EXAMPLE_KEY} areaId=940`]: Array.from({ length: 600 }, (_, i) => route(i)) } });
+  const connection = await connect({ transport });
+  const content = (await connection.call("findAuthority", { leikaKey: EXAMPLE_KEY, areaId: "940" })).structuredContent ?? {};
+  assert.equal((content["authorities"] as unknown[]).length, 600);
+  assert.equal(content["source"], `${API}/{routes?leikaKey=${EXAMPLE_KEY}&areaId=940&limit=500,routes?leikaKey=${EXAMPLE_KEY}&areaId=940&offset=500&limit=500}`);
+  await connection.close();
+});
