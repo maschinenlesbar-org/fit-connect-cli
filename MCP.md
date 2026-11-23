@@ -78,11 +78,12 @@ named by its Leistungsschlüssel, which this API can't look up from words: the F
 (fim-portal-mcp) can. Routing data is sparse: most lookups find no route, which means FIT-Connect
 has none registered there, not that no authority is responsible. A text over 2000 characters is cut
 and ends in `…[cut, N characters in all]`, and the answer says `truncated`. An answer over
-`--max-result-chars` loses entries from the end of its lists, each down to its first entry (so a
-page's `nextOffset` always moves on), then has its longest texts cut further (each with that mark),
-and says `truncated`; one that can't be cut down so far is a tool error that says to ask for less. A
-failure is a tool error that says what to change (one over 5000 characters loses its middle, never
-its end, where the reason is).
+`--max-result-chars` first loses entries from the end of its page (`nextOffset` says where to go
+on), then has its longest texts cut further (each with that mark) or, when that isn't enough, its
+other lists shortened; a list keeps its first entry, `notes` stay whole, and the answer says
+`truncated`. One that can't be cut down so far is a tool error that says to ask for less. A failure
+is a tool error that says what to change (one over 5000 characters loses its middle, never its end,
+where the reason is).
 
 ## Options
 
