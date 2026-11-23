@@ -187,7 +187,7 @@ export const TOOLS: readonly ToolDefinition[] = [
       RULES,
     ].join("\n\n"),
     inputSchema: input({ place, allDistricts: { type: "boolean", description: "List every district, not just the first 10 (default false)." } }, ["place"]),
-    outputSchema: output({ area: obj, candidates, places: arr, groupings: arr, districts: obj, total: int, complete: bool }),
+    outputSchema: output({ area: obj, candidates, places: arr, groupings: arr, districts: obj, total: int, complete: { ...bool, description: "False when the search found more areas than were read (pages of 500, up to the server's --max-pages): the answer is then ambiguous." } }),
     source: cited,
     async run(args, context) {
       return recorded(context.client, (client) => findArea(client, { place: str(args, "place") ?? "", allDistricts: flag(args, "allDistricts"), maxPages: context.maxPages }));

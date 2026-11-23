@@ -350,3 +350,23 @@ test("maxPages: a whole number from 1 to 100, checked before any request; the de
   assert.equal(answer.status === "empty" ? 0 : answer.districts.count, 501);
   assert.deepEqual(wide.calls.map((c) => params(c).get("offset")), [null, "500"]);
 });
+
+test("a search with more rows than were read is never answered ok from the part read: ambiguous, saying how much was read", async () => {
+  const areas = [
+    { id: "5", name: "Altort (Rhein)", type: "Stadt" },
+    ...Array.from({ length: 520 }, (_, i) => ({ id: String(100 + i), name: `Altort (Rhein) - OT Teil ${i}`, type: "Gemeindeteil" })),
+    { id: "7", name: "Altort", type: "kreisfreie Stadt" },
+  ];
+  const part = await findArea(clientOf(routingApi({ areas })), { place: "Altort", maxPages: 1 });
+  assert.equal(part.status, "ambiguous");
+  if (part.status !== "ambiguous") return;
+  assert.equal(part.complete, false);
+  assert.match(part.reason, /found 522 areas and only the first 500 were read/);
+  assert.deepEqual(part.candidates.map((c) => c.id), ["5"]);
+  const routed = routingApi({ areas });
+  const lookup = await findAuthority(clientOf(routed), { leikaKey: EXAMPLE_KEY, place: "Altort", maxPages: 1 });
+  assert.equal(lookup.status, "ambiguous", "no route asked for a place picked from a part");
+  assert.equal(routed.calls.length, 1);
+  const whole = await findArea(clientOf(routingApi({ areas })), { place: "Altort" });
+  assert.equal(whole.status === "ok" ? whole.area.id : undefined, "7", "read to the end, the place named just that");
+});

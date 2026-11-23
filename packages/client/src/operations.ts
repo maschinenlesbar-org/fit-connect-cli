@@ -121,7 +121,8 @@ const DISTRICTS_LISTED = 10;
  * (Halle: Halle (Saale), Halle (Westf.), two Mitgliedsgemeinden) are `ambiguous`, unless exactly
  * one is named just what was searched (München beside Grafing b.München: the others in a note); with no whole
  * place, one grouping (a Landkreis, a Bundesland) or one row is the answer. None is `empty`, with
- * what to try. The areas carry no ags or ars.
+ * what to try. More rows than were read (`maxPages` pages of 500) are `ambiguous`, whatever the
+ * part read holds: the place meant may come later. The areas carry no ags or ars.
  */
 export async function findArea(client: FitConnectClient, input: FindAreaInput): Promise<AreaLookup> {
   const { searched, groups } = await searchGrouped(client, input);
@@ -137,6 +138,20 @@ export async function findArea(client: FitConnectClient, input: FindAreaInput): 
     };
   }
   const { places, groupings, districts } = groups;
+  if (!groups.complete) {
+    // A part of the rows can't settle which place was meant: the one named just that may come later.
+    const read = places.length + groupings.length + districts.count;
+    return {
+      status: "ambiguous",
+      searched,
+      candidates: places.length > 0 ? [...places, ...groupings] : groupings.length > 0 ? groupings : districts.listed,
+      reason:
+        `The search found ${groups.total} areas and only the first ${read} were read (pages of 500, up to maxPages): the place meant may be among the rest. ` +
+        "Give more distinctive words or the postal code, or ask whether one of these is meant.",
+      ...groups,
+      notes,
+    };
+  }
   // Several whole places but exactly one named just what was searched ("München" beside "Grafing
   // b.München"): that one. Halle (Saale) and Halle (Westf.) are not named just "Halle".
   const namesakes = places.filter((p) => fold(p.name) === fold(searched.place));
