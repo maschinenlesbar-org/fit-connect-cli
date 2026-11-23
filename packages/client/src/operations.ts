@@ -343,7 +343,13 @@ export async function getServiceBriefing(client: FitConnectClient, input: Servic
     return routed.status === "empty" ? withoutFlag(routed) : routed;
   }
   const briefings = routed.routes.map((route) => briefingOf(route, language));
-  return { status: "ok", searched: routed.searched, total: routed.total, briefings, notes: routed.notes };
+  const notes = [...routed.notes];
+  routed.routes.forEach((route, i) => {
+    const duration = route.processingDuration;
+    const problem = duration !== undefined && duration !== null && typeof duration === "object" ? processingProblem(duration) : undefined;
+    if (problem !== undefined) notes.push(`The processing time of ${briefings[i]?.authority.name ?? `route ${i + 1}`} was left out: ${problem}.`);
+  });
+  return { status: "ok", searched: routed.searched, total: routed.total, briefings, notes };
 }
 
 const withoutFlag = ({ noRoute: _noRoute, ...rest }: NoRoute & { noRoute: boolean }): NoRoute => rest;
@@ -488,14 +494,21 @@ const UNITS: Record<string, [string, string]> = {
   second: ["second", "seconds"],
 };
 
-/** The processing time as a range ("1–4 weeks", "up to 4 weeks", "at least 1 week"); undefined without a bound. */
+/**
+ * The processing time as a range ("1–4 weeks", "up to 4 weeks", "at least 1 week"); undefined
+ * without a bound, and when the bounds can't be a range (see {@link processingProblem}): a text
+ * a model quotes to a citizen is never made from them. A unit the API doesn't document is named
+ * as such.
+ */
 export function processingOf(duration: ProcessingDuration | undefined): Briefing["processing"] {
   if (duration === undefined || duration === null || typeof duration !== "object") return undefined;
-  const min = Number.isFinite(duration.minDuration) ? duration.minDuration : undefined;
-  const max = Number.isFinite(duration.maxDuration) ? duration.maxDuration : undefined;
+  if (processingProblem(duration) !== undefined) return undefined;
+  const min = duration.minDuration ?? undefined;
+  const max = duration.maxDuration ?? undefined;
   if (min === undefined && max === undefined) return undefined;
   const names = duration.unit === undefined ? undefined : UNITS[duration.unit];
-  const unit = (n: number): string => (names === undefined ? (duration.unit ?? "(no unit given)") : n === 1 ? names[0] : names[1]);
+  const unit = (n: number): string =>
+    names !== undefined ? (n === 1 ? names[0] : names[1]) : duration.unit === undefined ? "(no unit given)" : `(unit ${quoteValue(String(duration.unit))}, not one the API documents)`;
   const text =
     min !== undefined && max !== undefined
       ? min === max
@@ -505,6 +518,20 @@ export function processingOf(duration: ProcessingDuration | undefined): Briefing
         ? `up to ${max} ${unit(max)}`
         : `at least ${min} ${unit(min as number)}`;
   return { ...(min === undefined ? {} : { minDuration: min }), ...(max === undefined ? {} : { maxDuration: max }), ...(duration.unit === undefined ? {} : { unit: duration.unit }), text };
+}
+
+/**
+ * Why a processing duration's bounds can't be stated as a range (a bound that is not a number,
+ * a negative one, the minimum over the maximum), or undefined when they can.
+ */
+export function processingProblem(duration: ProcessingDuration): string | undefined {
+  const bounds = [duration.minDuration, duration.maxDuration];
+  const unit = typeof duration.unit === "string" ? ` ${duration.unit}` : "";
+  const shown = bounds.map((b) => (b === undefined || b === null ? "?" : typeof b === "number" ? String(b) : quoteValue(String(b)))).join(" to ");
+  if (bounds.some((b) => b !== undefined && b !== null && (typeof b !== "number" || !Number.isFinite(b) || b < 0))) return `the route gives ${shown}${unit}, and a bound is not a number of 0 or more`;
+  const [min, max] = bounds;
+  if (typeof min === "number" && typeof max === "number" && min > max) return `the route gives ${shown}${unit}, the minimum over the maximum`;
+  return undefined;
 }
 
 /** `{ [key]: value }` when value is a non-blank string, else nothing. */

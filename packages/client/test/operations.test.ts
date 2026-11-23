@@ -10,6 +10,7 @@ import { FitConnectClient } from "../src/client.js";
 import { FitConnectValidationError } from "../src/errors.js";
 import { areaKind, findArea, findAuthority, getServiceBriefing, plainText, processingOf, searchAreas } from "../src/operations.js";
 import type { HttpRequest } from "../src/http.js";
+import type { ProcessingDuration } from "../src/types.js";
 import { AREAS_HALLE, AREAS_HANAU, EXAMPLE_KEY, ROUTE, routingApi, variant } from "./routing.js";
 
 const clientOf = (mock: ReturnType<typeof routingApi>) => new FitConnectClient({ transport: mock.transport, maxRetries: 0 });
@@ -310,4 +311,18 @@ test("plainText stays linear with unclosed comments, scripts and quotes", () => 
     const ms = performance.now() - start;
     assert.ok(ms < 500, `${text.slice(0, 12)}: ${Math.round(ms)} ms`);
   }
+});
+
+test("an impossible processing time is left out with a note, never stated as a range; an unknown unit is named as such", async () => {
+  assert.equal(processingOf({ minDuration: 5, maxDuration: 1, unit: "week" }), undefined, "the minimum over the maximum");
+  assert.equal(processingOf({ minDuration: -3, maxDuration: 0, unit: "day" }), undefined, "a negative bound");
+  assert.equal(processingOf({ minDuration: "2", maxDuration: 4.5, unit: "day" } as unknown as ProcessingDuration), undefined, "a bound that is no number");
+  assert.equal(processingOf({ minDuration: 1, maxDuration: 2, unit: "fortnight" } as unknown as ProcessingDuration)?.text, '1–2 (unit "fortnight", not one the API documents)');
+  assert.equal(processingOf({ minDuration: 0, maxDuration: 2, unit: "day" })?.text, "0–2 days");
+  const route = variant(ROUTE, { processingDuration: { minDuration: 5, maxDuration: 1, unit: "week" } });
+  const answer = await getServiceBriefing(clientOf(routingApi({ routes: { [`${EXAMPLE_KEY} areaId=940`]: [route] } })), { leikaKey: EXAMPLE_KEY, areaId: "940" });
+  assert.equal(answer.status, "ok");
+  if (answer.status !== "ok") return;
+  assert.equal("processing" in (answer.briefings[0] ?? {}), false);
+  assert.match(answer.notes.join(" "), /processing time of Stadtverwaltung Musterstadt .* left out: the route gives 5 to 1 week/);
 });
