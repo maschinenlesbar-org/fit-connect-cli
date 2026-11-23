@@ -332,3 +332,17 @@ test("a row of the wrong shape is an error naming the row and field, never a cra
   const fine = clientWith(constantJson(page("routes", { ...route, destinationName: null, contactPersons: [{ name: "A", tel: null }], address: null, processingDuration: { maxDuration: 4, unit: "week" } })));
   assert.equal((await fine.routes({ leikaKey: "99123456760610", areaId: "11" })).routes.length, 1, "null stands for a field not given");
 });
+
+test("a page that starts elsewhere than the offset asked is an error: an upstream ignoring offset can't repeat rows as new pages", async () => {
+  const rows = Array.from({ length: 100 }, (_, i) => ({ id: String(i + 1), name: `Drift ${i + 1}`, type: "Gemeindeteil" }));
+  const ignoring = constantJson({ count: 100, offset: 0, totalCount: 250, areas: rows });
+  await assert.rejects(clientWith(ignoring).areas({ search: "Drift", offset: 100, limit: 100 }), (err: unknown) => {
+    assert.ok(err instanceof FitConnectParseError, String(err));
+    assert.match(err.message, /unexpected response shape: the page starts at offset 0, not at the 100 asked/);
+    return true;
+  });
+  await clientWith(ignoring).areas({ search: "Drift", offset: 0, limit: 100 });
+  await clientWith(ignoring).areas({ search: "Drift" });
+  const routes = constantJson({ count: 0, offset: 3, totalCount: 9, routes: [] });
+  await assert.rejects(clientWith(routes).routes({ leikaKey: "99123456760610", areaId: "11", offset: 5 }), /the page starts at offset 3, not at the 5 asked/);
+});

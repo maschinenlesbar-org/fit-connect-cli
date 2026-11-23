@@ -12,6 +12,7 @@ import { areaKind, findArea, findAuthority, getServiceBriefing, plainText, proce
 import type { HttpRequest } from "../src/http.js";
 import type { ProcessingDuration } from "../src/types.js";
 import { AREAS_HALLE, AREAS_HANAU, EXAMPLE_KEY, ROUTE, routingApi, variant } from "./routing.js";
+import { jsonResponse, makeMockTransport } from "./helpers.js";
 
 const clientOf = (mock: ReturnType<typeof routingApi>) => new FitConnectClient({ transport: mock.transport, maxRetries: 0 });
 const params = (request: HttpRequest | undefined) => new URL(request?.url ?? "http://x/").searchParams;
@@ -325,4 +326,13 @@ test("an impossible processing time is left out with a note, never stated as a r
   if (answer.status !== "ok") return;
   assert.equal("processing" in (answer.briefings[0] ?? {}), false);
   assert.match(answer.notes.join(" "), /processing time of Stadtverwaltung Musterstadt .* left out: the route gives 5 to 1 week/);
+});
+
+test("searchAreas: an upstream that ignores the offset is an error, not a second page of the same rows", async () => {
+  const rows = Array.from({ length: 250 }, (_, i) => ({ id: String(i + 1), name: `Drift ${i + 1}`, type: "Gemeindeteil" }));
+  const mock = makeMockTransport(() => jsonResponse({ count: 100, offset: 0, totalCount: 250, areas: rows.slice(0, 100) }));
+  const client = new FitConnectClient({ transport: mock.transport, maxRetries: 0 });
+  const first = await searchAreas(client, { place: "Drift", limit: 100 });
+  assert.equal(first.status === "ok" ? first.nextOffset : undefined, 100);
+  await assert.rejects(searchAreas(client, { place: "Drift", offset: 100, limit: 100 }), /starts at offset 0, not at the 100 asked/);
 });

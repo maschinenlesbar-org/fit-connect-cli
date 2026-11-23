@@ -126,14 +126,9 @@ export class FitConnectClient {
       throw new FitConnectValidationError(`Invalid ars ${quoteValue(ars)}: expected 2, 3, 5, 9 or 12 digits.`);
     }
 
-    const query: QueryParams = {
-      leikaKey,
-      ags,
-      ars,
-      areaId,
-      ...paging(params.offset, params.limit),
-    };
-    return this.getShaped(this.path("routes"), query, listProblem("routes"));
+    const page = paging(params.offset, params.limit);
+    const query: QueryParams = { leikaKey, ags, ars, areaId, ...page };
+    return this.getShaped(this.path("routes"), query, listProblem("routes", page.offset));
   }
 
   /**
@@ -146,11 +141,9 @@ export class FitConnectClient {
   async areas(params: AreaQuery): Promise<AreaResult> {
     checkParams("areas", params, AREA_PARAMS);
     const { words } = areaSearchWords(params.search);
-    const query: QueryParams = {
-      areaSearchexpression: words,
-      ...paging(params.offset, params.limit),
-    };
-    return this.getShaped(this.path("areas"), query, listProblem("areas"));
+    const page = paging(params.offset, params.limit);
+    const query: QueryParams = { areaSearchexpression: words, ...page };
+    return this.getShaped(this.path("areas"), query, listProblem("areas", page.offset));
   }
 
   /** Fetch the version of the deployed Routing API instance. */
@@ -180,17 +173,21 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 /**
  * Why `value` is not the documented page envelope of `/routes` or `/areas` —
- * `{ count, offset, totalCount, <key>: [object, …] }` with integer counts — or undefined
- * when it is. A proxy, captive portal or misconfigured `--base-url` answering 200 with
+ * `{ count, offset, totalCount, <key>: [object, …] }` with integer counts, starting at the
+ * offset `asked` (when one was sent) — or undefined when it is. A proxy, captive portal or misconfigured `--base-url` answering 200 with
  * `null`, `{}`, an array or a string would otherwise read as an answer (`count`
  * undefined, exit 0), and the skills treat `count: 0` as a valid "nothing registered".
  */
-function listProblem(key: "routes" | "areas"): (value: unknown) => string | undefined {
+function listProblem(key: "routes" | "areas", asked: number | undefined): (value: unknown) => string | undefined {
   return (value) => {
     if (!isObject(value)) return "not a JSON object";
     for (const field of ["count", "offset", "totalCount"]) {
       if (!Number.isInteger(value[field])) return `"${field}" is not an integer`;
     }
+    // The API states where its page starts (checked live: offset 50 answers "offset":50). A page
+    // starting elsewhere can't be put together with the others: an upstream that ignores the
+    // offset would hand out its first rows again as each next page.
+    if (asked !== undefined && value["offset"] !== asked) return `the page starts at offset ${String(value["offset"])}, not at the ${asked} asked`;
     const list = value[key];
     if (!Array.isArray(list)) return `"${key}" is not an array`;
     if (!list.every(isObject)) return `"${key}" holds a value that is not an object`;

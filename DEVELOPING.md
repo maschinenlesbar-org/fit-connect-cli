@@ -165,7 +165,10 @@ rather than silently disabling the limit. The CLI's `--timeout`, `--max-retries`
   request. They used to drop such a value as "not given", so `routes({ ars: "16",
   areaId: 940 })` answered for the whole Land.
 - Every method checks the answer's shape before returning it: `routes` / `areas` need
-  `{ count, offset, totalCount, routes|areas: [object, …] }` with integer counts, and each
+  `{ count, offset, totalCount, routes|areas: [object, …] }` with integer counts, starting
+  at the `offset` sent (the API echoes it; a page starting elsewhere is `the page starts at
+  offset 0, not at the 100 asked`, so an upstream ignoring `offset` can't repeat its rows
+  as the next page), and each
   row of its documented shape: an area's `id`, `name` and `type` strings; a route's
   `destinationId` a string and every field it gives (`null` counts as not given) of its type
   (texts strings, `contactPersons` an array of objects with string fields, the addresses and
