@@ -407,3 +407,27 @@ test("a city whose official name has an addition after a comma is the namesake: 
   const picked = await findArea(clientOf(routingApi({ areas: exact })), { place: "Musterstadt" });
   assert.equal(picked.status === "ok" ? picked.area.id : undefined, "1", "a place named exactly that comes first");
 });
+
+test("a place's districts are its own: districts of other places the words match are apart, each district naming the place it belongs to", async () => {
+  const muenchen = await findArea(clientOf(routingApi()), { place: "München" });
+  assert.equal(muenchen.status, "ok");
+  if (muenchen.status !== "ok") return;
+  assert.deepEqual(muenchen.districts, { count: 0, listed: [] }, "Bad Berka - OT München is no part of München");
+  assert.deepEqual(muenchen.otherDistricts?.listed.map((d) => [d.name, d.partOf]), [["Bad Berka - OT München", "Bad Berka"], ["Uebigau-Wahrenbrück - OT München", "Uebigau-Wahrenbrück"]]);
+  assert.equal(muenchen.otherDistricts?.count, 2);
+  assert.match(muenchen.notes.join(" "), /2 districts of other places contain the words \(Bad Berka - OT München; Uebigau-Wahrenbrück - OT München\): they are not parts of München/);
+  const hanau = await findArea(clientOf(routingApi()), { place: "Hanau" });
+  assert.equal(hanau.status === "ok" ? hanau.districts.count : 0, 12);
+  assert.equal(hanau.status === "ok" ? hanau.districts.listed[0]?.partOf : undefined, "Hanau, Brüder-Grimm-Stadt");
+  assert.equal("otherDistricts" in hanau, false);
+  const areas = [
+    { id: "1", name: "Hamburg, Freie und Hansestadt", type: "kreisfreie Stadt" },
+    { id: "2", name: "Hamburg, Freie und Hansestadt - OT HafenCity, OT 103", type: "Gemeindeteil" },
+    { id: "3", name: "Gnutz - OT Hamburg", type: "Gemeindeteil" },
+  ];
+  const hamburg = await findArea(clientOf(routingApi({ areas })), { place: "Hamburg" });
+  assert.deepEqual(hamburg.status === "ok" ? [hamburg.districts.count, hamburg.otherDistricts?.count] : [], [1, 1]);
+  const halle = await searchAreas(clientOf(routingApi()), { place: "Halle", limit: 3 });
+  assert.equal(halle.areas[1]?.partOf, "Halle (Saale)");
+  assert.equal("partOf" in (halle.areas[0] ?? {}), false, "a whole place belongs to none");
+});

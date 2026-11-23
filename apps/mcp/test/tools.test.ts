@@ -160,3 +160,13 @@ test("--max-pages: route pages are read on too, and the source names each", asyn
   assert.equal(content["source"], `${API}/{routes?leikaKey=${EXAMPLE_KEY}&areaId=940&limit=500,routes?leikaKey=${EXAMPLE_KEY}&areaId=940&offset=500&limit=500}`);
   await connection.close();
 });
+
+test("findArea München: no district of Bad Berka counted as München's; they come apart in otherDistricts, within the output schema", async () => {
+  const connection = await connect({ transport: routingApi() });
+  const result = await connection.call("findArea", { place: "München" });
+  const content = result.structuredContent ?? {};
+  assert.equal(content["status"], "ok", result.content[0]?.text);
+  assert.equal((content["districts"] as { count: number }).count, 0);
+  assert.deepEqual((content["otherDistricts"] as { listed: { partOf: string }[] }).listed.map((d) => d.partOf), ["Bad Berka", "Uebigau-Wahrenbrück"]);
+  await connection.close();
+});

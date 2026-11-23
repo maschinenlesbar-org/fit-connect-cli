@@ -91,7 +91,10 @@ distinction:
 
 Rules:
 - Lead with the whole-place entry and call it out; collapse the `Gemeindeteil` /
-  `Ortsteil` rows into a count unless the user asked for a specific district. If
+  `Ortsteil` rows into a count unless the user asked for a specific district. Count
+  only the districts named after that place (`<place name> - OT …`): the words also
+  match parts of other towns (`areas München` finds "Bad Berka - OT München", `areas
+  Berlin` "Klein Bennebek - OT Berlin"); name those apart, never as its districts. If
   several whole places share the name, list them and ask which one.
 - If nothing matches, say so and suggest a wildcard or the postal code.
 - If the user's end goal is "who is responsible for <service> here", hand the

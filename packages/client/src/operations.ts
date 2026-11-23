@@ -43,6 +43,18 @@ export function areaKind(type: string): AreaKind {
 /** An area entry with its kind. */
 export interface AreaEntry extends Area {
   kind: AreaKind;
+  /**
+   * For a district: the place it belongs to, its name before the first " - OT " ("Bad Berka" for
+   * "Bad Berka - OT München"). A search for München also finds parts of other towns named München.
+   */
+  partOf?: string;
+}
+
+/** An area row as an entry: its kind, and for a district named "<place> - OT …" the place. */
+function entryOf(area: Area): AreaEntry {
+  const kind = areaKind(area.type ?? "");
+  const cut = area.name.indexOf(" - OT ");
+  return { id: area.id, name: area.name, type: area.type, kind, ...(kind === "district" && cut > 0 ? { partOf: area.name.slice(0, cut).trim() } : {}) };
 }
 
 /** The input of {@link findArea}. */
@@ -98,7 +110,10 @@ export interface AreaGroups {
   places: AreaEntry[];
   /** Administrative groupings: Amt, Landkreis, Bundesland, … */
   groupings: AreaEntry[];
-  /** Districts of a place: how many, and the first 10 (all with allDistricts). */
+  /**
+   * Districts: how many, and the first 10 (all with allDistricts). With a whole place as the
+   * answer only its own (partOf its name); else every district the words matched.
+   */
   districts: { count: number; listed: AreaEntry[] };
   /** Rows the API found (totalCount). */
   total: number;
@@ -108,7 +123,14 @@ export interface AreaGroups {
 
 /** The answer of {@link findArea}. */
 export type AreaLookup =
-  | ({ status: "ok"; searched: AreaSearched; area: AreaEntry; notes: string[] } & AreaGroups)
+  | ({
+      status: "ok";
+      searched: AreaSearched;
+      area: AreaEntry;
+      /** With a whole place as the answer: the districts of other places the words matched, counted and listed as districts are. */
+      otherDistricts?: { count: number; listed: AreaEntry[] };
+      notes: string[];
+    } & AreaGroups)
   | ({ status: "ambiguous"; searched: AreaSearched; candidates: AreaEntry[]; reason: string; notes: string[] } & AreaGroups)
   | { status: "empty"; searched: AreaSearched; reason: string; notes: string[] };
 
@@ -127,7 +149,7 @@ const DISTRICTS_LISTED = 10;
  * part read holds: the place meant may come later. The areas carry no ags or ars.
  */
 export async function findArea(client: FitConnectClient, input: FindAreaInput): Promise<AreaLookup> {
-  const { searched, groups } = await searchGrouped(client, input);
+  const { searched, groups, allDistricts } = await searchGrouped(client, input);
   const notes = searchNotes(searched);
   if (groups.total === 0) {
     return {
@@ -171,7 +193,25 @@ export async function findArea(client: FitConnectClient, input: FindAreaInput): 
       notes.push(`${others.length} other ${others.length === 1 ? "place contains" : "places contain"} the words (${others.map((p) => p.name).join("; ")}): ask if the user meant one of them.`);
     }
     if (place !== undefined && groupings.length > 0) notes.push(`Also matched ${groupings.length === 1 ? "a grouping" : `${groupings.length} groupings`} (${groupings.map((g) => `${g.name}, ${g.type}`).join("; ")}): ask if the user meant that.`);
-    return { status: "ok", searched, area: one, ...groups, notes };
+    if (place === undefined) return { status: "ok", searched, area: one, ...groups, notes };
+    // A whole place: its districts are those named after it ("Hanau, Brüder-Grimm-Stadt - OT …");
+    // "Bad Berka - OT München" matched the word München but is a part of Bad Berka.
+    const own = (d: AreaEntry): boolean => d.partOf !== undefined && [fold(place.name), fold(place.name.split(",")[0] ?? "")].includes(fold(d.partOf));
+    const mine = allDistricts.filter(own);
+    const elsewhere = allDistricts.filter((d) => !own(d));
+    if (elsewhere.length > 0) {
+      const shown = elsewhere.slice(0, 3).map((d) => d.name).join("; ");
+      notes.push(`${elsewhere.length} ${elsewhere.length === 1 ? "district of another place contains" : "districts of other places contain"} the words (${shown}${elsewhere.length > 3 ? "; …" : ""}): they are not parts of ${place.name} (otherDistricts, each with the place it is partOf).`);
+    }
+    return {
+      status: "ok",
+      searched,
+      area: one,
+      ...groups,
+      districts: listedOf(mine, input.allDistricts),
+      ...(elsewhere.length > 0 ? { otherDistricts: listedOf(elsewhere, input.allDistricts) } : {}),
+      notes,
+    };
   }
   const candidates = places.length > 0 ? [...places, ...groupings] : groupings.length > 0 ? groupings : districts.listed;
   return {
@@ -190,7 +230,7 @@ export async function findArea(client: FitConnectClient, input: FindAreaInput): 
 }
 
 /** The area search, every row up to the API's page maximum, grouped by kind. */
-async function searchGrouped(client: FitConnectClient, input: FindAreaInput): Promise<{ searched: AreaSearched; groups: AreaGroups }> {
+async function searchGrouped(client: FitConnectClient, input: FindAreaInput): Promise<{ searched: AreaSearched; groups: AreaGroups; allDistricts: AreaEntry[] }> {
   const place = typeof input.place === "string" ? input.place.trim().normalize("NFC") : input.place;
   const { words, dropped } = areaSearchWords(place);
   const searched: AreaSearched = { place, words, dropped };
@@ -199,18 +239,24 @@ async function searchGrouped(client: FitConnectClient, input: FindAreaInput): Pr
     const page = await client.areas({ search: words, offset, limit: MAX_LIMIT });
     return { rows: page.areas, total: page.totalCount };
   });
-  const entries = answer.rows.map((area) => ({ id: area.id, name: area.name, type: area.type, kind: areaKind(area.type ?? "") }));
+  const entries = answer.rows.map(entryOf);
   const districts = entries.filter((e) => e.kind === "district");
   return {
     searched,
     groups: {
       places: entries.filter((e) => e.kind === "place" || e.kind === "other"),
       groupings: entries.filter((e) => e.kind === "grouping"),
-      districts: { count: districts.length, listed: input.allDistricts === true ? districts : districts.slice(0, DISTRICTS_LISTED) },
+      districts: listedOf(districts, input.allDistricts),
       total: answer.total,
       complete: answer.total <= entries.length,
     },
+    allDistricts: districts,
   };
+}
+
+/** Districts counted, the first 10 listed (all with `all`). */
+function listedOf(districts: AreaEntry[], all: boolean | undefined): { count: number; listed: AreaEntry[] } {
+  return { count: districts.length, listed: all === true ? districts : districts.slice(0, DISTRICTS_LISTED) };
 }
 
 /** What a model should say about how the search was made. */
@@ -250,7 +296,7 @@ export async function searchAreas(client: FitConnectClient, input: SearchAreasIn
   const searched: AreaSearched = { place, words, dropped };
   const offset = input.offset ?? 0;
   const answer = await client.areas({ search: words, offset, limit: input.limit });
-  const areas = answer.areas.map((area) => ({ id: area.id, name: area.name, type: area.type, kind: areaKind(area.type ?? "") }));
+  const areas = answer.areas.map(entryOf);
   const notes = searchNotes(searched);
   if (areas.length === 0) {
     const reason =
