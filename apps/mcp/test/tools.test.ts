@@ -189,3 +189,11 @@ test("the deadline's and the size cap's advice fit every tool: each option they 
     }
   }
 });
+
+test("searchAreas: the source is the request made, its offset included when the page starts at 0", async () => {
+  const transport = routingApi();
+  const connection = await connect({ transport });
+  const content = (await connection.call("searchAreas", { place: "Hanau" })).structuredContent ?? {};
+  assert.equal(content["source"], transport.last().url);
+  await connection.close();
+});

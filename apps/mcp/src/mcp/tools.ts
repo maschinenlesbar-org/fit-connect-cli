@@ -132,17 +132,6 @@ const cited = (_args: Record<string, unknown>, _base: string, answer: Record<str
   return paths.length === 1 ? (paths[0] as string) : `{${paths.join(",")}}`;
 };
 
-/** The request of one page of the area search. */
-const areaPath = (given: string | undefined, paging: { offset?: number | undefined; limit?: number | undefined }): string => {
-  let words: string[];
-  try {
-    words = areaSearchWords((given ?? "").trim().normalize("NFC")).words;
-  } catch {
-    words = [];
-  }
-  return `areas?${buildQueryString({ areaSearchexpression: words, offset: paging.offset, limit: paging.limit })}`;
-};
-
 const whereOf = (args: Record<string, unknown>): RouteWhere => ({
   leikaKey: str(args, "leikaKey") ?? "",
   place: str(args, "place"),
@@ -215,10 +204,10 @@ export const TOOLS: readonly ToolDefinition[] = [
       ["place"],
     ),
     outputSchema: output({ total: int, offset: int, areas: arr, nextOffset: int }),
-    source: (args) => areaPath(str(args, "place"), { offset: num(args, "offset"), limit: num(args, "limit") }),
+    source: cited,
     paged: (args) => ({ list: "areas", offset: num(args, "offset") ?? 0 }),
     async run(args, context) {
-      return { ...(await searchAreas(context.client, { place: str(args, "place") ?? "", offset: num(args, "offset"), limit: num(args, "limit") })) };
+      return recorded(context.client, (client) => searchAreas(client, { place: str(args, "place") ?? "", offset: num(args, "offset"), limit: num(args, "limit") }));
     },
   },
 ];
