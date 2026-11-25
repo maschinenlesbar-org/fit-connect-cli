@@ -489,8 +489,11 @@ seconds, ms under 1 s). Tests: `apps/cli/test/retry-log.test.ts`.
 
 **Custom transports.** The engine, not the transport, enforces the documented limits:
 every call runs under the `timeoutMs` deadline (the request carries an `AbortSignal`
-in `signal`, which the built-in transport honours and a `fetch` transport should pass
-on), and a body over `maxResponseBytes` is rejected after the fact (the built-in transport
+in `signal`, aborted with the timeout error as its reason, which the built-in transport
+honours and a `fetch` transport should pass on; the built-in transport stops with the
+signal's reason, and for a signal some other caller aborted (the MCP server's tool call: its
+deadline, a cancellation) it says "Request aborted by its caller before it finished", never a
+timeout it didn't have), and a body over `maxResponseBytes` is rejected after the fact (the built-in transport
 aborts as soon as the cap is passed, and joins the body's chunks as they arrive, every 1024
 chunks or 64 KiB, so its memory follows the bytes, not the number of chunks a server splits
 them into: a Buffer per one-byte chunk held about 210 bytes of heap). Headers are read in
